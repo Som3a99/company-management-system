@@ -1,0 +1,105 @@
+﻿@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in">
+        <div class="container-fluid px-4">
+            <h1>ERP Employee Management System</h1>
+            <p>Centralized platform for workforce operations, organizational structure, and business intelligence</p>
+        </div>
+    </div>
+
+    <div class="row g-4 animate-in">
+        <div class="col-lg-4 col-md-6">
+            <div class="card card-featured h-100" data-badge="Workforce & assignments">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h5 class="card-title">Employee Management</h5>
+                    <p class="card-text">Maintain comprehensive employee records, track assignments, and manage workforce data across your organization with precision.</p>
+                    <a asp-controller="Employee" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                        <span>Access Employees</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card card-featured h-100" data-badge="Structure & hierarchy">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </div>
+                    <h4 class="card-title">Department Management</h4>
+                    <p class="card-text mb-4">Define and organize your company's structure. Create departments, assign roles, and maintain the organizational hierarchy effectively.</p>
+                    <a asp-controller="Department" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                        <span>Access Departments</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M3 3v18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h5 class="card-title">Reports & Analytics</h5>
+                    <p class="card-text">Generate comprehensive insights and reports for workforce planning, performance tracking, and data-driven operational decisions.</p>
+                    <span class="badge-custom">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4 animate-in">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header-custom">
+                    Quick Stats Overview
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h3 class="text-primary-custom mb-1">0</h3>
+                            <p class="text-muted mb-0">Active Departments</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-primary-custom mb-1">0</h3>
+                            <p class="text-muted mb-0">Total Employees</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-primary-custom mb-1">0</h3>
+                            <p class="text-muted mb-0">Active Projects</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h3 class="text-primary-custom mb-1">100%</h3>
+                            <p class="text-muted mb-0">System Health</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

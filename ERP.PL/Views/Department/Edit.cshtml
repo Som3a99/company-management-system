@@ -1,0 +1,129 @@
+﻿@model Department
+
+@{
+    ViewData["Title"] = "Edit Department";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in">
+        <div class="container-fluid px-4">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <a asp-action="Index" class="btn btn-secondary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="mb-0">Edit Department</h1>
+                </div>
+            </div>
+            <p>Update department information and organizational details</p>
+        </div>
+    </div>
+
+    <div class="row animate-in">
+        <div class="col-lg-8 col-xl-6 mx-auto">
+            <div class="card">
+                <div class="card-header-custom d-flex justify-content-between align-items-center">
+                    <span>Department Information</span>
+                    <span class="table-code">ID: @Model.Id</span>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="Edit" method="post">
+                        <input type="hidden" asp-for="Id" />
+
+                        <div class="form-group">
+                            <label asp-for="DepartmentCode" class="form-label">
+                                Department Code
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="DepartmentCode" class="form-control" placeholder="e.g., ENG_001" />
+                            <span asp-validation-for="DepartmentCode" class="text-danger"></span>
+                            <small class="form-text text-muted mt-1 d-block">
+                                Format: Three uppercase letters, underscore, three digits (e.g., ENG_001, HR_001)
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="DepartmentName" class="form-label">
+                                Department Name
+                                <span class="text-danger">*</span>
+                            </label>
+                            <input asp-for="DepartmentName" class="form-control" placeholder="e.g., Engineering" />
+                            <span asp-validation-for="DepartmentName" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="CreatedAt" class="form-label">Created Date</label>
+                            <input asp-for="CreatedAt" class="form-control" type="date" />
+                            <span asp-validation-for="CreatedAt" class="text-danger"></span>
+                            <small class="form-text text-muted mt-1 d-block">
+                                Original creation date: @Model.CreatedAt.ToString("MMMM dd, yyyy")
+                            </small>
+                        </div>
+
+                        <div class="alert alert-info d-flex align-items-start gap-3 mt-4" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0; margin-top: 2px;">
+                                <circle cx="12" cy="12" r="10" stroke="#3b82f6" stroke-width="2" />
+                                <path d="M12 16v-4M12 8h.01" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <div style="color: #1e40af;">
+                                <strong style="display: block; margin-bottom: 4px;">Important Note</strong>
+                                <small>Changes to the department code may affect related records and assignments. Please verify all dependencies before saving.</small>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-success">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Save Changes
+                            </button>
+                            <a asp-action="Index" class="btn btn-secondary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                                Cancel
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger ms-auto">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                Delete Department
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header-custom">
+                    Change History
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-start gap-3 mb-3">
+                        <div class="badge-custom">Created</div>
+                        <div class="flex-grow-1">
+                            <p class="mb-1"><strong>Department Created</strong></p>
+                            <p class="text-muted small mb-0">@Model.CreatedAt.ToString("MMMM dd, yyyy 'at' h:mm tt")</p>
+                        </div>
+                    </div>
+                    <hr class="my-3">
+                    <p class="text-muted small mb-0 text-center">Additional change history will appear here as modifications are made</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

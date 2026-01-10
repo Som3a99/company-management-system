@@ -1,0 +1,268 @@
+﻿@model ERP.DAL.Models.Employee
+
+@{
+    ViewData["Title"] = "Add New Employee";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in">
+        <div class="container-fluid px-4">
+            <div class="d-flex align-items-center gap-3 mb-2">
+                <a asp-action="Index" class="btn btn-secondary btn-sm">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </a>
+                <div>
+                    <h1 class="mb-0">Add New Employee</h1>
+                </div>
+            </div>
+            <p>Enter employee information to add them to the workforce management system</p>
+        </div>
+    </div>
+
+    <div class="row animate-in">
+        <div class="col-xl-10 mx-auto">
+            <form asp-action="Create" method="post">
+                <div class="row g-4">
+                    <!-- Personal Information Card -->
+                    <div class="col-lg-8">
+                        <div class="card mb-4">
+                            <div class="card-header-custom d-flex align-items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                <span>Personal Information</span>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="FirstName" class="form-label">
+                                                First Name
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <input asp-for="FirstName" class="form-control" placeholder="John" />
+                                            <span asp-validation-for="FirstName" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="LastName" class="form-label">
+                                                Last Name
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <input asp-for="LastName" class="form-control" placeholder="Doe" />
+                                            <span asp-validation-for="LastName" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="Email" class="form-label">
+                                                Email Address
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                        <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                </span>
+                                                <input asp-for="Email" type="email" class="form-control" placeholder="john.doe@company.com" />
+                                            </div>
+                                            <span asp-validation-for="Email" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="PhoneNumber" class="form-label">
+                                                Phone Number
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                    </svg>
+                                                </span>
+                                                <input asp-for="PhoneNumber" class="form-control" placeholder="+1 (555) 123-4567" />
+                                            </div>
+                                            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Employment Details Card -->
+                        <div class="card">
+                            <div class="card-header-custom d-flex align-items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span>Employment Details</span>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="Postion" class="form-label">
+                                                Position / Job Title
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <input asp-for="Postion" class="form-control" placeholder="Software Engineer" />
+                                            <span asp-validation-for="Postion" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="HireDate" class="form-label">
+                                                Hire Date
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <input asp-for="HireDate" type="date" class="form-control" />
+                                            <span asp-validation-for="HireDate" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="Salary" class="form-label">
+                                                Annual Salary
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300); font-weight: 600;">
+                                                    $
+                                                </span>
+                                                <input asp-for="Salary" type="number" step="0.01" class="form-control" placeholder="75000.00" />
+                                            </div>
+                                            <span asp-validation-for="Salary" class="text-danger"></span>
+                                            <small class="form-text text-muted mt-1 d-block">
+                                                Enter the annual salary amount
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="CreatedAt" class="form-label">Record Created Date</label>
+                                            <input asp-for="CreatedAt" type="date" class="form-control" />
+                                            <span asp-validation-for="CreatedAt" class="text-danger"></span>
+                                            <small class="form-text text-muted mt-1 d-block">
+                                                Leave blank for today's date
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status & Summary Sidebar -->
+                    <div class="col-lg-4">
+                        <div class="card mb-4">
+                            <div class="card-header-custom d-flex align-items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                                    <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                                <span>Employee Status</span>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="form-group mb-4">
+                                    <label class="form-label d-flex align-items-center gap-2">
+                                        <input asp-for="IsActive" type="checkbox" checked style="width: 18px; height: 18px; cursor: pointer;" />
+                                        <span>Active Employee</span>
+                                    </label>
+                                    <small class="form-text text-muted d-block mt-2">
+                                        Check this box if the employee is currently active and working
+                                    </small>
+                                </div>
+
+                                <div class="alert alert-info d-flex align-items-start gap-2 mb-0" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 1rem;">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0; margin-top: 2px;">
+                                        <circle cx="12" cy="12" r="10" stroke="#3b82f6" stroke-width="2" />
+                                        <path d="M12 16v-4M12 8h.01" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" />
+                                    </svg>
+                                    <div style="color: #1e40af;">
+                                        <strong style="display: block; margin-bottom: 4px; font-size: 0.875rem;">Quick Tip</strong>
+                                        <small style="font-size: 0.8125rem;">New employees are typically set to Active status by default.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header-custom d-flex align-items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M9 11l3 3L22 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span>Required Fields</span>
+                            </div>
+                            <div class="card-body p-4">
+                                <p class="text-muted mb-3" style="font-size: 0.9375rem;">Please complete all required fields marked with <span class="text-danger">*</span></p>
+                                <ul class="text-muted mb-0" style="font-size: 0.875rem; padding-left: 1.25rem;">
+                                    <li>First Name & Last Name</li>
+                                    <li>Email Address</li>
+                                    <li>Phone Number</li>
+                                    <li>Position / Job Title</li>
+                                    <li>Hire Date</li>
+                                    <li>Annual Salary</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body p-4">
+                                <div class="d-flex gap-3 align-items-center flex-wrap">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <polyline points="7 3 7 8 15 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span>Create Employee</span>
+                                    </button>
+                                    <a asp-action="Index" class="btn btn-secondary btn-lg">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                        </svg>
+                                        <span>Cancel</span>
+                                    </a>
+                                    <button type="reset" class="btn btn-outline-secondary ms-auto">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <polyline points="1 4 1 10 7 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <polyline points="23 20 23 14 17 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        <span>Reset Form</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

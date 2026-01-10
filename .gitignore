@@ -1,0 +1,68 @@
+# =========================
+# Visual Studio / .NET
+# =========================
+.vs/
+bin/
+obj/
+[Bb]uild/
+[Tt]est[Rr]esults/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# ASP.NET Core Config
+# =========================
+appsettings.Development.json
+appsettings.Local.json
+appsettings.*.Local.json
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# OS Files
+# =========================
+Thumbs.db
+.DS_Store
+
+# =========================
+# Node / Frontend (if used later)
+# =========================
+node_modules/
+
+# =========================
+# Certificates & Secrets
+# =========================
+*.pfx
+*.cer
+*.key
+
+# =========================
+# JetBrains / Rider
+# =========================
+.idea/
+*.iml
+
+# =========================
+# Database / Backup Files
+# =========================
+*.db
+*.bak
+*.sqlite
+*.sql
+
+# =========================
+# Publish Output
+# =========================
+publish/
+
+# =========================
+# NuGet
+# =========================
+packages/
+*.nupkg
+.nuget/packages/

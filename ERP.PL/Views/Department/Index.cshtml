@@ -1,0 +1,97 @@
+﻿@model IEnumerable<ERP.DAL.Models.Department>
+
+@{
+    ViewData["Title"] = "Departments";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in">
+        <div class="container-fluid px-4">
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-3">
+                <div>
+                    <h1>Departments</h1>
+                    <p>Manage and organize your company's departmental structure</p>
+                </div>
+                <a asp-action="Create" class="btn btn-primary btn-primary-lg">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span>Create Department</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model != null && Model.Any())
+    {
+        <div class="table-container animate-in">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Department Code</th>
+                        <th>Department Name</th>
+                        <th>Created Date</th>
+                        <th class="text-center" style="width: 200px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var department in Model)
+                    {
+                        <tr>
+                            <td>
+                                <span class="table-code">@department.DepartmentCode</span>
+                            </td>
+                            <td>
+                                <strong>@department.DepartmentName</strong>
+                            </td>
+                            <td>
+                                <span class="text-muted">@department.CreatedAt.ToString("MMM dd, yyyy")</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="d-inline-flex gap-2">
+                                    <a asp-action="Edit" asp-route-id="@department.Id" class="btn btn-sm btn-outline-secondary" title="Edit Department">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        Edit
+                                    </a>
+                                    <a asp-action="Delete" asp-route-id="@department.Id" class="btn btn-sm btn-danger" title="Delete Department">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                        Delete
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="card animate-in">
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                    </svg>
+                </div>
+                <h5>No Departments Found</h5>
+                <p>Get started by creating your first department to establish your organizational structure.</p>
+                <a asp-action="Create" class="btn btn-primary btn-primary-lg">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <span>Create First Department</span>
+                </a>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,27 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# C# files
+*.cs text diff=csharp
+
+# Razor files
+*.cshtml text
+
+# Config files
+*.json text
+*.xml text
+*.yml text
+
+# Scripts
+*.ps1 text
+*.sh text
+
+# Images & binaries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.dll binary
+*.exe binary
