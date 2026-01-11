@@ -13,23 +13,23 @@ namespace ERP.BLL.Repositories
         {
             _context=context;
         }
-        public IEnumerable<T> GetAll()
+        public virtual IEnumerable<T> GetAll()
             => _context.Set<T>().AsNoTracking().ToList();
-        public T? GetById(int id)
+        public virtual T? GetById(int id)
             => _context.Set<T>().Find(id);
 
-        public int Add(T entity)
+        public virtual int Add(T entity)
         {
             _context.Add(entity);
             return _context.SaveChanges();
         }
-        public int Update(T entity)
+        public virtual int Update(T entity)
         {
             _context.Update(entity);
             return _context.SaveChanges();
         }
 
-        public int Delete(int id)
+        public virtual int Delete(int id)
         {
             var entity = _context.Set<T>().Find(id);
             if (entity != null)

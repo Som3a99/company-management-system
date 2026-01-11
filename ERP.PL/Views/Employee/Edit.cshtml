@@ -44,7 +44,7 @@
                                     </div>
                                     <div>
                                         <h4 class="mb-1">@Model.FirstName @Model.LastName</h4>
-                                        <p class="mb-1 opacity-75">@Model.Postion</p>
+                                        <p class="mb-1 opacity-75">@Model.Position</p>
                                         <div class="d-flex gap-3 mt-2">
                                             <span class="badge" style="background: rgba(255, 255, 255, 0.2); font-weight: 500;">
                                                 ID: @Model.Id
@@ -156,14 +156,39 @@
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label asp-for="Postion" class="form-label">
+                                            <label asp-for="DepartmentId" class="form-label">
+                                                Department
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                        <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                                        <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                                        <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                                        <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                                                    </svg>
+                                                </span>
+                                                <select asp-for="DepartmentId" class="form-control" asp-items="ViewBag.Departments">
+                                                    <option value="">-- Select Department --</option>
+                                                </select>
+                                            </div>
+                                            <span asp-validation-for="DepartmentId" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="Position" class="form-label">
                                                 Position / Job Title
                                                 <span class="text-danger">*</span>
                                             </label>
-                                            <input asp-for="Postion" class="form-control" />
-                                            <span asp-validation-for="Postion" class="text-danger"></span>
+                                            <input asp-for="Position" class="form-control" />
+                                            <span asp-validation-for="Position" class="text-danger"></span>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label asp-for="HireDate" class="form-label">
@@ -177,9 +202,6 @@
                                             </small>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label asp-for="Salary" class="form-label">
@@ -195,6 +217,9 @@
                                             <span asp-validation-for="Salary" class="text-danger"></span>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label asp-for="CreatedAt" class="form-label">Record Created Date</label>
@@ -270,6 +295,19 @@
                                 <div class="mb-3 pb-3 border-bottom">
                                     <small class="text-muted d-block mb-1">Employee ID</small>
                                     <span class="table-code">@Model.Id</span>
+                                </div>
+                                <div class="mb-3 pb-3 border-bottom">
+                                    <small class="text-muted d-block mb-1">Current Department</small>
+                                    @if (Model.Department != null)
+                                    {
+                                        <span class="table-code" style="font-size: 0.75rem;">@Model.Department.DepartmentCode</span>
+                                        <br>
+                                        <strong>@Model.Department.DepartmentName</strong>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not Assigned</span>
+                                    }
                                 </div>
                                 <div class="mb-3 pb-3 border-bottom">
                                     <small class="text-muted d-block mb-1">Hire Date</small>

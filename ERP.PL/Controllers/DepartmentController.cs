@@ -84,6 +84,18 @@ namespace ERP.PL.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        // New action to view all employees in a specific department
+        [HttpGet]
+        public IActionResult DepartmentEmployees(int id)
+        {
+            var department = _departmentRepository.GetById(id);
+
+            if (department == null)
+                return NotFound();
+
+            return View(department);
+        }
+
 
     }
 }

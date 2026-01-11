@@ -7,5 +7,9 @@
         public string DepartmentName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         #endregion
+
+        #region Navigation Properties
+        public ICollection<Employee> Employees { get; set; } = new HashSet<Employee>();
+        #endregion
     }
 }

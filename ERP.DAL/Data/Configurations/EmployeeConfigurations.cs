@@ -31,7 +31,7 @@ namespace ERP.DAL.Data.Configurations
                 .IsRequired()
                 .HasMaxLength(15);
 
-            builder.Property(e => e.Postion)
+            builder.Property(e => e.Position)
                 .IsRequired()
                 .HasMaxLength(100);
 

@@ -30,13 +30,17 @@
                     <tr>
                         <th>Department Code</th>
                         <th>Department Name</th>
+                        <th>Employees</th>
                         <th>Created Date</th>
-                        <th class="text-center" style="width: 200px;">Actions</th>
+                        <th class="text-center" style="width: 250px;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var department in Model)
                     {
+                        var employeeCount = department.Employees?.Count(e => !e.IsDeleted) ?? 0;
+                        var activeCount = department.Employees?.Count(e => e.IsActive && !e.IsDeleted) ?? 0;
+
                         <tr>
                             <td>
                                 <span class="table-code">@department.DepartmentCode</span>
@@ -45,10 +49,41 @@
                                 <strong>@department.DepartmentName</strong>
                             </td>
                             <td>
+                                @if (employeeCount > 0)
+                                {
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge" style="background-color: #dbeafe; color: #1e40af; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500;">
+                                            @employeeCount Total
+                                        </span>
+                                        @if (activeCount > 0)
+                                        {
+                                            <span class="badge" style="background-color: #dcfce7; color: #166534; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500;">
+                                                @activeCount Active
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">No employees</span>
+                                }
+                            </td>
+                            <td>
                                 <span class="text-muted">@department.CreatedAt.ToString("MMM dd, yyyy")</span>
                             </td>
                             <td class="text-center">
                                 <div class="d-inline-flex gap-2">
+                                    @if (employeeCount > 0)
+                                    {
+                                        <a asp-action="DepartmentEmployees" asp-route-id="@department.Id" class="btn btn-sm btn-outline-primary" title="View Employees">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" />
+                                                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            Employees
+                                        </a>
+                                    }
                                     <a asp-action="Edit" asp-route-id="@department.Id" class="btn btn-sm btn-outline-secondary" title="Edit Department">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -59,7 +94,7 @@
                                     <a asp-action="Delete" asp-route-id="@department.Id" class="btn btn-sm btn-danger" title="Delete Department">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M19 6v14a2 2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
                                         Delete
                                     </a>

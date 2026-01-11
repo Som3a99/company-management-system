@@ -1,16 +1,20 @@
 ﻿using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ERP.PL.Controllers
 {
     public class EmployeeController : Controller
     {
         private readonly IEmployeeRepository _employeeRepository;
+        private readonly IDepartmentRepository _departmentRepository;
 
-        public EmployeeController(IEmployeeRepository employeeRepository)
+
+        public EmployeeController(IEmployeeRepository employeeRepository, IDepartmentRepository departmentRepository)
         {
             _employeeRepository=employeeRepository;
+            _departmentRepository=departmentRepository;
         }
 
         [HttpGet]
@@ -23,6 +27,7 @@ namespace ERP.PL.Controllers
         [HttpGet]
         public IActionResult Create()
         {
+            LoadDepartments();
             return View();
         }
 
@@ -34,6 +39,7 @@ namespace ERP.PL.Controllers
                 _employeeRepository.Add(employee);
                 return RedirectToAction("Index");
             }
+            LoadDepartments();
             return View(employee);
         }
 
@@ -45,6 +51,7 @@ namespace ERP.PL.Controllers
             {
                 return NotFound();
             }
+            LoadDepartments();
             return View(employee);
         }
 
@@ -56,6 +63,7 @@ namespace ERP.PL.Controllers
                 _employeeRepository.Update(employee);
                 return RedirectToAction("Index");
             }
+            LoadDepartments();
             return View(employee);
         }
 
@@ -75,6 +83,21 @@ namespace ERP.PL.Controllers
         {
             _employeeRepository.Delete(id);
             return RedirectToAction("Index");
+        }
+
+        // Helper method to load departments for dropdown
+        private void LoadDepartments()
+        {
+            var departments = _departmentRepository.GetAll();
+            ViewBag.Departments = new SelectList(
+                departments.Select(d => new
+                {
+                    Id = d.Id,
+                    DisplayText = $"{d.DepartmentCode} - {d.DepartmentName}"
+                }),
+                "Id",
+                "DisplayText"
+            );
         }
     }
 }
