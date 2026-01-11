@@ -1,5 +1,7 @@
-﻿using ERP.BLL.Interfaces;
+﻿using AutoMapper;
+using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
+using ERP.PL.ViewModels.Employee;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -9,19 +11,22 @@ namespace ERP.PL.Controllers
     {
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IDepartmentRepository _departmentRepository;
+        private readonly IMapper _mapper;
 
 
-        public EmployeeController(IEmployeeRepository employeeRepository, IDepartmentRepository departmentRepository)
+        public EmployeeController(IEmployeeRepository employeeRepository, IDepartmentRepository departmentRepository, IMapper mapper)
         {
             _employeeRepository=employeeRepository;
             _departmentRepository=departmentRepository;
+            _mapper=mapper;
         }
 
         [HttpGet]
         public IActionResult Index()
         {
             var employees = _employeeRepository.GetAll();
-            return View(employees);
+            var employeeViewModels = _mapper.Map<IEnumerable<EmployeeViewModel>>(employees);
+            return View(employeeViewModels);
         }
 
         [HttpGet]
@@ -32,11 +37,13 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(Employee employee)
+        [ValidateAntiForgeryToken]
+        public IActionResult Create(EmployeeViewModel employee)
         {
             if (ModelState.IsValid)
             {
-                _employeeRepository.Add(employee);
+                var mappedEmployee = _mapper.Map<Employee>(employee);
+                _employeeRepository.Add(mappedEmployee);
                 return RedirectToAction("Index");
             }
             LoadDepartments();
@@ -51,19 +58,23 @@ namespace ERP.PL.Controllers
             {
                 return NotFound();
             }
-            LoadDepartments();
-            return View(employee);
+            LoadDepartments(employee.DepartmentId);
+
+            var employeeViewModel = _mapper.Map<EmployeeViewModel>(employee);
+            return View(employeeViewModel);
         }
 
         [HttpPost]
-        public IActionResult Edit(Employee employee)
+        [ValidateAntiForgeryToken]
+        public IActionResult Edit(EmployeeViewModel employee)
         {
             if (ModelState.IsValid)
             {
-                _employeeRepository.Update(employee);
+                var mappedEmployee = _mapper.Map<Employee>(employee);
+                _employeeRepository.Update(mappedEmployee);
                 return RedirectToAction("Index");
             }
-            LoadDepartments();
+            LoadDepartments(employee.DepartmentId);
             return View(employee);
         }
 
@@ -75,10 +86,12 @@ namespace ERP.PL.Controllers
             {
                 return NotFound();
             }
-            return View(employee);
+            var employeeViewModel = _mapper.Map<EmployeeViewModel>(employee);
+            return View(employeeViewModel);
         }
 
         [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
         public IActionResult DeleteConfirmed(int id)
         {
             _employeeRepository.Delete(id);
@@ -86,7 +99,7 @@ namespace ERP.PL.Controllers
         }
 
         // Helper method to load departments for dropdown
-        private void LoadDepartments()
+        private void LoadDepartments(int? selectedDepartmentId = null)
         {
             var departments = _departmentRepository.GetAll();
             ViewBag.Departments = new SelectList(
@@ -96,7 +109,8 @@ namespace ERP.PL.Controllers
                     DisplayText = $"{d.DepartmentCode} - {d.DepartmentName}"
                 }),
                 "Id",
-                "DisplayText"
+                "DisplayText",
+                selectedDepartmentId
             );
         }
     }

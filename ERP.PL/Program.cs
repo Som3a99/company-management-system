@@ -1,8 +1,10 @@
 using ERP.BLL.Interfaces;
 using ERP.BLL.Repositories;
 using ERP.DAL.Data.Contexts;
+using ERP.PL.Mapping.Employee;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.DependencyInjection;
+using AutoMapper;
 namespace ERP.PL
 {
     public class Program
@@ -22,6 +24,8 @@ namespace ERP.PL
 
             builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
             builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
+            builder.Services.AddAutoMapper(cfg => { }, typeof(EmployeeProfile).Assembly);
+
             #endregion
 
             var app = builder.Build();

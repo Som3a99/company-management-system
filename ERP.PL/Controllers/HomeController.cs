@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using ERP.PL.Models;
+using ERP.PL.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.PL.Controllers

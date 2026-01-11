@@ -1,5 +1,7 @@
-﻿using ERP.BLL.Interfaces;
+﻿using AutoMapper;
+using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
+using ERP.PL.ViewModels.Department;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.PL.Controllers
@@ -7,17 +9,20 @@ namespace ERP.PL.Controllers
     public class DepartmentController : Controller
     {
         private readonly IDepartmentRepository _departmentRepository;
+        private readonly IMapper _mapper;
 
-        public DepartmentController(IDepartmentRepository departmentRepository)
+        public DepartmentController(IDepartmentRepository departmentRepository, IMapper mapper)
         {
             _departmentRepository = departmentRepository;
+            _mapper=mapper;
         }
 
         [HttpGet]
         public IActionResult Index()
         {
             var departments = _departmentRepository.GetAll();
-            return View(departments);
+            var departmentViewModels = _mapper.Map<IEnumerable<DepartmentViewModel>>(departments);
+            return View(departmentViewModels);
         }
 
         [HttpGet]
@@ -27,11 +32,12 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
-        public IActionResult Create(Department department)
+        public IActionResult Create(DepartmentViewModel department)
         {
             if (ModelState.IsValid)
             {
-                _departmentRepository.Add(department);
+                var mappedDepartment = _mapper.Map<Department>(department);
+                _departmentRepository.Add(mappedDepartment);
                 return RedirectToAction("Index");
             }
             return View(department);
@@ -45,16 +51,18 @@ namespace ERP.PL.Controllers
             {
                 return NotFound();
             }
-            return View(department);
+            var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
+            return View(departmentViewModel);
         }
 
         [HttpPost]
 
-        public IActionResult Edit(Department department)
+        public IActionResult Edit(DepartmentViewModel department)
         {
             if (ModelState.IsValid)
             {
-                _departmentRepository.Update(department);
+                var mappedDepartment = _mapper.Map<Department>(department);
+                _departmentRepository.Update(mappedDepartment);
                 return RedirectToAction("Index");
             }
             return View(department);
@@ -68,8 +76,8 @@ namespace ERP.PL.Controllers
 
             if (department == null)
                 return NotFound();
-
-            return View(department);
+            var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
+            return View(departmentViewModel);
         }
 
         [HttpPost, ActionName("Delete")]
@@ -93,9 +101,9 @@ namespace ERP.PL.Controllers
             if (department == null)
                 return NotFound();
 
-            return View(department);
+            var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
+
+            return View(departmentViewModel);
         }
-
-
     }
 }
