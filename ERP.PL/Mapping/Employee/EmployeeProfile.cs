@@ -7,7 +7,13 @@ namespace ERP.PL.Mapping.Employee
     {
         public EmployeeProfile()
         {
-            CreateMap<DAL.Models.Employee, EmployeeViewModel>().ReverseMap();
+            // Map from Entity to ViewModel (for display)
+            CreateMap<DAL.Models.Employee, EmployeeViewModel>();
+
+            // Map from ViewModel to Entity (for updates)
+            CreateMap<EmployeeViewModel, DAL.Models.Employee>()
+                .ForMember(dest => dest.ImageUrl, opt => opt.Ignore())
+                .ForMember(dest => dest.Department, opt => opt.Ignore());
         }
     }
 }

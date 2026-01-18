@@ -147,6 +147,7 @@
             <table class="table table-hover mb-0" id="employeeTable">
                 <thead>
                     <tr>
+                        <th style="width: 60px;">Photo</th>
                         <th>ID</th>
                         <th>Name</th>
                         <th>Department</th>
@@ -161,7 +162,16 @@
                 <tbody>
                     @foreach (var employee in Model.Where(e => !e.IsDeleted))
                     {
+                        var imageUrl = !string.IsNullOrEmpty(employee.ImageUrl)
+                        ? $"/uploads/images/{employee.ImageUrl}"
+                        : "/uploads/images/avatar-user.png";
+
                         <tr data-status="@(employee.IsActive ? "active" : "inactive")">
+                            <td>
+                                <img src="@imageUrl"
+                                     alt="@employee.FirstName @employee.LastName"
+                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200);" />
+                            </td>
                             <td>
                                 <span class="table-code">@employee.Id</span>
                             </td>
@@ -279,10 +289,10 @@
             const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
 
             for (let row of rows) {
-                const name = row.cells[1].textContent.toLowerCase();
-                const department = row.cells[2].textContent.toLowerCase();
-                const position = row.cells[3].textContent.toLowerCase();
-                const contact = row.cells[4].textContent.toLowerCase();
+                const name = row.cells[2].textContent.toLowerCase();
+                const department = row.cells[3].textContent.toLowerCase();
+                const position = row.cells[4].textContent.toLowerCase();
+                const contact = row.cells[5].textContent.toLowerCase();
 
                 const matchesSearch = name.includes(searchTerm) ||
                                     department.includes(searchTerm) ||

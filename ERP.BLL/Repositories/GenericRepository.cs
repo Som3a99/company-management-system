@@ -16,28 +16,24 @@ namespace ERP.BLL.Repositories
         public virtual IEnumerable<T> GetAll()
             => _context.Set<T>().AsNoTracking().ToList();
         public virtual T? GetById(int id)
-            => _context.Set<T>().Find(id);
+            => _context.Set<T>().AsNoTracking().FirstOrDefault(e => e.Id == id);
 
-        public virtual int Add(T entity)
+        public virtual void Add(T entity)
         {
             _context.Add(entity);
-            return _context.SaveChanges();
         }
-        public virtual int Update(T entity)
+        public virtual void Update(T entity)
         {
             _context.Update(entity);
-            return _context.SaveChanges();
         }
 
-        public virtual int Delete(int id)
+        public virtual void Delete(int id)
         {
             var entity = _context.Set<T>().Find(id);
             if (entity != null)
             {
                 _context.Set<T>().Remove(entity);
-                return _context.SaveChanges();
             }
-            return 0;
         }
     }
 }

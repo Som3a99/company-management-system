@@ -6,8 +6,8 @@ namespace ERP.BLL.Interfaces
     {
         IEnumerable<T> GetAll();
         T? GetById(int id);
-        int Add(T entity);
-        int Update(T entity);
-        int Delete(int id);
+        void Add(T entity);
+        void Update(T entity);
+        void Delete(int id);
     }
 }

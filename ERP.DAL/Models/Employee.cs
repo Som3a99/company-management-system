@@ -1,5 +1,10 @@
 ﻿namespace ERP.DAL.Models
 {
+    public enum Gender
+    {
+        Male = 1,
+        Female = 2,
+    }
     public class Employee : Base
     {
         #region Properties
@@ -13,6 +18,8 @@
         public bool IsActive { get; set; }
         public bool IsDeleted { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string ImageUrl { get; set; } = null!;
+        public Gender Gender { get; set; }
         #endregion
 
         #region Navigational Property

@@ -42,6 +42,13 @@ namespace ERP.PL.ViewModels.Employee
         [Display( Name = "Created At")]
         public DateTime CreatedAt { get; set; }
 
+        public IFormFile? Image { get; set; }
+
+        public string? ImageUrl { get; set; }
+
+        [Required]
+        public Gender Gender { get; set; }
+
         [Required]
         public int DepartmentId { get; set; }
 

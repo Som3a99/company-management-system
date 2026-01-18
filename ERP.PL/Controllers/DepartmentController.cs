@@ -8,19 +8,20 @@ namespace ERP.PL.Controllers
 {
     public class DepartmentController : Controller
     {
-        private readonly IDepartmentRepository _departmentRepository;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public DepartmentController(IDepartmentRepository departmentRepository, IMapper mapper)
+        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork)
         {
-            _departmentRepository = departmentRepository;
+
             _mapper=mapper;
+            _unitOfWork=unitOfWork;
         }
 
         [HttpGet]
         public IActionResult Index()
         {
-            var departments = _departmentRepository.GetAll();
+            var departments = _unitOfWork.DepartmentRepository.GetAll();
             var departmentViewModels = _mapper.Map<IEnumerable<DepartmentViewModel>>(departments);
             return View(departmentViewModels);
         }
@@ -32,13 +33,15 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public IActionResult Create(DepartmentViewModel department)
         {
             if (ModelState.IsValid)
             {
                 var mappedDepartment = _mapper.Map<Department>(department);
-                _departmentRepository.Add(mappedDepartment);
-                return RedirectToAction("Index");
+                _unitOfWork.DepartmentRepository.Add(mappedDepartment);
+                _unitOfWork.Complete();
+                return RedirectToAction(nameof(Index));
             }
             return View(department);
         }
@@ -46,7 +49,7 @@ namespace ERP.PL.Controllers
         [HttpGet]
         public IActionResult Edit(int id)
         {
-            var department = _departmentRepository.GetById(id);
+            var department = _unitOfWork.DepartmentRepository.GetById(id);
             if (department == null)
             {
                 return NotFound();
@@ -62,8 +65,9 @@ namespace ERP.PL.Controllers
             if (ModelState.IsValid)
             {
                 var mappedDepartment = _mapper.Map<Department>(department);
-                _departmentRepository.Update(mappedDepartment);
-                return RedirectToAction("Index");
+                _unitOfWork.DepartmentRepository.Update(mappedDepartment);
+                _unitOfWork.Complete();
+                return RedirectToAction(nameof(Index));
             }
             return View(department);
 
@@ -72,7 +76,7 @@ namespace ERP.PL.Controllers
         [HttpGet]
         public IActionResult Delete(int id)
         {
-            var department = _departmentRepository.GetById(id);
+            var department = _unitOfWork.DepartmentRepository.GetById(id);
 
             if (department == null)
                 return NotFound();
@@ -83,12 +87,13 @@ namespace ERP.PL.Controllers
         [HttpPost, ActionName("Delete")]
         public IActionResult DeleteConfirmed(int id)
         {
-            var department = _departmentRepository.GetById(id);
+            var department = _unitOfWork.DepartmentRepository.GetById(id);
 
             if (department == null)
                 return NotFound();
 
-            _departmentRepository.Delete(id);
+            _unitOfWork.DepartmentRepository.Delete(id);
+            _unitOfWork.Complete();
             return RedirectToAction(nameof(Index));
         }
 
@@ -96,7 +101,7 @@ namespace ERP.PL.Controllers
         [HttpGet]
         public IActionResult DepartmentEmployees(int id)
         {
-            var department = _departmentRepository.GetById(id);
+            var department = _unitOfWork.DepartmentRepository.GetById(id);
 
             if (department == null)
                 return NotFound();

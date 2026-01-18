@@ -27,5 +27,16 @@ namespace ERP.BLL.Repositories
                 .Include(e => e.Department)
                 .FirstOrDefault(e => e.Id == id && !e.IsDeleted);
         }
+
+        // Override Delete to implement soft delete
+        public override void Delete(int id)
+        {
+            var employee = _context.Employees.Find(id);
+            if (employee != null)
+            {
+                employee.IsDeleted = true;
+                _context.Update(employee);
+            }
+        }
     }
 }

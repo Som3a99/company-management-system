@@ -23,7 +23,7 @@
 
     <div class="row animate-in">
         <div class="col-xl-10 mx-auto">
-            <form asp-action="Create" method="post">
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
                 <div class="row g-4">
                     <!-- Personal Information Card -->
                     <div class="col-lg-8">
@@ -93,6 +93,21 @@
                                                 <input asp-for="PhoneNumber" class="form-control" placeholder="+1 (555) 123-4567" />
                                             </div>
                                             <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label asp-for="Gender" class="form-label">
+                                                Gender
+                                                <span class="text-danger">*</span>
+                                            </label>
+                                            <select asp-for="Gender" class="form-control" asp-items="Html.GetEnumSelectList<Gender>()">
+                                                <option value="">-- Select Gender --</option>
+                                            </select>
+                                            <span asp-validation-for="Gender" class="text-danger"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -191,8 +206,40 @@
                         </div>
                     </div>
 
-                    <!-- Status & Summary Sidebar -->
+                    <!-- Status & Image Sidebar -->
                     <div class="col-lg-4">
+                        <!-- Profile Image Upload Card -->
+                        <div class="card mb-4">
+                            <div class="card-header-custom d-flex align-items-center gap-2">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2" />
+                                    <polyline points="21 15 16 10 5 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                <span>Profile Image</span>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="text-center mb-3">
+                                    <div class="mb-3" style="position: relative; display: inline-block;">
+                                        <img id="imagePreview"
+                                             src="~/uploads/images/avatar-user.png"
+                                             alt="Employee Preview"
+                                             style="width: 150px; height: 150px; object-fit: cover; border-radius: 50%; border: 3px solid var(--gray-200);" />
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label asp-for="Image" class="form-label">Upload Photo</label>
+                                    <input asp-for="Image" type="file" class="form-control" accept="image/*" onchange="previewImage(event)" />
+                                    <span asp-validation-for="Image" class="text-danger"></span>
+                                    <small class="form-text text-muted mt-2 d-block">
+                                        Supported formats: JPG, PNG, GIF, BMP<br />
+                                        Maximum size: 5 MB<br />
+                                        If no image is uploaded, a default avatar will be assigned based on gender.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="card mb-4">
                             <div class="card-header-custom d-flex align-items-center gap-2">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -239,6 +286,7 @@
                                     <li>First Name & Last Name</li>
                                     <li>Email Address</li>
                                     <li>Phone Number</li>
+                                    <li>Gender</li>
                                     <li>Department Assignment</li>
                                     <li>Position / Job Title</li>
                                     <li>Hire Date</li>
@@ -269,7 +317,7 @@
                                         </svg>
                                         <span>Cancel</span>
                                     </a>
-                                    <button type="reset" class="btn btn-outline-secondary ms-auto">
+                                    <button type="reset" class="btn btn-outline-secondary ms-auto" onclick="resetImagePreview()">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <polyline points="1 4 1 10 7 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                             <polyline points="23 20 23 14 17 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -291,4 +339,20 @@
     @{
         await Html.RenderPartialAsync("_ValidationScriptsPartial");
     }
+    <script>
+        function previewImage(event) {
+            const reader = new FileReader();
+            reader.onload = function() {
+                const preview = document.getElementById('imagePreview');
+                preview.src = reader.result;
+            };
+            if (event.target.files[0]) {
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        }
+
+        function resetImagePreview() {
+            document.getElementById('imagePreview').src = '/uploads/images/avatar-user.png';
+        }
+    </script>
 }
