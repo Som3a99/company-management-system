@@ -2,10 +2,10 @@
 
 namespace ERP.PL.Helpers
 {
-    public static class DocumentSettings
+    public class DocumentSettings
     {
         // Image Upload Settings
-        public const int MaxImageUploadSizeInBytes = 5 * 1024 * 1024; // 5 MB
+        public const int MaxImageUploadSizeInBytes = 10 * 1024 * 1024; // 10 MB
         public static readonly string[] AllowedImageExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".bmp" };
         public static readonly string[] AllowedImageMimeTypes = { "image/jpeg", "image/png", "image/gif", "image/bmp" };
 
@@ -13,7 +13,16 @@ namespace ERP.PL.Helpers
         public const string DefaultMaleAvatar = "avatar-male.png";
         public const string DefaultFemaleAvatar = "avatar-female.png";
         public const string DefaultUserAvatar = "avatar-user.png";
-        public static string UploadImagePath(IFormFile file, string folderName)
+
+        // Refactor to use IwebHostEnvironment in future if needed
+        private readonly IWebHostEnvironment _env;
+
+        public DocumentSettings(IWebHostEnvironment env)
+        {
+            _env=env;
+        }
+
+        public async Task<string> UploadImagePath(IFormFile file, string folderName)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("Invalid file");
@@ -29,8 +38,7 @@ namespace ERP.PL.Helpers
                 throw new ArgumentException("Invalid MIME type");
 
             var uploadsRootFolder = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "wwwroot",
+                _env.WebRootPath,
                 "uploads",
                 folderName
             );
@@ -42,20 +50,19 @@ namespace ERP.PL.Helpers
             var filePath = Path.Combine(uploadsRootFolder, uniqueFileName);
 
             using var stream = new FileStream(filePath, FileMode.Create);
-            file.CopyTo(stream);
+            await file.CopyToAsync(stream);
 
             return uniqueFileName; // store only filename in DB
         }
 
 
-        public static void DeleteImage(string fileName, string folderName)
+        public void DeleteImage(string fileName, string folderName)
         {
             if (string.IsNullOrWhiteSpace(fileName))
                 return;
 
             string filePath = Path.Combine(
-                Directory.GetCurrentDirectory(),
-                "wwwroot",
+                _env.WebRootPath,
                 "uploads",
                 folderName,
                 fileName
@@ -65,7 +72,7 @@ namespace ERP.PL.Helpers
                 File.Delete(filePath);
         }
 
-        public static string GetDefaultAvatarByGender(Gender gender)
+        public string GetDefaultAvatarByGender(Gender gender)
         {
             return gender switch
             {
@@ -75,7 +82,7 @@ namespace ERP.PL.Helpers
             };
         }
 
-        public static bool IsDefaultAvatar(string imageUrl)
+        public bool IsDefaultAvatar(string imageUrl)
         {
             if (string.IsNullOrEmpty(imageUrl))
                 return false; // Defensive check (should never happen)

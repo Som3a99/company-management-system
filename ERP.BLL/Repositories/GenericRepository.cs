@@ -13,14 +13,18 @@ namespace ERP.BLL.Repositories
         {
             _context=context;
         }
-        public virtual IEnumerable<T> GetAll()
-            => _context.Set<T>().AsNoTracking().ToList();
-        public virtual T? GetById(int id)
-            => _context.Set<T>().AsNoTracking().FirstOrDefault(e => e.Id == id);
+        public virtual async Task<IEnumerable<T>> GetAllAsync()
+            => await _context.Set<T>()
+                             .AsNoTracking()
+                             .ToListAsync();
+        public virtual async Task<T?> GetByIdAsync(int id)
+            => await _context.Set<T>()
+                             .AsNoTracking()
+                             .FirstOrDefaultAsync(e => e.Id == id);
 
-        public virtual void Add(T entity)
+        public virtual async Task AddAsync(T entity)
         {
-            _context.Add(entity);
+           await _context.AddAsync(entity);
         }
         public virtual void Update(T entity)
         {

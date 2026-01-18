@@ -12,20 +12,20 @@ namespace ERP.BLL.Repositories
         }
 
         // Override GetAll to include Department navigation property
-        public override IEnumerable<Employee> GetAll()
+        public override async Task<IEnumerable<Employee>> GetAllAsync()
         {
-            return _context.Employees
+            return await _context.Employees
                 .Include(e => e.Department)
                 .Where(e => !e.IsDeleted)
-                .ToList();
+                .ToListAsync();
         }
 
         // Override GetById to include Department navigation property
-        public override Employee? GetById(int id)
+        public override async Task<Employee?> GetByIdAsync(int id)
         {
-            return _context.Employees
+            return await _context.Employees
                 .Include(e => e.Department)
-                .FirstOrDefault(e => e.Id == id && !e.IsDeleted);
+                .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
         }
 
         // Override Delete to implement soft delete

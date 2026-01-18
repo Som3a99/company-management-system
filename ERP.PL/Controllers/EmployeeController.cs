@@ -12,19 +12,20 @@ namespace ERP.PL.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly DocumentSettings _documentSettings;
 
-
-        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork)
+        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings)
         {
             _mapper=mapper;
             _unitOfWork=unitOfWork;
+            _documentSettings=documentSettings;
         }
 
         #region Index
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            var employees = _unitOfWork.EmployeeRepository.GetAll();
+            var employees = await _unitOfWork.EmployeeRepository.GetAllAsync();
             var employeeViewModels = _mapper.Map<IEnumerable<EmployeeViewModel>>(employees);
             return View(employeeViewModels);
         }
@@ -32,15 +33,15 @@ namespace ERP.PL.Controllers
 
         #region Create
         [HttpGet]
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            LoadDepartments();
+            await LoadDepartmentsAsync();
             return View();
         }
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(EmployeeViewModel employee)
+        public async Task<IActionResult> Create(EmployeeViewModel employee)
         {
             ModelState.Remove("Department");
             ModelState.Remove("Image"); // Remove because it's optional
@@ -48,7 +49,7 @@ namespace ERP.PL.Controllers
 
             if (!ModelState.IsValid)
             {
-                LoadDepartments();
+                await LoadDepartmentsAsync();
                 return View(employee);
             }
             var employeeMapped = _mapper.Map<Employee>(employee);
@@ -57,12 +58,12 @@ namespace ERP.PL.Controllers
                 try
                 {
                     employeeMapped.ImageUrl =
-                        DocumentSettings.UploadImagePath(employee.Image, "images");
+                        await _documentSettings.UploadImagePath(employee.Image, "images");
                 }
                 catch (ArgumentException ex)
                 {
                     ModelState.AddModelError("Image", ex.Message);
-                    LoadDepartments();
+                    await LoadDepartmentsAsync();
                     return View(employee);
                 }
             }
@@ -70,11 +71,11 @@ namespace ERP.PL.Controllers
             {
                 // Gender-based default avatar
                 employeeMapped.ImageUrl =
-                    DocumentSettings.GetDefaultAvatarByGender(employeeMapped.Gender);
+                    _documentSettings.GetDefaultAvatarByGender(employeeMapped.Gender);
             }
 
-            _unitOfWork.EmployeeRepository.Add(employeeMapped);
-            _unitOfWork.Complete();
+            await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
+            await _unitOfWork.CompleteAsync();
 
             return RedirectToAction(nameof(Index));
         }
@@ -82,13 +83,13 @@ namespace ERP.PL.Controllers
 
         #region Edit
         [HttpGet]
-        public IActionResult Edit(int id)
+        public async Task<IActionResult> Edit(int id)
         {
-            var employee = _unitOfWork.EmployeeRepository.GetById(id);
+            var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
             if (employee == null)
                 return NotFound();
             
-            LoadDepartments(employee.DepartmentId);
+            await LoadDepartmentsAsync(employee.DepartmentId);
 
             var employeeViewModel = _mapper.Map<EmployeeViewModel>(employee);
             return View(employeeViewModel);
@@ -96,7 +97,7 @@ namespace ERP.PL.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Edit(EmployeeViewModel viewModel)
+        public async Task<IActionResult> Edit(EmployeeViewModel viewModel)
         {
             // Remove navigation properties from validation
             ModelState.Remove("Department");
@@ -105,12 +106,12 @@ namespace ERP.PL.Controllers
 
             if (!ModelState.IsValid)
             {
-                LoadDepartments(viewModel.DepartmentId);
+                await LoadDepartmentsAsync(viewModel.DepartmentId);
                 return View(viewModel);
             }
 
             // CRITICAL: Load existing entity from database
-            var existingEmployee = _unitOfWork.EmployeeRepository.GetById(viewModel.Id);
+            var existingEmployee = await _unitOfWork.EmployeeRepository.GetByIdAsync(viewModel.Id);
 
             if (existingEmployee == null)
                 return NotFound();
@@ -121,26 +122,26 @@ namespace ERP.PL.Controllers
                 try
                 {
                     // Delete old image if it exists and is not a default avatar
-                    if (!DocumentSettings.IsDefaultAvatar(existingEmployee.ImageUrl))
+                    if (!_documentSettings.IsDefaultAvatar(existingEmployee.ImageUrl))
                     {
-                        DocumentSettings.DeleteImage(existingEmployee.ImageUrl, "images");
+                        _documentSettings.DeleteImage(existingEmployee.ImageUrl, "images");
                     }
 
                     // Upload new image
-                    existingEmployee.ImageUrl = DocumentSettings.UploadImagePath(viewModel.Image, "images");
+                    existingEmployee.ImageUrl = await _documentSettings.UploadImagePath(viewModel.Image, "images");
                 }
                 catch (ArgumentException ex)
                 {
                     ModelState.AddModelError("Image", ex.Message);
-                    LoadDepartments(viewModel.DepartmentId);
+                    await LoadDepartmentsAsync(viewModel.DepartmentId);
                     return View(viewModel);
                 }
             }
             // If gender changed and using default avatar, update to new gender's default
             else if (viewModel.Gender != existingEmployee.Gender &&
-                     DocumentSettings.IsDefaultAvatar(existingEmployee.ImageUrl))
+                     _documentSettings.IsDefaultAvatar(existingEmployee.ImageUrl))
             {
-                existingEmployee.ImageUrl = DocumentSettings.GetDefaultAvatarByGender(viewModel.Gender);
+                existingEmployee.ImageUrl = _documentSettings.GetDefaultAvatarByGender(viewModel.Gender);
             }
 
             // Map ViewModel properties ONTO existing tracked entity
@@ -149,7 +150,7 @@ namespace ERP.PL.Controllers
 
             // Update and save
             _unitOfWork.EmployeeRepository.Update(existingEmployee);
-            _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
 
             return RedirectToAction(nameof(Index));
         }
@@ -158,9 +159,9 @@ namespace ERP.PL.Controllers
         #region Delete
 
         [HttpGet]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var employee = _unitOfWork.EmployeeRepository.GetById(id);
+            var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
             if (employee == null)
                 return NotFound();
 
@@ -170,20 +171,20 @@ namespace ERP.PL.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        public IActionResult DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var employee = _unitOfWork.EmployeeRepository.GetById(id);
+            var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
             if (employee == null)
                 return NotFound();
 
             // Delete image ONLY if it's not a default avatar
             if (!string.IsNullOrEmpty(employee.ImageUrl) &&
-                !DocumentSettings.IsDefaultAvatar(employee.ImageUrl))
+                !_documentSettings.IsDefaultAvatar(employee.ImageUrl))
             {
-                DocumentSettings.DeleteImage(employee.ImageUrl, "images");
+                _documentSettings.DeleteImage(employee.ImageUrl, "images");
             }
             _unitOfWork.EmployeeRepository.Delete(id);
-            _unitOfWork.Complete();
+            await LoadDepartmentsAsync();
             return RedirectToAction(nameof(Index));
         }
         #endregion
@@ -191,9 +192,9 @@ namespace ERP.PL.Controllers
         #region Helper Method
 
         // Helper method to load departments for dropdown
-        private void LoadDepartments(int? selectedDepartmentId = null)
+        private async Task LoadDepartmentsAsync(int? selectedDepartmentId = null)
         {
-            var departments = _unitOfWork.DepartmentRepository.GetAll();
+            var departments = await _unitOfWork.DepartmentRepository.GetAllAsync();
             ViewBag.Departments = new SelectList(
                 departments.Select(d => new
                 {

@@ -12,19 +12,21 @@ namespace ERP.BLL.Repositories
         }
 
         // Override GetAll to include Employees navigation property
-        public override IEnumerable<Department> GetAll()
+        public override async Task<IEnumerable<Department>> GetAllAsync()
         {
-            return _context.Departments
+            return await _context.Departments
+                .AsNoTracking()
                 .Include(d => d.Employees)
-                .ToList();
+                .ToListAsync();
         }
 
         // Override GetById to include Employees navigation property
-        public override Department? GetById(int id)
+        public override async Task<Department?> GetByIdAsync(int id)
         {
-            return _context.Departments
+            return await _context.Departments
+                .AsNoTracking()
                 .Include(d => d.Employees)
-                .FirstOrDefault(d => d.Id == id);
+                .FirstOrDefaultAsync(d => d.Id == id);
         }
     }
 }

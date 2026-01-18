@@ -19,9 +19,9 @@ namespace ERP.PL.Controllers
         }
 
         [HttpGet]
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
-            var departments = _unitOfWork.DepartmentRepository.GetAll();
+            var departments = await _unitOfWork.DepartmentRepository.GetAllAsync();
             var departmentViewModels = _mapper.Map<IEnumerable<DepartmentViewModel>>(departments);
             return View(departmentViewModels);
         }
@@ -34,22 +34,22 @@ namespace ERP.PL.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult Create(DepartmentViewModel department)
+        public async Task<IActionResult> Create(DepartmentViewModel department)
         {
             if (ModelState.IsValid)
             {
                 var mappedDepartment = _mapper.Map<Department>(department);
-                _unitOfWork.DepartmentRepository.Add(mappedDepartment);
-                _unitOfWork.Complete();
+                await _unitOfWork.DepartmentRepository.AddAsync(mappedDepartment);
+                await _unitOfWork.CompleteAsync();
                 return RedirectToAction(nameof(Index));
             }
             return View(department);
         }
 
         [HttpGet]
-        public IActionResult Edit(int id)
+        public async Task<IActionResult> Edit(int id)
         {
-            var department = _unitOfWork.DepartmentRepository.GetById(id);
+            var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
             if (department == null)
             {
                 return NotFound();
@@ -60,13 +60,13 @@ namespace ERP.PL.Controllers
 
         [HttpPost]
 
-        public IActionResult Edit(DepartmentViewModel department)
+        public async Task<IActionResult> Edit(DepartmentViewModel department)
         {
             if (ModelState.IsValid)
             {
                 var mappedDepartment = _mapper.Map<Department>(department);
                 _unitOfWork.DepartmentRepository.Update(mappedDepartment);
-                _unitOfWork.Complete();
+                await _unitOfWork.CompleteAsync();
                 return RedirectToAction(nameof(Index));
             }
             return View(department);
@@ -74,9 +74,9 @@ namespace ERP.PL.Controllers
         }
 
         [HttpGet]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var department = _unitOfWork.DepartmentRepository.GetById(id);
+            var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
 
             if (department == null)
                 return NotFound();
@@ -85,23 +85,23 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost, ActionName("Delete")]
-        public IActionResult DeleteConfirmed(int id)
+        public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var department = _unitOfWork.DepartmentRepository.GetById(id);
+            var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
 
             if (department == null)
                 return NotFound();
 
             _unitOfWork.DepartmentRepository.Delete(id);
-            _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return RedirectToAction(nameof(Index));
         }
 
         // New action to view all employees in a specific department
         [HttpGet]
-        public IActionResult DepartmentEmployees(int id)
+        public async Task<IActionResult> DepartmentEmployees(int id)
         {
-            var department = _unitOfWork.DepartmentRepository.GetById(id);
+            var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
 
             if (department == null)
                 return NotFound();

@@ -4,9 +4,10 @@ namespace ERP.BLL.Interfaces
 {
     public interface IGenericRepository<T> where T : Base
     {
-        IEnumerable<T> GetAll();
-        T? GetById(int id);
-        void Add(T entity);
+
+        Task<IEnumerable<T>> GetAllAsync();
+        Task<T?> GetByIdAsync(int id);
+        Task AddAsync(T entity);
         void Update(T entity);
         void Delete(int id);
     }

@@ -4,6 +4,7 @@
     {
         public IDepartmentRepository DepartmentRepository { get; }
         public IEmployeeRepository EmployeeRepository { get; }
-        int Complete();
+        //int Complete();
+        Task<int> CompleteAsync();
     }
 }

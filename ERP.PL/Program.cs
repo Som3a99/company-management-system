@@ -5,6 +5,8 @@ using ERP.PL.Mapping.Employee;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using AutoMapper;
+using ERP.PL.Mapping.Department;
+using ERP.PL.Helpers;
 namespace ERP.PL
 {
     public class Program
@@ -26,6 +28,8 @@ namespace ERP.PL
             builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddAutoMapper(cfg => { }, typeof(EmployeeProfile).Assembly);
+            builder.Services.AddAutoMapper(cfg => { }, typeof(DepartmentProfile).Assembly);
+            builder.Services.AddScoped<DocumentSettings>();
 
             #endregion
 
