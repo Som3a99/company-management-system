@@ -15,6 +15,7 @@ namespace ERP.BLL.Repositories
         public override async Task<IEnumerable<Employee>> GetAllAsync()
         {
             return await _context.Employees
+                .AsNoTracking()
                 .Include(e => e.Department)
                 .Where(e => !e.IsDeleted)
                 .ToListAsync();
@@ -24,6 +25,7 @@ namespace ERP.BLL.Repositories
         public override async Task<Employee?> GetByIdAsync(int id)
         {
             return await _context.Employees
+                .AsNoTracking()
                 .Include(e => e.Department)
                 .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
         }

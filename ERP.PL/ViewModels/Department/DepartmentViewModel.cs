@@ -20,5 +20,10 @@ namespace ERP.PL.ViewModels.Department
 
         public ICollection<DAL.Models.Employee> Employees { get; set; } = new HashSet<DAL.Models.Employee>();
 
+        [Display(Name = "Department Manager")]
+        public int? ManagerId { get; set; }
+
+        public DAL.Models.Employee? Manager { get; set; }
+
     }
 }

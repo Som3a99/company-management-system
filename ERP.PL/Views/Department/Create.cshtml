@@ -17,6 +17,8 @@
             <div class="card">
                 <div class="card-body p-4">
                     <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
                         <div class="form-group">
                             <label asp-for="DepartmentCode" class="form-label">Department Code</label>
                             <input asp-for="DepartmentCode" class="form-control" placeholder="e.g., ENG_001" />
@@ -32,10 +34,37 @@
                             <span asp-validation-for="DepartmentName" class="text-danger"></span>
                         </div>
 
+                        <!-- ✅ NEW: Manager Selection -->
+                        <div class="form-group">
+                            <label asp-for="ManagerId" class="form-label">
+                                Department Manager
+                                <span class="text-muted">(Optional)</span>
+                            </label>
+                            <select asp-for="ManagerId" class="form-control" asp-items="ViewBag.Managers">
+                                <option value="">-- No Manager Assigned --</option>
+                            </select>
+                            <span asp-validation-for="ManagerId" class="text-danger"></span>
+                            <small class="form-text text-muted mt-1 d-block">
+                                Select an active employee to manage this department. Only employees not currently managing another department are shown.
+                            </small>
+                        </div>
+
                         <div class="form-group">
                             <label asp-for="CreatedAt" class="form-label">Created Date</label>
                             <input asp-for="CreatedAt" class="form-control" type="date" />
                             <span asp-validation-for="CreatedAt" class="text-danger"></span>
+                        </div>
+
+                        <!-- ✅ NEW: Info alert about manager assignment -->
+                        <div class="alert alert-info d-flex align-items-start gap-3" style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: var(--radius-md);">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0; margin-top: 2px;">
+                                <circle cx="12" cy="12" r="10" stroke="#3b82f6" stroke-width="2" />
+                                <path d="M12 16v-4M12 8h.01" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <div style="color: #1e40af;">
+                                <strong style="display: block; margin-bottom: 4px;">About Department Managers</strong>
+                                <small>A department manager has authority over all employees and projects within their department. You can assign a manager now or leave it empty and assign one later.</small>
+                            </div>
                         </div>
 
                         <div class="d-flex gap-3 mt-4">

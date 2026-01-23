@@ -33,6 +33,17 @@ namespace ERP.DAL.Data.Configurations
             // Setting default value for CreatedAt to current timestamp in SQL Server DateOnly format
             builder.Property(d => d.CreatedAt)
                 .HasDefaultValueSql("Cast(GETUTCDATE() as Date)");
+
+            // Configure Manager relationship
+            builder.HasOne(d => d.Manager)
+                .WithOne(e => e.ManagedDepartment)
+                .HasForeignKey<Department>(d => d.ManagerId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascade delete
+
+            builder.HasMany(d => d.Employees)
+                .WithOne(e => e.Department)
+                .HasForeignKey(e => e.DepartmentId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent orphaning employees
         }
     }
 }

@@ -54,6 +54,10 @@ namespace ERP.DAL.Data.Configurations
             builder.Property(e => e.CreatedAt)
                 .IsRequired()
                 .HasDefaultValueSql("Cast(GETUTCDATE() as Date)");
+
+            builder.HasOne(e => e.ManagedDepartment)
+                   .WithOne(d => d.Manager)
+                   .HasForeignKey<Department>(d => d.ManagerId);
         }
     }
 }

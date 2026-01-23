@@ -9,6 +9,45 @@
         table-layout: fixed;
         width: 100%;
     }
+
+    .manager-avatar {
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 2px solid var(--primary-main);
+        flex-shrink: 0;
+    }
+
+    .manager-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .manager-name {
+        color: var(--gray-900);
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    .manager-position {
+        color: var(--gray-600);
+        font-size: 0.75rem;
+        line-height: 1.2;
+    }
+
+    .no-manager-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.625rem;
+        background-color: var(--gray-100);
+        color: var(--gray-600);
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+    }
 </style>
 
 <div class="container-fluid px-4">
@@ -17,7 +56,7 @@
             <div class="d-flex justify-content-between align-items-end flex-wrap gap-3">
                 <div>
                     <h1>Departments</h1>
-                    <p>Manage and organize your company's departmental structure</p>
+                    <p>Manage and organize your company's departmental structure and leadership</p>
                 </div>
                 <a asp-action="Create" class="btn btn-primary btn-primary-lg">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -29,22 +68,130 @@
         </div>
     </div>
 
+    <!-- Quick Stats Cards -->
+    @if (Model != null && Model.Any())
+    {
+        var totalDepartments = Model.Count();
+        var departmentsWithManagers = Model.Count(d => d.Manager != null);
+        var totalEmployees = Model.Sum(d => d.Employees?.Count(e => !e.IsDeleted) ?? 0);
+        var departmentsWithEmployees = Model.Count(d => d.Employees != null && d.Employees.Any(e => !e.IsDeleted));
+
+        <div class="row g-3 mb-4 animate-in">
+            <div class="col-lg-3 col-md-6">
+                <div class="card">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary-main) 0%, var(--primary-light) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="3" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="2" />
+                                    <rect x="3" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="2" />
+                                    <rect x="14" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="2" />
+                                    <rect x="14" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="2" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="mb-0 fw-bold" style="color: var(--primary-main);">@totalDepartments</h3>
+                                <p class="text-muted mb-0 small">Total Departments</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <circle cx="8.5" cy="7" r="4" stroke="white" stroke-width="2" />
+                                    <polyline points="17 11 19 13 23 9" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="mb-0 fw-bold" style="color: var(--success);">@departmentsWithManagers</h3>
+                                <p class="text-muted mb-0 small">With Managers</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent-main) 0%, var(--accent-light) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <circle cx="9" cy="7" r="4" stroke="white" stroke-width="2" />
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="mb-0 fw-bold" style="color: var(--accent-main);">@totalEmployees</h3>
+                                <p class="text-muted mb-0 small">Total Employees</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-3 col-md-6">
+                <div class="card">
+                    <div class="card-body p-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <polyline points="22 4 12 14.01 9 11.01" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="mb-0 fw-bold" style="color: var(--warning);">@departmentsWithEmployees</h3>
+                                <p class="text-muted mb-0 small">Active Departments</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Search Bar -->
     <div class="card mb-3 animate-in">
         <div class="card-body p-3">
-            <div class="input-group">
-                <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </span>
-                <input type="text" id="searchInput" class="form-control" placeholder="Search by department code or name..." onkeyup="searchDepartments()">
-                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                </button>
+            <div class="row g-3 align-items-center">
+                <div class="col-lg-6">
+                    <div class="input-group">
+                        <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </span>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Search by department code, name, or manager..." onkeyup="searchDepartments()">
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="d-flex gap-2 flex-wrap justify-content-lg-end">
+                        <button class="btn btn-sm btn-primary" id="filterAll" onclick="filterDepartments('all')">
+                            All (@Model?.Count())
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="filterWithManager" onclick="filterDepartments('withManager')">
+                            With Manager (@Model?.Count(d => d.Manager != null))
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" id="filterNoManager" onclick="filterDepartments('noManager')">
+                            No Manager (@Model?.Count(d => d.Manager == null))
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -52,30 +199,60 @@
     @if (Model != null && Model.Any())
     {
         <div class="table-container animate-in">
-            <table class="table table-hover mb-0 table-fixed">
+            <table class="table table-hover mb-0 table-fixed" id="departmentTable">
                 <thead>
                     <tr>
-                        <th style="width: 15%;">Department Code</th>
-                        <th style="width: 25%;">Department Name</th>
-                        <th class="text-center" style="width: 20%;">Employees</th>
-                        <th style="width: 15%;">Created Date</th>
-                        <th class="text-center" style="width: 25%;">Actions</th>
+                        <th style="width: 12%;">Code</th>
+                        <th style="width: 18%;">Department Name</th>
+                        <th style="width: 25%;">Manager</th>
+                        <th class="text-center" style="width: 15%;">Employees</th>
+                        <th style="width: 10%;">Created</th>
+                        <th class="text-center" style="width: 20%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var department in Model)
+                    @foreach (var department in Model.OrderBy(d => d.DepartmentCode))
                     {
                         var employeeCount = department.Employees?.Count(e => !e.IsDeleted) ?? 0;
                         var activeCount = department.Employees?.Count(e => e.IsActive && !e.IsDeleted) ?? 0;
+                        var hasManager = department.Manager != null;
 
-                        <tr>
-                            <td style="width: 15%;">
+                        <tr data-manager-status="@(hasManager ? "withManager" : "noManager")">
+                            <td style="width: 12%;">
                                 <span class="table-code">@department.DepartmentCode</span>
                             </td>
-                            <td style="width: 25%;">
-                                <strong>@department.DepartmentName</strong>
+                            <td style="width: 18%;">
+                                <strong style="color: var(--gray-900);">@department.DepartmentName</strong>
                             </td>
-                            <td class="text-center" style="width: 20%;">
+                            <td style="width: 25%;">
+                                @if (hasManager)
+                                {
+                                    <div class="manager-info">
+                                        <img src="/uploads/images/@department.Manager?.ImageUrl"
+                                             alt="@department.Manager?.FirstName @department.Manager?.LastName"
+                                             class="manager-avatar" />
+                                        <div>
+                                            <div class="manager-name">
+                                                @department.Manager?.FirstName @department.Manager?.LastName
+                                            </div>
+                                            <div class="manager-position">
+                                                @department.Manager?.Position
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="no-manager-badge">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+                                            <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                        </svg>
+                                        No Manager
+                                    </span>
+                                }
+                            </td>
+                            <td class="text-center" style="width: 15%;">
                                 <div class="d-flex justify-content-center align-items-center gap-2 flex-wrap" style="min-height: 32px;">
                                     @if (employeeCount > 0)
                                     {
@@ -91,18 +268,20 @@
                                     }
                                     else
                                     {
-                                        <span class="text-muted" style="font-size: 0.875rem;">No employees</span>
+                                        <span class="text-muted" style="font-size: 0.875rem;">None</span>
                                     }
                                 </div>
                             </td>
-                            <td style="width: 15%;">
-                                <span class="text-muted">@department.CreatedAt.ToString("MMM dd, yyyy")</span>
+                            <td style="width: 10%;">
+                                <span class="text-muted" style="font-size: 0.875rem;">@department.CreatedAt.ToString("MMM dd, yyyy")</span>
                             </td>
-                            <td class="text-center" style="width: 25%;">
-                                <div class="d-flex gap-2 justify-content-center align-items-center">
+                            <td class="text-center" style="width: 20%;">
+                                <div class="d-flex gap-2 justify-content-center align-items-center flex-wrap">
                                     @if (employeeCount > 0)
                                     {
-                                        <a asp-action="DepartmentEmployees" asp-route-id="@department.Id" class="btn btn-sm btn-outline-primary" title="View Employees">
+                                        <a asp-action="DepartmentEmployees" asp-route-id="@department.Id"
+                                           class="btn btn-sm btn-outline-primary"
+                                           title="View @employeeCount employee(s)">
                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                                 <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" />
@@ -111,14 +290,18 @@
                                             Employees
                                         </a>
                                     }
-                                    <a asp-action="Edit" asp-route-id="@department.Id" class="btn btn-sm btn-outline-secondary" title="Edit Department">
+                                    <a asp-action="Edit" asp-route-id="@department.Id"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       title="Edit Department">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
                                         Edit
                                     </a>
-                                    <a asp-action="Delete" asp-route-id="@department.Id" class="btn btn-sm btn-danger" title="Delete Department">
+                                    <a asp-action="Delete" asp-route-id="@department.Id"
+                                       class="btn btn-sm btn-danger"
+                                       title="Delete Department">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -160,22 +343,54 @@
 
 @section Scripts {
     <script>
+        let currentFilter = 'all';
+
         function searchDepartments() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const table = document.querySelector('.table');
+            const table = document.getElementById('departmentTable');
+
+            if (!table) return;
+
             const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
 
             for (let row of rows) {
                 const code = row.cells[0].textContent.toLowerCase();
                 const name = row.cells[1].textContent.toLowerCase();
+                const manager = row.cells[2].textContent.toLowerCase();
 
-                const matches = code.includes(searchTerm) || name.includes(searchTerm);
-                row.style.display = matches ? '' : 'none';
+                const matchesSearch = code.includes(searchTerm) ||
+                                    name.includes(searchTerm) ||
+                                    manager.includes(searchTerm);
+
+                const managerStatus = row.getAttribute('data-manager-status');
+                const matchesFilter = currentFilter === 'all' || managerStatus === currentFilter;
+
+                row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
             }
         }
 
         function clearSearch() {
             document.getElementById('searchInput').value = '';
+            searchDepartments();
+        }
+
+        function filterDepartments(filter) {
+            currentFilter = filter;
+
+            // Update button states
+            document.getElementById('filterAll').className = 'btn btn-sm btn-outline-secondary';
+            document.getElementById('filterWithManager').className = 'btn btn-sm btn-outline-secondary';
+            document.getElementById('filterNoManager').className = 'btn btn-sm btn-outline-secondary';
+
+            if (filter === 'all') {
+                document.getElementById('filterAll').className = 'btn btn-sm btn-primary';
+            } else if (filter === 'withManager') {
+                document.getElementById('filterWithManager').className = 'btn btn-sm btn-primary';
+            } else if (filter === 'noManager') {
+                document.getElementById('filterNoManager').className = 'btn btn-sm btn-primary';
+            }
+
+            // Reapply search with new filter
             searchDepartments();
         }
     </script>

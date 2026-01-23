@@ -43,6 +43,13 @@
                                 <div>
                                     <h3 class="mb-1">@Model.DepartmentName</h3>
                                     <p class="mb-0 opacity-75">Department Code: @Model.DepartmentCode</p>
+                                    <!-- Show Manager -->
+                                    @if (Model.Manager != null)
+                                    {
+                                        <p class="mb-0 opacity-75 mt-1">
+                                            Manager: <strong>@Model.Manager.FirstName @Model.Manager.LastName</strong> (@Model.Manager.Position)
+                                        </p>
+                                    }
                                 </div>
                             </div>
                         </div>

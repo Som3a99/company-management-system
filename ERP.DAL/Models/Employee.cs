@@ -25,6 +25,9 @@
         #region Navigational Property
         public int DepartmentId { get; set; }
         public Department Department { get; set; } = null!;
+
+        // Managed Department Inverse Property
+        public Department? ManagedDepartment { get; set; }
         #endregion
     }
 }

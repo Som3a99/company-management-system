@@ -10,6 +10,10 @@
 
         #region Navigation Properties
         public ICollection<Employee> Employees { get; set; } = new HashSet<Employee>();
+
+        // Department Manager Relationship
+        public int? ManagerId { get; set; }
+        public Employee? Manager { get; set; }
         #endregion
     }
 }
