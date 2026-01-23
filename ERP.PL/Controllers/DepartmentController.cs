@@ -45,10 +45,14 @@ namespace ERP.PL.Controllers
             if (ModelState.IsValid)
             {
                 // Validate manager logic
-                var (ok, err) = await ValidateManagerAssignmentAsync(department.ManagerId, department.Id);
-                if (!ok)
+                var (isValid, errorMessage) = await ValidateManagerAssignmentAsync(
+                    department.ManagerId,
+                    null  // null for new departments
+                );
+
+                if (!isValid)
                 {
-                    ModelState.AddModelError("ManagerId", err ?? "");
+                    ModelState.AddModelError("ManagerId", errorMessage ?? "Invalid manager selection");
                     await LoadManagersAsync(department.ManagerId);
                     return View(department);
                 }
@@ -56,6 +60,8 @@ namespace ERP.PL.Controllers
                 var mappedDepartment = _mapper.Map<Department>(department);
                 await _unitOfWork.DepartmentRepository.AddAsync(mappedDepartment);
                 await _unitOfWork.CompleteAsync();
+
+                TempData["SuccessMessage"] = $"Department '{mappedDepartment.DepartmentName}' created successfully!";
                 return RedirectToAction(nameof(Index));
             }
             await LoadManagersAsync();
@@ -83,12 +89,16 @@ namespace ERP.PL.Controllers
             ModelState.Remove("Manager"); // Remove Manager from ModelState validation it's not bound from the form
             if (ModelState.IsValid)
             {
-                // Validate manager logic
-                var (ok, err) = await ValidateManagerAssignmentAsync(department.ManagerId, department.Id);
-                if (!ok)
+                // Validate manager logic with department ID
+                var (isValid, errorMessage) = await ValidateManagerAssignmentAsync(
+                    department.ManagerId,
+                    department.Id  // Pass existing department ID
+                );
+
+                if (!isValid)
                 {
-                    ModelState.AddModelError("ManagerId", err ?? "");
-                    await LoadManagersAsync(department.ManagerId);
+                    ModelState.AddModelError("ManagerId", errorMessage ?? "Invalid manager selection");
+                    await LoadManagersAsync(department.ManagerId, department.Id);
                     return View(department);
                 }
 
@@ -101,6 +111,8 @@ namespace ERP.PL.Controllers
                 _mapper.Map(department, existingDepartment);
                 _unitOfWork.DepartmentRepository.Update(existingDepartment);
                 await _unitOfWork.CompleteAsync();
+
+                TempData["SuccessMessage"] = $"Department '{existingDepartment.DepartmentName}' updated successfully!";
                 return RedirectToAction(nameof(Index));
             }
             await LoadManagersAsync(department.ManagerId);
@@ -160,20 +172,27 @@ namespace ERP.PL.Controllers
 
         #region Helper Methods
 
-        // Load eligible managers (active employees only)
-        private async Task LoadManagersAsync(int? currentManagerId = null)
+        /// <summary>
+        /// Loads available managers for department assignment dropdown
+        /// </summary>
+        /// <param name="currentManagerId">Currently selected manager ID</param>
+        /// <param name="currentDepartmentId">Current department ID (null for new departments)</param>
+        private async Task LoadManagersAsync(int? currentManagerId = null, int? currentDepartmentId = null)
         {
             var employees = await _unitOfWork.EmployeeRepository.GetAllAsync();
-
-            // Get all employees who are NOT already managing a department
             var departments = await _unitOfWork.DepartmentRepository.GetAllAsync();
+
+            // Get all employees who are already managing a department (except current)
             var managingEmployeeIds = departments
-                .Where(d => d.ManagerId.HasValue && d.ManagerId != currentManagerId)
+                .Where(d => d.ManagerId.HasValue && d.Id != currentDepartmentId)
                 .Select(d => d.ManagerId!.Value)
                 .ToHashSet();
 
+            // Filter available managers: active, not deleted, not managing another department
             var availableManagers = employees
-                .Where(e => e.IsActive && !e.IsDeleted && !managingEmployeeIds.Contains(e.Id))
+                .Where(e => e.IsActive &&
+                           !e.IsDeleted &&
+                           !managingEmployeeIds.Contains(e.Id))
                 .OrderBy(e => e.LastName)
                 .ThenBy(e => e.FirstName);
 
@@ -189,27 +208,59 @@ namespace ERP.PL.Controllers
             );
         }
 
-        private async Task<(bool IsValid, string? ErrorMessage)> ValidateManagerAssignmentAsync(int? managerId, int? currentDepartmentId)
+        /// <summary>
+        /// Validates manager assignment with proper null handling
+        /// </summary>
+        /// <param name="managerId">Manager employee ID to validate</param>
+        /// <param name="currentDepartmentId">Current department ID (null for new departments)</param>
+        /// <returns>Tuple with validation result and error message</returns>
+        private async Task<(bool IsValid, string? ErrorMessage)> ValidateManagerAssignmentAsync(
+            int? managerId,
+            int? currentDepartmentId)
         {
-            if (!managerId.HasValue) return (true, null);
+            // No manager selected is valid (optional field)
+            if (!managerId.HasValue)
+                return (true, null);
 
+            // Verify manager exists and is active
             var manager = await _unitOfWork.EmployeeRepository.GetByIdAsync(managerId.Value);
             if (manager == null)
                 return (false, "Selected manager does not exist.");
 
-            // check if manager already manages another department
-            var existing = (await _unitOfWork.DepartmentRepository.GetAllAsync())
-                .FirstOrDefault(d => d.ManagerId == managerId && d.Id != currentDepartmentId);
+            if (!manager.IsActive)
+                return (false, $"{manager.FirstName} {manager.LastName} is not an active employee.");
 
-            if (existing != null)
-                return (false, $"{manager.FirstName} {manager.LastName} is already managing {existing.DepartmentName}.");
+            if (manager.IsDeleted)
+                return (false, $"{manager.FirstName} {manager.LastName} is no longer available.");
 
-            if (manager.DepartmentId != currentDepartmentId)
-                return (false, "Manager must belong to the same department.");
+            // Check if manager already manages another department
+            var existingManagedDepartment = await _unitOfWork.DepartmentRepository
+                .GetByManagerIdAsync(managerId.Value, currentDepartmentId);
+
+            if (existingManagedDepartment != null)
+            {
+                return (false,
+                    $"{manager.FirstName} {manager.LastName} is already managing '{existingManagedDepartment.DepartmentName}'. " +
+                    $"An employee can only manage one department at a time.");
+            }
+
+            // Only validate department match for EXISTING departments
+            // For NEW departments (currentDepartmentId == null), skip this check
+            if (currentDepartmentId.HasValue)
+            {
+                if (manager.DepartmentId != currentDepartmentId.Value)
+                {
+                    var currentDept = await _unitOfWork.DepartmentRepository.GetByIdAsync(currentDepartmentId.Value);
+                    return (false,
+                        $"{manager.FirstName} {manager.LastName} belongs to '{manager.Department?.DepartmentName}' " +
+                        $"but must belong to '{currentDept?.DepartmentName}' to manage it.");
+                }
+            }
+            // For NEW departments: Manager can be from any department initially
+            // After creation, they should ideally be transferred to the department they manage
 
             return (true, null);
         }
-
 
         #endregion
     }

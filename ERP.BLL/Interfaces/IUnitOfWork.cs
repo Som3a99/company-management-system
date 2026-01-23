@@ -1,10 +1,12 @@
-﻿namespace ERP.BLL.Interfaces
+﻿using Microsoft.EntityFrameworkCore.Storage;
+
+namespace ERP.BLL.Interfaces
 {
-    public interface IUnitOfWork
+    public interface IUnitOfWork : IDisposable
     {
         public IDepartmentRepository DepartmentRepository { get; }
         public IEmployeeRepository EmployeeRepository { get; }
-        //int Complete();
         Task<int> CompleteAsync();
+        Task<IDbContextTransaction> BeginTransactionAsync();
     }
 }

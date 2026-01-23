@@ -13,12 +13,14 @@ namespace ERP.PL.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly DocumentSettings _documentSettings;
+        private readonly ILogger<EmployeeController> _logger;
 
-        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings)
+        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings, ILogger<EmployeeController> logger)
         {
             _mapper=mapper;
             _unitOfWork=unitOfWork;
             _documentSettings=documentSettings;
+            _logger=logger;
         }
 
         #region Index
@@ -77,6 +79,7 @@ namespace ERP.PL.Controllers
             await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
             await _unitOfWork.CompleteAsync();
 
+            TempData["SuccessMessage"] = $"Employee '{employeeMapped.FirstName} {employeeMapped.LastName}' created successfully!";
             return RedirectToAction(nameof(Index));
         }
         #endregion
@@ -152,6 +155,7 @@ namespace ERP.PL.Controllers
             _unitOfWork.EmployeeRepository.Update(existingEmployee);
             await _unitOfWork.CompleteAsync();
 
+            TempData["SuccessMessage"] = $"Employee '{existingEmployee.FirstName} {existingEmployee.LastName}' updated successfully!";
             return RedirectToAction(nameof(Index));
         }
         #endregion
@@ -173,19 +177,76 @@ namespace ERP.PL.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
-            if (employee == null)
-                return NotFound();
+            // Use transaction for atomic operation
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
 
-            // Delete image ONLY if it's not a default avatar
-            if (!string.IsNullOrEmpty(employee.ImageUrl) &&
-                !_documentSettings.IsDefaultAvatar(employee.ImageUrl))
+            try
             {
-                _documentSettings.DeleteImage(employee.ImageUrl, "images");
+                var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
+                if (employee == null)
+                {
+                    await transaction.RollbackAsync();
+                    return NotFound();
+                }
+
+                // Check if employee is managing a department
+                if (employee.ManagedDepartment != null)
+                {
+                    await transaction.RollbackAsync();
+                    TempData["ErrorMessage"] = $"Cannot delete '{employee.FirstName} {employee.LastName}' " +
+                        $"because they are currently managing the '{employee.ManagedDepartment.DepartmentName}' department. " +
+                        $"Please assign a new manager first.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Store image info before deletion
+                var imageUrl = employee.ImageUrl;
+                var isDefaultAvatar = _documentSettings.IsDefaultAvatar(imageUrl);
+
+                // Soft delete the employee
+                _unitOfWork.EmployeeRepository.Delete(id);
+
+                // Save changes to database
+                var result = await _unitOfWork.CompleteAsync();
+
+                if (result > 0)
+                {
+                    // Only delete physical file if database deletion succeeded
+                    if (!string.IsNullOrEmpty(imageUrl) && !isDefaultAvatar)
+                    {
+                        try
+                        {
+                            _documentSettings.DeleteImage(imageUrl, "images");
+                        }
+                        catch (Exception ex)
+                        {
+                            // Log but don't fail the operation if image deletion fails
+                            _logger.LogWarning(ex,
+                                "Failed to delete image file {ImageUrl} for employee {EmployeeId}",
+                                imageUrl, id);
+                        }
+                    }
+
+                    await transaction.CommitAsync();
+
+                    TempData["SuccessMessage"] = $"Employee '{employee.FirstName} {employee.LastName}' deleted successfully!";
+                    return RedirectToAction(nameof(Index));
+                }
+                else
+                {
+                    await transaction.RollbackAsync();
+                    TempData["ErrorMessage"] = "Failed to delete employee. Please try again.";
+                    return RedirectToAction(nameof(Index));
+                }
             }
-            _unitOfWork.EmployeeRepository.Delete(id);
-            await LoadDepartmentsAsync();
-            return RedirectToAction(nameof(Index));
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error deleting employee {EmployeeId}", id);
+
+                TempData["ErrorMessage"] = "An error occurred while deleting the employee. Please try again.";
+                return RedirectToAction(nameof(Index));
+            }
         }
         #endregion
 
