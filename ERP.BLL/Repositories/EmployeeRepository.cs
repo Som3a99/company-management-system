@@ -1,7 +1,10 @@
-﻿using ERP.BLL.Interfaces;
+﻿using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Linq.Expressions;
 
 namespace ERP.BLL.Repositories
 {
@@ -39,6 +42,87 @@ namespace ERP.BLL.Repositories
                 employee.IsDeleted = true;
                 _context.Update(employee);
             }
+        }
+
+        /// <summary>
+        /// Check if email exists (case-insensitive)
+        /// </summary>
+        public async Task<bool> EmailExistsAsync(string email, int? excludeEmployeeId = null)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return false;
+
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+
+            var query = _context.Employees
+                .AsNoTracking()
+                .Where(e => !e.IsDeleted && e.Email.ToLower() == normalizedEmail);
+
+            if (excludeEmployeeId.HasValue)
+            {
+                query = query.Where(e => e.Id != excludeEmployeeId.Value);
+            }
+
+            return await query.AnyAsync();
+        }
+
+        /// <summary>
+        /// Get employee by email
+        /// </summary>
+        public async Task<Employee?> GetByEmailAsync(string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return null;
+
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+
+            return await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .FirstOrDefaultAsync(e => !e.IsDeleted && e.Email.ToLower() == normalizedEmail);
+        }
+
+        /// <summary>
+        /// Get paginated employees with department info
+        /// </summary>
+        public override async Task<PagedResult<Employee>> GetPagedAsync(
+            int pageNumber,
+            int pageSize,
+            Expression<Func<Employee, bool>>? filter = null,
+            Func<IQueryable<Employee>, IOrderedQueryable<Employee>>? orderBy = null)
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            IQueryable<Employee> query = _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .Where(e => !e.IsDeleted);
+
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            if (orderBy != null)
+            {
+                query = orderBy(query);
+            }
+            else
+            {
+                // Default sorting
+                query = query.OrderBy(e => e.LastName).ThenBy(e => e.FirstName);
+            }
+
+            var items = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PagedResult<Employee>(items, totalCount, pageNumber, pageSize);
         }
     }
 }

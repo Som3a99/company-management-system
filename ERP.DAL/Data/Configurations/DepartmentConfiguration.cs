@@ -44,6 +44,27 @@ namespace ERP.DAL.Data.Configurations
                 .WithOne(e => e.Department)
                 .HasForeignKey(e => e.DepartmentId)
                 .OnDelete(DeleteBehavior.Restrict); // Prevent orphaning employees
+
+            /// <summary>
+            /// IsDeleted configuration with default value
+            /// </summary>
+            builder.Property(d => d.IsDeleted)
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            /// <summary>
+            /// Index on IsDeleted for query performance
+            /// </summary>
+            builder.HasIndex(d => d.IsDeleted);
+
+            /// <summary>
+            /// Unique index on DepartmentCode (only for non-deleted)
+            /// This allows same code to be reused after soft delete
+            /// </summary>
+            builder.HasIndex(d => d.DepartmentCode)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0");
+
         }
     }
 }

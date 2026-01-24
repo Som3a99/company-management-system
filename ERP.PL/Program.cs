@@ -47,6 +47,9 @@ namespace ERP.PL
             // Document Settings
             builder.Services.AddScoped<DocumentSettings>();
 
+            // Input Sanitizer - Singleton (stateless utility)
+            builder.Services.AddSingleton<InputSanitizer>();
+
             //  Add Anti-forgery token validation
             builder.Services.AddAntiforgery(options =>
             {

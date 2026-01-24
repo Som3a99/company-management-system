@@ -1,4 +1,5 @@
 ﻿using ERP.DAL.Models;
+using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
 namespace ERP.PL.ViewModels.Employee
@@ -9,31 +10,48 @@ namespace ERP.PL.ViewModels.Employee
 
         public int Id { get; set; }
 
-        [Required]
-        [MaxLength(50)]
-        [MinLength(3)]
+        [Required(ErrorMessage = "First name is required")]
+        [MaxLength(50, ErrorMessage = "First name cannot exceed 50 characters")]
+        [MinLength(3, ErrorMessage = "First name must be at least 3 characters")]
+        [RegularExpression(@"^[a-zA-Z\s]+$", ErrorMessage = "First name can only contain letters and spaces")]
+        [Display(Name = "First Name")]
         public string FirstName { get; set; } = null!;
-        [Required]
-        [MaxLength(50)]
-        [MinLength(3)]
+
+        [Required(ErrorMessage = "Last name is required")]
+        [MaxLength(50, ErrorMessage = "Last name cannot exceed 50 characters")]
+        [MinLength(3, ErrorMessage = "Last name must be at least 3 characters")]
+        [RegularExpression(@"^[a-zA-Z\s]+$", ErrorMessage = "Last name can only contain letters and spaces")]
+        [Display(Name = "Last Name")]
         public string LastName { get; set; } = null!;
-        [Required]
-        [EmailAddress]
+
+        [Required(ErrorMessage = "Email address is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        [MaxLength(100, ErrorMessage = "Email cannot exceed 100 characters")]
+        [Remote(action: "IsEmailUnique", controller: "Employee",
+            AdditionalFields = nameof(Id),
+            ErrorMessage = "This email address is already registered")]
+        [Display(Name = "Email Address")]
         public string Email { get; set; } = null!;
-        [Required]
-        [Display( Name = "Phone Number")]
-        [Phone]
+
+        [Required(ErrorMessage = "Phone number is required")]
+        [Display(Name = "Phone Number")]
+        [Phone(ErrorMessage = "Please enter a valid phone number")]
+        [RegularExpression(@"^\+?[1-9]\d{1,14}$", ErrorMessage = "Please enter a valid international phone number")]
         public string PhoneNumber { get; set; } = null!;
-        [Required]
-        [MaxLength(100)]
+
+        [Required(ErrorMessage = "Position is required")]
+        [MaxLength(100, ErrorMessage = "Position cannot exceed 100 characters")]
+        [MinLength(3, ErrorMessage = "Position must be at least 3 characters")]
         public string Position { get; set; } = null!;
 
-        [Required]
+        [Required(ErrorMessage = "Hire date is required")]
         [DataType(DataType.Date)]
-        [Display( Name = "Hire Date")]
+        [Display(Name = "Hire Date")]
         public DateTime HireDate { get; set; }
-        [Required]
+
+        [Required(ErrorMessage = "Salary is required")]
         [DataType(DataType.Currency)]
+        [Range(0.01, 9999999.99, ErrorMessage = "Salary must be between 0.01 and 9,999,999.99")]
         public decimal Salary { get; set; }
         [Display( Name = "Is Active")]
         public bool IsActive { get; set; }
@@ -46,10 +64,11 @@ namespace ERP.PL.ViewModels.Employee
 
         public string? ImageUrl { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Gender is required")]
         public Gender Gender { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Department is required")]
+        [Display(Name = "Department")]
         public int DepartmentId { get; set; }
 
         public DAL.Models.Department? Department { get; set; }

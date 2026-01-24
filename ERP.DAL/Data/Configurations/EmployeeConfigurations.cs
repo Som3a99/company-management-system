@@ -58,6 +58,12 @@ namespace ERP.DAL.Data.Configurations
             builder.HasOne(e => e.ManagedDepartment)
                    .WithOne(d => d.Manager)
                    .HasForeignKey<Department>(d => d.ManagerId);
+
+            builder.HasIndex(e => e.IsDeleted);
+
+            builder.HasIndex(e => new { e.IsActive, e.IsDeleted });
+
+            builder.HasIndex(e => e.DepartmentId);
         }
     }
 }

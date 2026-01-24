@@ -1,4 +1,6 @@
-﻿using ERP.DAL.Models;
+﻿using ERP.BLL.Common;
+using ERP.DAL.Models;
+using System.Linq.Expressions;
 
 namespace ERP.BLL.Interfaces
 {
@@ -10,5 +12,14 @@ namespace ERP.BLL.Interfaces
         Task AddAsync(T entity);
         void Update(T entity);
         void Delete(int id);
+
+        /// <summary>
+        /// Get paginated results with optional filtering
+        /// </summary>
+        Task<PagedResult<T>> GetPagedAsync(
+            int pageNumber,
+            int pageSize,
+            Expression<Func<T, bool>>? filter = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null);
     }
 }

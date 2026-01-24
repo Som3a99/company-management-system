@@ -1,6 +1,8 @@
 ﻿using AutoMapper;
+using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
+using ERP.PL.Helpers;
 using ERP.PL.ViewModels.Department;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -21,11 +23,61 @@ namespace ERP.PL.Controllers
 
         #region Index
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10, string? searchTerm = null)
         {
-            var departments = await _unitOfWork.DepartmentRepository.GetAllAsync();
-            var departmentViewModels = _mapper.Map<IEnumerable<DepartmentViewModel>>(departments);
-            return View(departmentViewModels);
+            try
+            {
+                // ✅ Sanitize search input
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
+                }
+
+                ViewData["SearchTerm"] = searchTerm;
+
+                PagedResult<Department> pagedDepartments;
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    var searchLower = searchTerm.ToLower();
+                    pagedDepartments = await _unitOfWork.DepartmentRepository.GetPagedAsync(
+                        pageNumber,
+                        pageSize,
+                        filter: d =>
+                            d.DepartmentCode.ToLower().Contains(searchLower) ||
+                            d.DepartmentName.ToLower().Contains(searchLower) ||
+                            (d.Manager != null && (
+                                d.Manager.FirstName.ToLower().Contains(searchLower) ||
+                                d.Manager.LastName.ToLower().Contains(searchLower)
+                            )),
+                        orderBy: q => q.OrderBy(d => d.DepartmentCode)
+                    );
+                }
+                else
+                {
+                    pagedDepartments = await _unitOfWork.DepartmentRepository.GetPagedAsync(
+                        pageNumber,
+                        pageSize,
+                        orderBy: q => q.OrderBy(d => d.DepartmentCode)
+                    );
+                }
+
+                var departmentViewModels = _mapper.Map<List<DepartmentViewModel>>(pagedDepartments.Items);
+
+                var pagedResult = new PagedResult<DepartmentViewModel>(
+                    departmentViewModels,
+                    pagedDepartments.TotalCount,
+                    pagedDepartments.PageNumber,
+                    pagedDepartments.PageSize
+                );
+
+                return View(pagedResult);
+            }
+            catch (Exception)
+            {
+                // Log error
+                return View(new PagedResult<DepartmentViewModel>(new List<DepartmentViewModel>(), 0, 1, pageSize));
+            }
         }
         #endregion
 
@@ -42,6 +94,18 @@ namespace ERP.PL.Controllers
         public async Task<IActionResult> Create(DepartmentViewModel department)
         {
             ModelState.Remove("Manager"); // Remove Manager from ModelState validation it's not bound from the form
+
+            if (!string.IsNullOrWhiteSpace(department.DepartmentCode))
+            {
+                department.DepartmentCode = InputSanitizer.SanitizeDepartmentCode(department.DepartmentCode)
+                    ?? department.DepartmentCode;
+            }
+
+            if (!string.IsNullOrWhiteSpace(department.DepartmentName))
+            {
+                department.DepartmentName = InputSanitizer.NormalizeWhitespace(department.DepartmentName);
+            }
+
             if (ModelState.IsValid)
             {
                 // Validate manager logic
@@ -150,6 +214,8 @@ namespace ERP.PL.Controllers
 
             _unitOfWork.DepartmentRepository.Delete(id);
             await _unitOfWork.CompleteAsync();
+
+            TempData["SuccessMessage"] = $"Department '{department.DepartmentName}' deleted successfully!";
             return RedirectToAction(nameof(Index));
         }
         #endregion
@@ -167,6 +233,28 @@ namespace ERP.PL.Controllers
             var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
 
             return View(departmentViewModel);
+        }
+        #endregion
+
+        #region Remote Validation
+
+        /// <summary>
+        /// Remote validation for department code uniqueness
+        /// Called by jQuery Unobtrusive Validation on client-side
+        /// </summary>
+        [AcceptVerbs("GET", "POST")]
+        public async Task<IActionResult> IsDepartmentCodeUnique(string departmentCode, int? id)
+        {
+            if (string.IsNullOrWhiteSpace(departmentCode))
+                return Json(true); // Required validation will catch this
+
+            // Sanitize input
+            var sanitizedCode = InputSanitizer.SanitizeDepartmentCode(departmentCode);
+            if (sanitizedCode == null)
+                return Json(false); // Invalid format
+
+            var exists = await _unitOfWork.DepartmentRepository.DepartmentCodeExistsAsync(sanitizedCode, id);
+            return Json(!exists);
         }
         #endregion
 
@@ -265,3 +353,4 @@ namespace ERP.PL.Controllers
         #endregion
     }
 }
+

@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
@@ -25,11 +26,59 @@ namespace ERP.PL.Controllers
 
         #region Index
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10, string? searchTerm = null)
         {
-            var employees = await _unitOfWork.EmployeeRepository.GetAllAsync();
-            var employeeViewModels = _mapper.Map<IEnumerable<EmployeeViewModel>>(employees);
-            return View(employeeViewModels);
+            try
+            {
+                // Store search term in ViewData for the view
+                ViewData["SearchTerm"] = searchTerm;
+
+                PagedResult<Employee> pagedEmployees;
+
+                if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    // Search across multiple fields
+                    var searchLower = searchTerm.ToLower();
+                    pagedEmployees = await _unitOfWork.EmployeeRepository.GetPagedAsync(
+                        pageNumber,
+                        pageSize,
+                        filter: e =>
+                            e.FirstName.ToLower().Contains(searchLower) ||
+                            e.LastName.ToLower().Contains(searchLower) ||
+                            e.Email.ToLower().Contains(searchLower) ||
+                            e.Position.ToLower().Contains(searchLower) ||
+                            (e.Department != null && e.Department.DepartmentName.ToLower().Contains(searchLower)),
+                        orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                    );
+                }
+                else
+                {
+                    // Get all with default sorting
+                    pagedEmployees = await _unitOfWork.EmployeeRepository.GetPagedAsync(
+                        pageNumber,
+                        pageSize,
+                        orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                    );
+                }
+
+                // Map to view models
+                var employeeViewModels = _mapper.Map<List<EmployeeViewModel>>(pagedEmployees.Items);
+
+                var pagedResult = new PagedResult<EmployeeViewModel>(
+                    employeeViewModels,
+                    pagedEmployees.TotalCount,
+                    pagedEmployees.PageNumber,
+                    pagedEmployees.PageSize
+                );
+
+                return View(pagedResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving employees");
+                TempData["ErrorMessage"] = "An error occurred while loading employees.";
+                return View(new PagedResult<EmployeeViewModel>(new List<EmployeeViewModel>(), 0, 1, pageSize));
+            }
         }
         #endregion
 
@@ -206,7 +255,7 @@ namespace ERP.PL.Controllers
                 // Soft delete the employee
                 _unitOfWork.EmployeeRepository.Delete(id);
 
-                // Save changes to database
+                // FIXED: Save changes to database
                 var result = await _unitOfWork.CompleteAsync();
 
                 if (result > 0)
@@ -248,6 +297,24 @@ namespace ERP.PL.Controllers
                 return RedirectToAction(nameof(Index));
             }
         }
+        #endregion
+
+        #region Remote Validation
+
+        /// <summary>
+        /// Remote validation for email uniqueness
+        /// Called by jQuery Unobtrusive Validation on client-side
+        /// </summary>
+        [AcceptVerbs("GET", "POST")]
+        public async Task<IActionResult> IsEmailUnique(string email, int? id)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return Json(true); // Required validation will catch this
+
+            var exists = await _unitOfWork.EmployeeRepository.EmailExistsAsync(email, id);
+            return Json(!exists);
+        }
+
         #endregion
 
         #region Helper Method

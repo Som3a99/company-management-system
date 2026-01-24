@@ -6,6 +6,8 @@
         public string DepartmentCode { get; set; } = null!;
         public string DepartmentName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
+
+        public bool IsDeleted { get; set; }
         #endregion
 
         #region Navigation Properties

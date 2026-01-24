@@ -1,7 +1,10 @@
-﻿using ERP.BLL.Interfaces;
+﻿using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Linq.Expressions;
 
 namespace ERP.BLL.Repositories
 {
@@ -38,6 +41,46 @@ namespace ERP.BLL.Repositories
             {
                 _context.Set<T>().Remove(entity);
             }
+        }
+
+        /// <summary>
+        ///Get paginated results with filtering and sorting
+        /// </summary>
+        public virtual async Task<PagedResult<T>> GetPagedAsync(
+            int pageNumber,
+            int pageSize,
+            Expression<Func<T, bool>>? filter = null,
+            Func<IQueryable<T>, IOrderedQueryable<T>>? orderBy = null)
+        {
+            // Validate pagination parameters
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100; // Max page size limit
+
+            IQueryable<T> query = _context.Set<T>().AsNoTracking();
+
+            // Apply filter if provided
+            if (filter != null)
+            {
+                query = query.Where(filter);
+            }
+
+            // Get total count before pagination
+            var totalCount = await query.CountAsync();
+
+            // Apply sorting
+            if (orderBy != null)
+            {
+                query = orderBy(query);
+            }
+
+            // Apply pagination
+            var items = await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PagedResult<T>(items, totalCount, pageNumber, pageSize);
         }
     }
 }
