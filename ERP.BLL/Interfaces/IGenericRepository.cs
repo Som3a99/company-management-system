@@ -17,13 +17,10 @@ namespace ERP.BLL.Interfaces
         
         Task AddAsync(T entity);
         void Update(T entity);
-        void Delete(int id);
-        
         /// <summary>
-        /// Delete entity asynchronously (for async controller operations)
+        /// Delete entity asynchronously (soft delete)
         /// </summary>
         Task DeleteAsync(int id);
-
         /// <summary>
         /// Get paginated results with optional filtering
         /// </summary>

@@ -39,37 +39,10 @@ namespace ERP.BLL.Repositories
         public override async Task<Department?> GetByIdTrackedAsync(int id)
         {
             return await _context.Departments
+                .IgnoreQueryFilters()
                 .Include(d => d.Employees)
                 .Include(d => d.Manager)
                 .FirstOrDefaultAsync(d => d.Id == id);
-        }
-
-        /// <summary>
-        /// Override Delete to implement soft delete
-        /// </summary>
-        public override void Delete(int id)
-        {
-            var department = _context.Departments.IgnoreQueryFilters().FirstOrDefault(e => e.Id == id);
-            if (department != null)
-            {
-                department.IsDeleted = true;
-                _context.Update(department);
-            }
-        }
-
-        /// <summary>
-        /// Async soft delete for department
-        /// </summary>
-        public override async Task DeleteAsync(int id)
-        {
-            var department = await _context.Departments
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(e => e.Id == id);
-            if (department != null)
-            {
-                department.IsDeleted = true;
-                _context.Update(department);
-            }
         }
 
         /// <summary>
@@ -80,6 +53,7 @@ namespace ERP.BLL.Repositories
         {
             var query = _context.Departments
                 .AsNoTracking()
+                .Where(d => !d.IsDeleted)
                 .Where(d => d.ManagerId == managerId); // Filter soft-deleted
 
             if (excludeDepartmentId.HasValue)
@@ -100,7 +74,7 @@ namespace ERP.BLL.Repositories
 
             var query = _context.Departments
                 .AsNoTracking()
-                .Where(d => d.DepartmentCode.Equals(normalizedCode, StringComparison.CurrentCultureIgnoreCase));
+                .Where(d => d.DepartmentCode.ToUpper() == normalizedCode);
 
             if (excludeDepartmentId.HasValue)
             {
@@ -174,22 +148,44 @@ namespace ERP.BLL.Repositories
         /// Retrieves the first non-deleted department managed by the specified manager, excluding a given department,
         /// with an update lock for concurrency.
         /// </summary>
-        /// <param name="managerId">The ID of the manager whose department is to be retrieved.</param>
-        /// <param name="excludeDepartmentId">The ID of the department to exclude from the search.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the matching Department entity
-        /// or null if not found.</returns>
-        public async Task<Department?> GetDepartmentByManagerForUpdateAsync(int managerId, int excludeDepartmentId)
+        public async Task<Department?> GetDepartmentByManagerForUpdateAsync(int managerId, int? excludeDepartmentId)
         {
-            return await _context.Departments
-                .FromSqlRaw(
-                    @"SELECT * FROM Departments WITH (UPDLOCK)
-                      WHERE ManagerId = {0}
-                      AND Id != {1}
-                      AND IsDeleted = 0",
-                    managerId,
-                    excludeDepartmentId)
-                .AsTracking()
-                .FirstOrDefaultAsync();
+            if (excludeDepartmentId.HasValue)
+            {
+                return await _context.Departments
+                    .FromSqlRaw(
+                        @"SELECT * FROM Departments WITH (UPDLOCK)
+                  WHERE ManagerId = {0}
+                  AND Id != {1}
+                  AND IsDeleted = 0",
+                        managerId,
+                        excludeDepartmentId.Value)
+                    .AsTracking()
+                    .FirstOrDefaultAsync();
+            }
+            else
+            {
+                return await _context.Departments
+                    .FromSqlRaw(
+                        @"SELECT * FROM Departments WITH (UPDLOCK)
+                  WHERE ManagerId = {0}
+                  AND IsDeleted = 0",
+                        managerId)
+                    .AsTracking()
+                    .FirstOrDefaultAsync();
+            }
+        }
+
+        /// <summary>
+        /// Has active employees in department
+        /// </summary>
+        /// <param name="departmentId"></param>
+        /// <returns></returns>
+        public async Task<bool> HasActiveEmployeesAsync(int departmentId)
+        {
+            return await _context.Employees
+                .IgnoreQueryFilters()
+                .AnyAsync(e => e.DepartmentId == departmentId && !e.IsDeleted);
         }
 
     }

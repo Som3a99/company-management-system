@@ -126,7 +126,7 @@
                 <div class="card">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary-main) 0%, var(--primary-light) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--primary-main, #2563eb) 0%, var(--primary-light, #60a5fa) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect x="3" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="2" />
                                     <rect x="3" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="2" />
@@ -160,7 +160,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>                              
             </div>
 
             <div class="col-lg-3 col-md-6">
@@ -273,7 +273,7 @@
                                 @if (hasManager)
                                 {
                                     <div class="manager-info">
-                                        <img src="/uploads/images/@department.Manager?.ImageUrl"
+                                        <img src="@department.Manager?.ImageUrl"
                                              alt="@department.Manager?.FirstName @department.Manager?.LastName"
                                              class="manager-avatar" />
                                         <div>

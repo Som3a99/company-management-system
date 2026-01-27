@@ -30,6 +30,7 @@ namespace ERP.BLL.Repositories
         /// </summary>
         public virtual async Task<T?> GetByIdTrackedAsync(int id)
             => await _context.Set<T>()
+                             .IgnoreQueryFilters()
                              .FirstOrDefaultAsync(e => e.Id == id);
 
         public virtual async Task AddAsync(T entity)
@@ -40,25 +41,28 @@ namespace ERP.BLL.Repositories
         {
             _context.Update(entity);
         }
-
-        public virtual void Delete(int id)
-        {
-            var entity = _context.Set<T>().Find(id);
-            if (entity != null)
-            {
-                _context.Set<T>().Remove(entity);
-            }
-        }
-
         /// <summary>
-        /// Delete entity asynchronously
+        /// Delete entity asynchronously (soft delete)
         /// </summary>
         public virtual async Task DeleteAsync(int id)
         {
-            var entity = await _context.Set<T>().FindAsync(id);
+            var entity = await _context.Set<T>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.Id == id);
             if (entity != null)
             {
-                _context.Set<T>().Remove(entity);
+                // Check if entity has IsDeleted property using reflection
+                var isDeletedProp = typeof(T).GetProperty("IsDeleted");
+                if (isDeletedProp != null && isDeletedProp.PropertyType == typeof(bool) && isDeletedProp.CanWrite)
+                {
+                    isDeletedProp.SetValue(entity, true);
+                    _context.Update(entity);
+                }
+                else
+                {
+                    // Throw IsDeleted is not present
+                    throw new InvalidOperationException($"Type {typeof(T).Name} does not support soft delete (missing IsDeleted property).");
+                }
             }
         }
 

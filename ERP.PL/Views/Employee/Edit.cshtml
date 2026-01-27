@@ -4,7 +4,7 @@
     ViewData["Title"] = "Edit Employee";
     var employeeAge = DateTime.Now.Year - Model.HireDate.Year;
     var tenure = employeeAge > 0 ? $"{employeeAge} year{(employeeAge != 1 ? "s" : "")}" : "Less than 1 year";
-    var currentImageUrl = $"/uploads/images/{Model.ImageUrl}";
+    var currentImageUrl = Model.ImageUrl;
 }
 
 <div class="container-fluid px-4">

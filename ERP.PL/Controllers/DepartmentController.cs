@@ -1,7 +1,6 @@
 ﻿using AutoMapper;
 using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
-using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
 using ERP.PL.ViewModels.Department;
@@ -109,6 +108,14 @@ namespace ERP.PL.Controllers
                 return View(department);
             }
 
+            // Server-side department code uniqueness validation
+            if (await _unitOfWork.DepartmentRepository.DepartmentCodeExistsAsync(department.DepartmentCode))
+            {
+                ModelState.AddModelError("DepartmentCode", "This department code is already in use.");
+                await LoadManagersAsync(department.ManagerId);
+                return View(department);
+            }
+
             using var transaction = await _unitOfWork.BeginTransactionAsync();
 
             try
@@ -122,6 +129,22 @@ namespace ERP.PL.Controllers
                     if (manager == null)
                     {
                         ModelState.AddModelError("ManagerId", "Selected manager does not exist.");
+                        await LoadManagersAsync(department.ManagerId);
+                        return View(department);
+                    }
+                    // FIXED: Use Null for new departments (ID doesn't exist yet)
+                    var conflict = await _unitOfWork.DepartmentRepository
+                        .GetDepartmentByManagerForUpdateAsync(
+                            department.ManagerId.Value,
+                            null); // Null for new department
+
+                    if (conflict != null)
+                    {
+                        ModelState.AddModelError(
+                            "ManagerId",
+                            $"Manager is already assigned to '{conflict.DepartmentName}'."
+                        );
+
                         await LoadManagersAsync(department.ManagerId);
                         return View(department);
                     }
@@ -191,7 +214,7 @@ namespace ERP.PL.Controllers
                 return NotFound();
             }
             var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
-            await LoadManagersAsync(departmentViewModel.ManagerId);
+            await LoadManagersAsync(departmentViewModel.ManagerId, id);
             return View(departmentViewModel);
         }
 
@@ -227,11 +250,11 @@ namespace ERP.PL.Controllers
                         return View(department);
                     }
 
-                    // Lock + check if manager already assigned elsewhere
+                    // FIXED: Add locking check for manager assignment
                     var conflict = await _unitOfWork.DepartmentRepository
                         .GetDepartmentByManagerForUpdateAsync(
                             department.ManagerId.Value,
-                            department.Id);
+                            department.Id); // Exclude current department
 
                     if (conflict != null)
                     {
@@ -269,7 +292,7 @@ namespace ERP.PL.Controllers
                 when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
             {
                 await transaction.RollbackAsync();
-
+                
                 // DB constraint safety net
                 ModelState.AddModelError(
                     "ManagerId",
@@ -328,7 +351,7 @@ namespace ERP.PL.Controllers
                 return NotFound();
 
             // Check if department has employees
-            if (department.Employees.Any(e => !e.IsDeleted))
+            if (await _unitOfWork.DepartmentRepository.HasActiveEmployeesAsync(id))
             {
                 TempData["ErrorMessage"] = $"Cannot delete {department.DepartmentName} because it has active employees.";
                 return RedirectToAction(nameof(Index));
@@ -417,61 +440,6 @@ namespace ERP.PL.Controllers
                 currentManagerId
             );
         }
-
-        /// <summary>
-        /// Validates manager assignment with proper null handling
-        /// </summary>
-        /// <param name="managerId">Manager employee ID to validate</param>
-        /// <param name="currentDepartmentId">Current department ID (null for new departments)</param>
-        /// <returns>Tuple with validation result and error message</returns>
-        private async Task<(bool IsValid, string? ErrorMessage)> ValidateManagerAssignmentAsync(
-            int? managerId,
-            int? currentDepartmentId)
-        {
-            // No manager selected is valid (optional field)
-            if (!managerId.HasValue)
-                return (true, null);
-
-            // Verify manager exists and is active
-            var manager = await _unitOfWork.EmployeeRepository.GetByIdAsync(managerId.Value);
-            if (manager == null)
-                return (false, "Selected manager does not exist.");
-
-            if (!manager.IsActive)
-                return (false, $"{manager.FirstName} {manager.LastName} is not an active employee.");
-
-            if (manager.IsDeleted)
-                return (false, $"{manager.FirstName} {manager.LastName} is no longer available.");
-
-            // Check if manager already manages another department
-            var existingManagedDepartment = await _unitOfWork.DepartmentRepository
-                .GetByManagerIdAsync(managerId.Value, currentDepartmentId);
-
-            if (existingManagedDepartment != null)
-            {
-                return (false,
-                    $"{manager.FirstName} {manager.LastName} is already managing '{existingManagedDepartment.DepartmentName}'. " +
-                    $"An employee can only manage one department at a time.");
-            }
-
-            // Only validate department match for EXISTING departments
-            // For NEW departments (currentDepartmentId == null), skip this check
-            if (currentDepartmentId.HasValue)
-            {
-                if (manager.DepartmentId != currentDepartmentId.Value)
-                {
-                    var currentDept = await _unitOfWork.DepartmentRepository.GetByIdAsync(currentDepartmentId.Value);
-                    return (false,
-                        $"{manager.FirstName} {manager.LastName} belongs to '{manager.Department?.DepartmentName}' " +
-                        $"but must belong to '{currentDept?.DepartmentName}' to manage it.");
-                }
-            }
-            // For NEW departments: Manager can be from any department initially
-            // After creation, they should ideally be transferred to the department they manage
-
-            return (true, null);
-        }
-
         #endregion
     }
 }

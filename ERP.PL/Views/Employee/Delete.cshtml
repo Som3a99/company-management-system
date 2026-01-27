@@ -4,7 +4,7 @@
     ViewData["Title"] = "Delete Employee";
     var tenure = DateTime.Now.Year - Model.HireDate.Year;
     var tenureText = tenure > 0 ? $"{tenure} year{(tenure != 1 ? "s" : "")}" : "Less than 1 year";
-    var currentImageUrl = $"/uploads/images/{Model.ImageUrl}";
+    var currentImageUrl = Model.ImageUrl;
 }
 
 <div class="container-fluid px-4">

@@ -210,7 +210,7 @@
                     @foreach (var employee in Model.Items.Where(e => !e.IsDeleted))
                     {
                         var imageUrl = !string.IsNullOrEmpty(employee.ImageUrl)
-                        ? $"/uploads/images/{employee.ImageUrl}"
+                        ? employee.ImageUrl
                         : "/uploads/images/avatar-user.png";
 
                         <tr data-status="@(employee.IsActive ? "active" : "inactive")">

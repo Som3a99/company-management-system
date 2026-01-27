@@ -24,7 +24,14 @@ namespace ERP.BLL.Interfaces
         /// <param name="managerId"></param>
         /// <param name="excludeDepartmentId"></param>
         /// <returns></returns>
-        Task<Department?> GetDepartmentByManagerForUpdateAsync(int managerId, int excludeDepartmentId);
+        Task<Department?> GetDepartmentByManagerForUpdateAsync(int managerId, int? excludeDepartmentId);
+
+        /// <summary>
+        /// Has active employees in department
+        /// </summary>
+        /// <param name="departmentId"></param>
+        /// <returns></returns>
+        Task<bool> HasActiveEmployeesAsync(int departmentId);
 
     }
 }

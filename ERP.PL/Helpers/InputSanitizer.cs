@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Text;
+using System.Text.RegularExpressions;
 using System.Web;
 
 namespace ERP.PL.Helpers
@@ -90,15 +91,51 @@ namespace ERP.PL.Helpers
         }
 
         /// <summary>
-        /// Sanitize phone number - keep only digits and allowed characters
+        /// Sanitizes a phone number by removing non-digit characters and formatting
         /// </summary>
-        public static string SanitizePhoneNumber(string? phone)
+        /// <param name="phoneNumber">Raw phone number input</param>
+        /// <returns>Sanitized phone number or null if invalid</returns>
+        public static string? SanitizePhoneNumber(string phoneNumber)
         {
-            if (string.IsNullOrWhiteSpace(phone))
-                return string.Empty;
+            if (string.IsNullOrWhiteSpace(phoneNumber))
+                return null;
 
-            // Keep only digits, +, -, (, ), and spaces
-            return Regex.Replace(phone, @"[^\d\+\-\(\)\s]", "");
+            // Remove all non-digit characters except leading +
+            var digits = new StringBuilder();
+            bool hasLeadingPlus = false;
+
+            for (int i = 0; i < phoneNumber.Length; i++)
+            {
+                char c = phoneNumber[i];
+
+                if (i == 0 && c == '+')
+                {
+                    hasLeadingPlus = true;
+                    digits.Append(c);
+                }
+                else if (char.IsDigit(c))
+                {
+                    digits.Append(c);
+                }
+            }
+
+            var result = digits.ToString();
+
+            // Basic validation
+            if (hasLeadingPlus)
+            {
+                // International format: + followed by 1-15 digits
+                if (result.Length < 2 || result.Length > 16) // + plus 1-15 digits
+                    return null;
+            }
+            else
+            {
+                // Local format: 7-15 digits
+                if (result.Length < 7 || result.Length > 15)
+                    return null;
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -142,5 +179,6 @@ namespace ERP.PL.Helpers
 
             return code;
         }
+
     }
 }

@@ -17,13 +17,16 @@ namespace ERP.PL.Controllers
         private readonly IMapper _mapper;
         private readonly DocumentSettings _documentSettings;
         private readonly ILogger<EmployeeController> _logger;
+        private readonly IConfiguration _configuration;
 
-        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings, ILogger<EmployeeController> logger)
+
+        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings, ILogger<EmployeeController> logger, IConfiguration configuration)
         {
             _mapper=mapper;
             _unitOfWork=unitOfWork;
             _documentSettings=documentSettings;
             _logger=logger;
+            _configuration=configuration;
         }
 
         #region Index
@@ -94,40 +97,90 @@ namespace ERP.PL.Controllers
         public async Task<IActionResult> Create(EmployeeViewModel employee)
         {
             ModelState.Remove("Department");
-            ModelState.Remove("Image"); // Remove because it's optional
-            ModelState.Remove("ImageUrl"); // Remove because controller sets i
+            ModelState.Remove("Image");
+            ModelState.Remove("ImageUrl");
 
             if (!ModelState.IsValid)
             {
                 await LoadDepartmentsAsync();
                 return View(employee);
             }
-            var employeeMapped = _mapper.Map<Employee>(employee);
-            if (employee.Image != null && employee.Image.Length > 0)
+            // Phone number sanitization and validation
+            if (!string.IsNullOrWhiteSpace(employee.PhoneNumber))
             {
-                try
+                var sanitizedPhone = InputSanitizer.SanitizePhoneNumber(employee.PhoneNumber);
+                if (sanitizedPhone == null)
                 {
-                    employeeMapped.ImageUrl =
-                        await _documentSettings.UploadImagePath(employee.Image, "images");
-                }
-                catch (ArgumentException ex)
-                {
-                    ModelState.AddModelError("Image", ex.Message);
+                    ModelState.AddModelError("PhoneNumber", "Invalid phone number format.");
                     await LoadDepartmentsAsync();
                     return View(employee);
                 }
+                employee.PhoneNumber = sanitizedPhone;
             }
-            else
+
+            // Salary range validation from appsettings
+            var salaryMin = _configuration.GetValue<decimal>("Salary:Min", 30000);
+            var salaryMax = _configuration.GetValue<decimal>("Salary:Max", 500000);
+
+            if (employee.Salary < salaryMin || employee.Salary > salaryMax)
             {
-                // Gender-based default avatar
-                employeeMapped.ImageUrl =
-                    _documentSettings.GetDefaultAvatarByGender(employeeMapped.Gender);
+                ModelState.AddModelError("Salary",
+                    $"Salary must be between {salaryMin:C} and {salaryMax:C}. Current value: {employee.Salary:C}");
+                await LoadDepartmentsAsync();
+                return View(employee);
             }
+            // Server-side email uniqueness validation
+            if (await _unitOfWork.EmployeeRepository.EmailExistsAsync(employee.Email))
+            {
+                ModelState.AddModelError("Email", "This email address is already registered.");
+                await LoadDepartmentsAsync();
+                return View(employee);
+            }
+
+            // Start transaction BEFORE any file operations
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            string? tempImagePath = null;
+            string? finalImagePath = null;
 
             try
             {
+                var employeeMapped = _mapper.Map<Employee>(employee);
+
+                if (employee.Image != null && employee.Image.Length > 0)
+                {
+                    // Upload to temporary location with GUID name
+                    var tempFileName = $"temp_{Guid.NewGuid()}_{employee.Image.FileName}";
+                    tempImagePath = await _documentSettings.UploadImageToTempPath(employee.Image, tempFileName);
+
+                    // Set the path as temporary for now
+                    employeeMapped.ImageUrl = tempImagePath;
+                }
+                else
+                {
+                    // Gender-based default avatar
+                    employeeMapped.ImageUrl = _documentSettings.GetDefaultAvatarByGender(employeeMapped.Gender);
+                }
+
+                // Save employee to get ID
                 await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
                 await _unitOfWork.CompleteAsync();
+
+                // FIX: If we have a temp image, move it to final location with employee ID
+                if (!string.IsNullOrEmpty(tempImagePath) && employeeMapped.Id > 0)
+                {
+                    var originalFileName = employee.Image?.FileName ?? string.Empty;
+                    finalImagePath = await _documentSettings.MoveImageToFinalLocation(
+                        tempImagePath,
+                        employeeMapped.Id,
+                        originalFileName);
+
+                    // Update employee with final image path
+                    employeeMapped.ImageUrl = finalImagePath;
+                    _unitOfWork.EmployeeRepository.Update(employeeMapped);
+                    await _unitOfWork.CompleteAsync();
+                }
+
+                await transaction.CommitAsync();
 
                 TempData["SuccessMessage"] = $"Employee '{employeeMapped.FirstName} {employeeMapped.LastName}' created successfully!";
                 return RedirectToAction(nameof(Index));
@@ -136,11 +189,33 @@ namespace ERP.PL.Controllers
                 ex.InnerException is SqlException sqlEx &&
                 (sqlEx.Number == 2601 || sqlEx.Number == 2627))
             {
+                await transaction.RollbackAsync();
+
+                // Clean up temp file if exists
+                if (!string.IsNullOrEmpty(tempImagePath))
+                {
+                    try { _documentSettings.DeleteTempImage(tempImagePath); } catch { }
+                }
+
                 ModelState.AddModelError("Email", "This email address is already registered.");
                 await LoadDepartmentsAsync();
                 return View(employee);
             }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
 
+                // Clean up temp file if exists
+                if (!string.IsNullOrEmpty(tempImagePath))
+                {
+                    try { _documentSettings.DeleteTempImage(tempImagePath); } catch { }
+                }
+
+                _logger.LogError(ex, "Error creating employee");
+                ModelState.AddModelError(string.Empty, "An error occurred while creating the employee.");
+                await LoadDepartmentsAsync();
+                return View(employee);
+            }
         }
         #endregion
 
@@ -172,7 +247,30 @@ namespace ERP.PL.Controllers
                 await LoadDepartmentsAsync(viewModel.DepartmentId);
                 return View(viewModel);
             }
+            // FIX #13: Phone number sanitization and validation
+            if (!string.IsNullOrWhiteSpace(viewModel.PhoneNumber))
+            {
+                var sanitizedPhone = InputSanitizer.SanitizePhoneNumber(viewModel.PhoneNumber);
+                if (sanitizedPhone == null)
+                {
+                    ModelState.AddModelError("PhoneNumber", "Invalid phone number format.");
+                    await LoadDepartmentsAsync(viewModel.DepartmentId);
+                    return View(viewModel);
+                }
+                viewModel.PhoneNumber = sanitizedPhone;
+            }
 
+            // FIX #14: Salary range validation from appsettings
+            var salaryMin = _configuration.GetValue<decimal>("Salary:Min", 30000);
+            var salaryMax = _configuration.GetValue<decimal>("Salary:Max", 500000);
+
+            if (viewModel.Salary < salaryMin || viewModel.Salary > salaryMax)
+            {
+                ModelState.AddModelError("Salary",
+                    $"Salary must be between {salaryMin:C} and {salaryMax:C}. Current value: {viewModel.Salary:C}");
+                await LoadDepartmentsAsync(viewModel.DepartmentId);
+                return View(viewModel);
+            }
             // CRITICAL: Load existing entity from database (TRACKED for update)
             var existingEmployee = await _unitOfWork.EmployeeRepository.GetByIdTrackedAsync(viewModel.Id);
 

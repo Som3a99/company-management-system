@@ -158,7 +158,8 @@ namespace ERP.PL.Helpers
                 }
 
                 _logger.LogInformation("File uploaded successfully: {FileName}", uniqueFileName);
-                return uniqueFileName;
+                // Return relative path for web access (important!)
+                return $"/uploads/{folderName}/{uniqueFileName}";
             }
             catch (Exception ex)
             {
@@ -285,5 +286,130 @@ namespace ERP.PL.Helpers
                 return Task.FromResult(false);
             }
         }
+
+        /// <summary>
+        /// Uploads image to temporary location for transactional operations
+        /// </summary>
+        public async Task<string> UploadImageToTempPath(IFormFile file, string tempFileName)
+        {
+            // Use existing validation logic from UploadImagePath
+            if (file == null || file.Length == 0)
+                throw new ArgumentException("No file was uploaded.");
+
+            if (file.Length > MaxImageUploadSizeInBytes)
+            {
+                var maxSizeMB = MaxImageUploadSizeInBytes / (1024.0 * 1024.0);
+                throw new ArgumentException($"File size exceeds maximum limit of {maxSizeMB:F1} MB.");
+            }
+
+            var extension = Path.GetExtension(file.FileName)?.ToLowerInvariant();
+            if (string.IsNullOrEmpty(extension) || !AllowedImageExtensions.Contains(extension))
+            {
+                throw new ArgumentException(
+                    $"Invalid file type. Allowed types: {string.Join(", ", AllowedImageExtensions)}");
+            }
+
+            // Create temp directory
+            var tempFolder = Path.Combine(_env.WebRootPath, "uploads", "temp");
+            Directory.CreateDirectory(tempFolder);
+
+            // Generate temp file path
+            var tempFilePath = Path.Combine(tempFolder, $"{tempFileName}{extension}");
+
+            try
+            {
+                using (var stream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    await file.CopyToAsync(stream);
+                }
+
+                _logger.LogInformation("File uploaded to temp location: {FileName}", tempFileName);
+
+                // Return relative path
+                return $"/uploads/temp/{tempFileName}{extension}";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save temp file: {FileName}", tempFileName);
+                if (File.Exists(tempFilePath))
+                {
+                    try { File.Delete(tempFilePath); } catch { }
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Moves image from temp location to final location
+        /// </summary>
+        public async Task<string> MoveImageToFinalLocation(string tempImageUrl, int employeeId, string originalFileName)
+        {
+            if (string.IsNullOrEmpty(tempImageUrl))
+                throw new ArgumentException("Temp image URL cannot be empty.");
+
+            // Convert URL to physical path
+            var tempRelativePath = tempImageUrl.Replace("/uploads/temp/", "");
+            var tempPhysicalPath = Path.Combine(_env.WebRootPath, "uploads", "temp", tempRelativePath);
+
+            if (!File.Exists(tempPhysicalPath))
+                throw new FileNotFoundException("Temp image file not found.", tempPhysicalPath);
+
+            // Get extension from original file or temp file
+            var extension = Path.GetExtension(originalFileName)?.ToLowerInvariant();
+            if (string.IsNullOrEmpty(extension))
+                extension = Path.GetExtension(tempRelativePath);
+
+            // Generate final filename with employee ID
+            var finalFileName = $"emp_{employeeId}_{Guid.NewGuid():N}{extension}";
+            var finalFolder = Path.Combine(_env.WebRootPath, "uploads", "images");
+            Directory.CreateDirectory(finalFolder);
+
+            var finalPhysicalPath = Path.Combine(finalFolder, finalFileName);
+
+            try
+            {
+                // Move the file (async move)
+                await Task.Run(() => File.Move(tempPhysicalPath, finalPhysicalPath));
+
+                _logger.LogInformation("Moved temp image to final location for employee {EmployeeId}: {FileName}",
+                    employeeId, finalFileName);
+
+                // Return web-accessible URL
+                return $"/uploads/images/{finalFileName}";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to move temp image for employee {EmployeeId}", employeeId);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Deletes temporary image file
+        /// </summary>
+        public void DeleteTempImage(string tempImageUrl)
+        {
+            if (string.IsNullOrEmpty(tempImageUrl))
+                return;
+
+            try
+            {
+                // Extract filename from URL
+                var fileName = Path.GetFileName(tempImageUrl);
+                var tempPath = Path.Combine(_env.WebRootPath, "uploads", "temp", fileName);
+
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                    _logger.LogInformation("Deleted temp image: {FileName}", fileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete temp image: {ImageUrl}", tempImageUrl);
+                // Don't throw - temp cleanup failure shouldn't break the flow
+            }
+        }
+
     }
 }

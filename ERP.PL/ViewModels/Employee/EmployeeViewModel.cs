@@ -35,8 +35,8 @@ namespace ERP.PL.ViewModels.Employee
 
         [Required(ErrorMessage = "Phone number is required")]
         [Display(Name = "Phone Number")]
-        [Phone(ErrorMessage = "Please enter a valid phone number")]
-        [RegularExpression(@"^\+?[1-9]\d{1,14}$", ErrorMessage = "Please enter a valid international phone number")]
+        [RegularExpression(@"^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$",
+            ErrorMessage = "Please enter a valid international phone number (e.g., +1 (555) 123-4567, 0123456789)")]
         public string PhoneNumber { get; set; } = null!;
 
         [Required(ErrorMessage = "Position is required")]
@@ -51,7 +51,7 @@ namespace ERP.PL.ViewModels.Employee
 
         [Required(ErrorMessage = "Salary is required")]
         [DataType(DataType.Currency)]
-        [Range(0.01, 9999999.99, ErrorMessage = "Salary must be between 0.01 and 9,999,999.99")]
+        [Display(Name = "Salary")]
         public decimal Salary { get; set; }
         [Display( Name = "Is Active")]
         public bool IsActive { get; set; }

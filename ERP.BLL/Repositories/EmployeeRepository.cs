@@ -38,35 +38,22 @@ namespace ERP.BLL.Repositories
         public override async Task<Employee?> GetByIdTrackedAsync(int id)
         {
             return await _context.Employees
+                .IgnoreQueryFilters()
                 .Include(e => e.Department)
                 .Include(e => e.ManagedDepartment)
                 .FirstOrDefaultAsync(e => e.Id == id);
         }
 
-        // Override Delete to implement soft delete
-        public override void Delete(int id)
-        {
-            var employee = _context.Employees.IgnoreQueryFilters().FirstOrDefault(e => e.Id == id);
-            if (employee != null)
-            {
-                employee.IsDeleted = true;
-                _context.Update(employee);
-            }
-        }
-
         /// <summary>
-        /// Async soft delete for employee
+        /// Override DeleteAsync for employee-specific business rules
         /// </summary>
         public override async Task DeleteAsync(int id)
         {
-            var employee = await _context.Employees
-                .IgnoreQueryFilters()
-                .FirstOrDefaultAsync(e => e.Id == id);
-            if (employee != null)
-            {
-                employee.IsDeleted = true;
-                _context.Update(employee);
-            }
+            // Call base implementation for standard soft delete
+            await base.DeleteAsync(id);
+
+            // NOTE: The controller handles additional business logic like
+            // checking if employee is a department manager before calling DeleteAsync
         }
 
         /// <summary>
