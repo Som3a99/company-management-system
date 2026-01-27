@@ -1,10 +1,57 @@
-﻿@model IEnumerable<EmployeeViewModel>
+﻿@model PagedResult<EmployeeViewModel>
 
 @{
     ViewData["Title"] = "Employees";
-    var activeEmployees = Model?.Where(e => e.IsActive && !e.IsDeleted) ?? Enumerable.Empty<EmployeeViewModel>();
-    var inactiveEmployees = Model?.Where(e => !e.IsActive && !e.IsDeleted) ?? Enumerable.Empty<EmployeeViewModel>();
+    var activeEmployees = Model?.Items?.Where(e => e.IsActive && !e.IsDeleted) ?? Enumerable.Empty<EmployeeViewModel>();
+    var inactiveEmployees = Model?.Items?.Where(e => !e.IsActive && !e.IsDeleted) ?? Enumerable.Empty<EmployeeViewModel>();
+    var searchTerm = ViewData["SearchTerm"] as string;
 }
+
+<style>
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 1.5rem;
+    }
+
+        .pagination a,
+        .pagination span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            color: var(--gray-700);
+            background-color: white;
+            transition: all 0.2s;
+        }
+
+            .pagination a:hover {
+                background-color: var(--gray-50);
+                border-color: var(--primary-main);
+                color: var(--primary-main);
+            }
+
+        .pagination .active {
+            background-color: var(--primary-main);
+            border-color: var(--primary-main);
+            color: white;
+        }
+
+        .pagination .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+</style>
 
 <div class="container-fluid px-4">
     <div class="page-header animate-in">
@@ -38,7 +85,7 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="mb-0 fw-bold" style="color: var(--accent-main);">@Model?.Count()</h3>
+                            <h3 class="mb-0 fw-bold" style="color: var(--accent-main);">@(Model?.TotalCount ?? 0)</h3>
                             <p class="text-muted mb-0 small">Total Employees</p>
                         </div>
                     </div>
@@ -95,7 +142,7 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="mb-0 fw-bold" style="color: var(--warning);">@Model?.Where(e => e.HireDate.Year == DateTime.Now.Year).Count()</h3>
+                            <h3 class="mb-0 fw-bold" style="color: var(--warning);">@(Model?.Items?.Where(e => e.HireDate.Year == DateTime.Now.Year).Count() ?? 0)</h3>
                             <p class="text-muted mb-0 small">New This Year</p>
                         </div>
                     </div>
@@ -127,7 +174,7 @@
                 <div class="col-lg-6">
                     <div class="d-flex gap-2 flex-wrap">
                         <button class="btn btn-sm btn-primary" id="filterAll" onclick="filterEmployees('all')">
-                            All Employees (@Model?.Count())
+                            All Employees (@(Model?.TotalCount ?? 0))
                         </button>
                         <button class="btn btn-sm btn-outline-secondary" id="filterActive" onclick="filterEmployees('active')">
                             Active Only (@activeEmployees.Count())
@@ -141,7 +188,7 @@
         </div>
     </div>
 
-    @if (Model != null && Model.Any())
+    @if (Model != null && Model.Items != null && Model.Items.Any())
     {
         <div class="table-container animate-in">
             <table class="table table-hover mb-0" id="employeeTable">
@@ -160,7 +207,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var employee in Model.Where(e => !e.IsDeleted))
+                    @foreach (var employee in Model.Items.Where(e => !e.IsDeleted))
                     {
                         var imageUrl = !string.IsNullOrEmpty(employee.ImageUrl)
                         ? $"/uploads/images/{employee.ImageUrl}"
@@ -254,6 +301,88 @@
                 </tbody>
             </table>
         </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <div class="pagination animate-in">
+                @if (Model.HasPreviousPage)
+                {
+                    <a asp-action="Index" asp-route-pageNumber="@(Model.PageNumber - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Previous
+                    </a>
+                }
+                else
+                {
+                    <span class="disabled">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                        Previous
+                    </span>
+                }
+
+                @{
+                    var startPage = Math.Max(1, Model.PageNumber - 2);
+                    var endPage = Math.Min(Model.TotalPages, Model.PageNumber + 2);
+
+                    if (startPage > 1)
+                    {
+                        <a asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">1</a>
+                        if (startPage > 2)
+                        {
+                            <span>...</span>
+                        }
+                    }
+
+                    for (var i = startPage; i <= endPage; i++)
+                    {
+                        if (i == Model.PageNumber)
+                        {
+                            <span class="active">@i</span>
+                        }
+                        else
+                        {
+                            <a asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">@i</a>
+                        }
+                    }
+
+                    if (endPage < Model.TotalPages)
+                    {
+                        if (endPage < Model.TotalPages - 1)
+                        {
+                            <span>...</span>
+                        }
+                        <a asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">@Model.TotalPages</a>
+                    }
+                }
+
+                @if (Model.HasNextPage)
+                {
+                    <a asp-action="Index" asp-route-pageNumber="@(Model.PageNumber + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                }
+                else
+                {
+                    <span class="disabled">
+                        Next
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </span>
+                }
+            </div>
+
+            <div class="text-center mt-3 text-muted small">
+                Showing @Model.StartIndex - @Model.EndIndex of @Model.TotalCount employees
+            </div>
+        }
     }
     else
     {

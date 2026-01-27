@@ -20,7 +20,6 @@ namespace ERP.BLL.Repositories
             return await _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .Where(e => !e.IsDeleted)
                 .ToListAsync();
         }
 
@@ -30,13 +29,39 @@ namespace ERP.BLL.Repositories
             return await _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted);
+                .FirstOrDefaultAsync(e => e.Id == id);
+        }
+
+        /// <summary>
+        /// Get employee by ID with tracking enabled (for update operations)
+        /// </summary>
+        public override async Task<Employee?> GetByIdTrackedAsync(int id)
+        {
+            return await _context.Employees
+                .Include(e => e.Department)
+                .Include(e => e.ManagedDepartment)
+                .FirstOrDefaultAsync(e => e.Id == id);
         }
 
         // Override Delete to implement soft delete
         public override void Delete(int id)
         {
-            var employee = _context.Employees.Find(id);
+            var employee = _context.Employees.IgnoreQueryFilters().FirstOrDefault(e => e.Id == id);
+            if (employee != null)
+            {
+                employee.IsDeleted = true;
+                _context.Update(employee);
+            }
+        }
+
+        /// <summary>
+        /// Async soft delete for employee
+        /// </summary>
+        public override async Task DeleteAsync(int id)
+        {
+            var employee = await _context.Employees
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.Id == id);
             if (employee != null)
             {
                 employee.IsDeleted = true;
@@ -56,7 +81,7 @@ namespace ERP.BLL.Repositories
 
             var query = _context.Employees
                 .AsNoTracking()
-                .Where(e => !e.IsDeleted && e.Email.ToLower() == normalizedEmail);
+                .Where(e => e.Email.ToLower() == normalizedEmail);
 
             if (excludeEmployeeId.HasValue)
             {
@@ -79,7 +104,7 @@ namespace ERP.BLL.Repositories
             return await _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .FirstOrDefaultAsync(e => !e.IsDeleted && e.Email.ToLower() == normalizedEmail);
+                .FirstOrDefaultAsync(e => e.Email.ToLower() == normalizedEmail);
         }
 
         /// <summary>

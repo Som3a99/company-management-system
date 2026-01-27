@@ -64,6 +64,12 @@ namespace ERP.DAL.Data.Configurations
             builder.HasIndex(e => new { e.IsActive, e.IsDeleted });
 
             builder.HasIndex(e => e.DepartmentId);
+
+            builder.HasIndex(e => e.Email)
+                .IsUnique()
+                .HasFilter("[IsDeleted] = 0")
+                .HasDatabaseName("IX_Employees_Email_Unique")
+                .HasAnnotation("Relational:Collation", "Latin1_General_CI_AS"); // Case-insensitive
         }
     }
 }

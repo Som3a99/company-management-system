@@ -4,6 +4,7 @@ using ERP.DAL.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERP.DAL.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260125104417_AddManagerUniqueConstraint")]
+    partial class AddManagerUniqueConstraint
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,8 +41,7 @@ namespace ERP.DAL.Data.Migrations
                     b.Property<string>("DepartmentCode")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .UseCollation("Latin1_General_CI_AS");
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<string>("DepartmentName")
                         .IsRequired()
@@ -58,7 +60,6 @@ namespace ERP.DAL.Data.Migrations
 
                     b.HasIndex("DepartmentCode")
                         .IsUnique()
-                        .HasDatabaseName("IX_Departments_DepartmentCode_Unique")
                         .HasFilter("[IsDeleted] = 0");
 
                     b.HasIndex("IsDeleted");
@@ -141,12 +142,6 @@ namespace ERP.DAL.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
-
-                    b.HasIndex("Email")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Employees_Email_Unique")
-                        .HasFilter("[IsDeleted] = 0")
-                        .HasAnnotation("Relational:Collation", "Latin1_General_CI_AS");
 
                     b.HasIndex("IsDeleted");
 

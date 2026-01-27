@@ -25,6 +25,13 @@ namespace ERP.BLL.Repositories
                              .AsNoTracking()
                              .FirstOrDefaultAsync(e => e.Id == id);
 
+        /// <summary>
+        /// Get entity by ID with tracking enabled (for update operations)
+        /// </summary>
+        public virtual async Task<T?> GetByIdTrackedAsync(int id)
+            => await _context.Set<T>()
+                             .FirstOrDefaultAsync(e => e.Id == id);
+
         public virtual async Task AddAsync(T entity)
         {
            await _context.AddAsync(entity);
@@ -37,6 +44,18 @@ namespace ERP.BLL.Repositories
         public virtual void Delete(int id)
         {
             var entity = _context.Set<T>().Find(id);
+            if (entity != null)
+            {
+                _context.Set<T>().Remove(entity);
+            }
+        }
+
+        /// <summary>
+        /// Delete entity asynchronously
+        /// </summary>
+        public virtual async Task DeleteAsync(int id)
+        {
+            var entity = await _context.Set<T>().FindAsync(id);
             if (entity != null)
             {
                 _context.Set<T>().Remove(entity);

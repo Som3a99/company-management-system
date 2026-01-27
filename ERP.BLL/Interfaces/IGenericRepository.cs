@@ -9,9 +9,20 @@ namespace ERP.BLL.Interfaces
 
         Task<IEnumerable<T>> GetAllAsync();
         Task<T?> GetByIdAsync(int id);
+        
+        /// <summary>
+        /// Get entity by ID with tracking enabled (for update operations)
+        /// </summary>
+        Task<T?> GetByIdTrackedAsync(int id);
+        
         Task AddAsync(T entity);
         void Update(T entity);
         void Delete(int id);
+        
+        /// <summary>
+        /// Delete entity asynchronously (for async controller operations)
+        /// </summary>
+        Task DeleteAsync(int id);
 
         /// <summary>
         /// Get paginated results with optional filtering

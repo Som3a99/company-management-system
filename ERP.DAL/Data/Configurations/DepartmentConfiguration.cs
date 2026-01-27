@@ -16,7 +16,8 @@ namespace ERP.DAL.Data.Configurations
             // Regex pattern for DepartmentCode: 3 uppercase letters followed by underscore _ and 3 digits (e.g., ABC_123)
             builder.Property(d => d.DepartmentCode)
                 .IsRequired()
-                .HasMaxLength(50);
+                .HasMaxLength(50)
+                .UseCollation("Latin1_General_CI_AS");
 
             builder.ToTable(t =>
             {
@@ -63,7 +64,16 @@ namespace ERP.DAL.Data.Configurations
             /// </summary>
             builder.HasIndex(d => d.DepartmentCode)
                 .IsUnique()
-                .HasFilter("[IsDeleted] = 0");
+                .HasFilter("[IsDeleted] = 0")
+                .HasDatabaseName("IX_Departments_DepartmentCode_Unique");
+
+
+
+            builder.HasIndex(d => d.ManagerId)
+                .IsUnique()
+                .HasFilter("[ManagerId] IS NOT NULL AND [IsDeleted] = 0")
+                .HasDatabaseName("IX_Departments_ManagerId_Unique");
+
 
         }
     }

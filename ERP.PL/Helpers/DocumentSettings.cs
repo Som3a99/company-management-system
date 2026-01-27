@@ -23,9 +23,9 @@ namespace ERP.PL.Helpers
         };
 
         // Default Image Path
-        public const string DefaultMaleAvatar = "avatar-male.png";
-        public const string DefaultFemaleAvatar = "avatar-female.png";
-        public const string DefaultUserAvatar = "avatar-user.png";
+        private readonly string _defaultMaleAvatar;
+        private readonly string _defaultFemaleAvatar;
+        private readonly string _defaultUserAvatar;
 
         // Refactor to use IwebHostEnvironment in future if needed
         private readonly IWebHostEnvironment _env;
@@ -35,7 +35,40 @@ namespace ERP.PL.Helpers
         {
             _env=env;
             _logger=logger;
+            _defaultMaleAvatar = ValidateAvatarFilename("avatar-male.png");
+            _defaultFemaleAvatar = ValidateAvatarFilename("avatar-female.png");
+            _defaultUserAvatar = ValidateAvatarFilename("avatar-user.png");
         }
+
+        /// <summary>
+        /// Validates the provided avatar filename for invalid characters and existence in the expected directory.
+        /// </summary>
+        /// <remarks>Logs a warning if the file does not exist in the uploads/images directory.</remarks>
+        /// <param name="filename">The avatar filename to validate.</param>
+        /// <returns>The validated avatar filename.</returns>
+        /// <exception cref="InvalidOperationException">Thrown if the filename is null, empty, contains invalid characters, or is otherwise invalid.</exception>
+        private string ValidateAvatarFilename(string filename)
+        {
+            filename = Path.GetFileName(filename);
+            if (string.IsNullOrWhiteSpace(filename) ||
+                filename.Contains("..") ||
+                filename.Contains('/') ||
+                filename.Contains('\\') ||
+                filename.Contains(':'))
+            {
+                throw new InvalidOperationException($"Invalid avatar filename: {filename}");
+            }
+
+            // Ensure file exists in expected location
+            var fullPath = Path.Combine(_env.WebRootPath, "uploads", "images", filename);
+            if (!File.Exists(fullPath))
+            {
+                _logger.LogWarning("Default avatar not found: {Filename}", filename);
+            }
+
+            return $"/uploads/images/{filename}";
+        }
+
 
         /// <summary>
         /// Upload image with comprehensive validation
@@ -151,13 +184,13 @@ namespace ERP.PL.Helpers
                 return;
 
             // Validate inputs
-            if (fileName.Contains("..") || fileName.Contains("/") || fileName.Contains("\\"))
+            if (fileName.Contains("..") || fileName.Contains('/') || fileName.Contains('\\'))
             {
                 _logger.LogWarning("Attempted path traversal in DeleteImage: {FileName}", fileName);
                 return;
             }
 
-            if (folderName.Contains("..") || folderName.Contains("/") || folderName.Contains("\\"))
+            if (folderName.Contains("..") || folderName.Contains('/') || folderName.Contains('\\'))
             {
                 _logger.LogWarning("Attempted path traversal in DeleteImage folder: {FolderName}", folderName);
                 return;
@@ -197,9 +230,9 @@ namespace ERP.PL.Helpers
         {
             return gender switch
             {
-                Gender.Male => DefaultMaleAvatar,
-                Gender.Female => DefaultFemaleAvatar,
-                _ => DefaultUserAvatar
+                Gender.Male => _defaultMaleAvatar,
+                Gender.Female => _defaultFemaleAvatar,
+                _ => _defaultUserAvatar
             };
         }
 
@@ -212,9 +245,9 @@ namespace ERP.PL.Helpers
             if (string.IsNullOrEmpty(imageUrl))
                 return false; // Defensive check (should never happen)
 
-            return imageUrl == DefaultMaleAvatar ||
-                   imageUrl == DefaultFemaleAvatar ||
-                   imageUrl == DefaultUserAvatar;
+            return imageUrl == _defaultMaleAvatar ||
+                   imageUrl == _defaultFemaleAvatar ||
+                   imageUrl == _defaultUserAvatar;
         }
 
         /// <summary>
@@ -229,7 +262,8 @@ namespace ERP.PL.Helpers
 
             try
             {
-                using var reader = new BinaryReader(file.OpenReadStream());
+                using var stream = file.OpenReadStream();
+                using var reader = new BinaryReader(stream);
 
                 // Read enough bytes to check all possible signatures
                 var maxSignatureLength = validSignatures.Max(s => s.Length);
@@ -239,8 +273,9 @@ namespace ERP.PL.Helpers
                 var isValid = validSignatures.Any(signature =>
                     headerBytes.Take(signature.Length).SequenceEqual(signature));
 
-                // Reset stream position for subsequent reads
-                file.OpenReadStream().Position = 0;
+                // Note: Stream reset is not needed here because IFormFile.OpenReadStream()
+                // creates a new stream each time it's called. Subsequent operations 
+                // (like CopyToAsync) will get a fresh stream starting at position 0.
 
                 return Task.FromResult(isValid);
             }

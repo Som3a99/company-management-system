@@ -6,6 +6,8 @@ using ERP.PL.Helpers;
 using ERP.PL.ViewModels.Employee;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PL.Controllers
 {
@@ -33,33 +35,28 @@ namespace ERP.PL.Controllers
                 // Store search term in ViewData for the view
                 ViewData["SearchTerm"] = searchTerm;
 
-                PagedResult<Employee> pagedEmployees;
+                string? likePattern = null;
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    // Search across multiple fields
-                    var searchLower = searchTerm.ToLower();
-                    pagedEmployees = await _unitOfWork.EmployeeRepository.GetPagedAsync(
-                        pageNumber,
-                        pageSize,
-                        filter: e =>
-                            e.FirstName.ToLower().Contains(searchLower) ||
-                            e.LastName.ToLower().Contains(searchLower) ||
-                            e.Email.ToLower().Contains(searchLower) ||
-                            e.Position.ToLower().Contains(searchLower) ||
-                            (e.Department != null && e.Department.DepartmentName.ToLower().Contains(searchLower)),
-                        orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-                    );
+                    searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
+                    searchTerm = InputSanitizer.SanitizeLikeQuery(searchTerm);
+                    likePattern = $"%{searchTerm}%";
                 }
-                else
-                {
-                    // Get all with default sorting
-                    pagedEmployees = await _unitOfWork.EmployeeRepository.GetPagedAsync(
-                        pageNumber,
-                        pageSize,
-                        orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
-                    );
-                }
+
+                var pagedEmployees = await _unitOfWork.EmployeeRepository.GetPagedAsync(
+                    pageNumber,
+                    pageSize,
+                    filter: e =>
+                        likePattern == null ||
+                        EF.Functions.Like(e.FirstName, likePattern) ||
+                        EF.Functions.Like(e.LastName, likePattern) ||
+                        EF.Functions.Like(e.Email, likePattern) ||
+                        EF.Functions.Like(e.Position, likePattern) ||
+                        (e.Department != null &&
+                         EF.Functions.Like(e.Department.DepartmentName, likePattern)),
+                    orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+                );
 
                 // Map to view models
                 var employeeViewModels = _mapper.Map<List<EmployeeViewModel>>(pagedEmployees.Items);
@@ -91,6 +88,8 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [RequestSizeLimit(10 * 1024 * 1024)]
+        [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(EmployeeViewModel employee)
         {
@@ -125,11 +124,23 @@ namespace ERP.PL.Controllers
                     _documentSettings.GetDefaultAvatarByGender(employeeMapped.Gender);
             }
 
-            await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
-            await _unitOfWork.CompleteAsync();
+            try
+            {
+                await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
+                await _unitOfWork.CompleteAsync();
 
-            TempData["SuccessMessage"] = $"Employee '{employeeMapped.FirstName} {employeeMapped.LastName}' created successfully!";
-            return RedirectToAction(nameof(Index));
+                TempData["SuccessMessage"] = $"Employee '{employeeMapped.FirstName} {employeeMapped.LastName}' created successfully!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex) when (
+                ex.InnerException is SqlException sqlEx &&
+                (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+            {
+                ModelState.AddModelError("Email", "This email address is already registered.");
+                await LoadDepartmentsAsync();
+                return View(employee);
+            }
+
         }
         #endregion
 
@@ -162,8 +173,8 @@ namespace ERP.PL.Controllers
                 return View(viewModel);
             }
 
-            // CRITICAL: Load existing entity from database
-            var existingEmployee = await _unitOfWork.EmployeeRepository.GetByIdAsync(viewModel.Id);
+            // CRITICAL: Load existing entity from database (TRACKED for update)
+            var existingEmployee = await _unitOfWork.EmployeeRepository.GetByIdTrackedAsync(viewModel.Id);
 
             if (existingEmployee == null)
                 return NotFound();
@@ -201,11 +212,23 @@ namespace ERP.PL.Controllers
             _mapper.Map(viewModel, existingEmployee);
 
             // Update and save
-            _unitOfWork.EmployeeRepository.Update(existingEmployee);
-            await _unitOfWork.CompleteAsync();
+            try
+            {
+                _unitOfWork.EmployeeRepository.Update(existingEmployee);
+                await _unitOfWork.CompleteAsync();
 
-            TempData["SuccessMessage"] = $"Employee '{existingEmployee.FirstName} {existingEmployee.LastName}' updated successfully!";
-            return RedirectToAction(nameof(Index));
+                TempData["SuccessMessage"] =
+                    $"Employee '{existingEmployee.FirstName} {existingEmployee.LastName}' updated successfully!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateException ex) when (
+                ex.InnerException is SqlException sqlEx &&
+                (sqlEx.Number == 2601 || sqlEx.Number == 2627))
+            {
+                ModelState.AddModelError("Email", "This email address is already registered.");
+                await LoadDepartmentsAsync(viewModel.DepartmentId);
+                return View(viewModel);
+            }
         }
         #endregion
 
@@ -226,74 +249,62 @@ namespace ERP.PL.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            // Use transaction for atomic operation
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
+            string? imageUrlToDelete = null;
+            bool isDefaultAvatar = false;
 
             try
             {
+                // Load employee (tracked)
                 var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
                 if (employee == null)
-                {
-                    await transaction.RollbackAsync();
                     return NotFound();
-                }
 
-                // Check if employee is managing a department
+                // Business rule: cannot delete department manager
                 if (employee.ManagedDepartment != null)
                 {
-                    await transaction.RollbackAsync();
-                    TempData["ErrorMessage"] = $"Cannot delete '{employee.FirstName} {employee.LastName}' " +
-                        $"because they are currently managing the '{employee.ManagedDepartment.DepartmentName}' department. " +
-                        $"Please assign a new manager first.";
+                    TempData["ErrorMessage"] =
+                        $"Cannot delete '{employee.FirstName} {employee.LastName}' because they are managing " +
+                        $"the '{employee.ManagedDepartment.DepartmentName}' department. Assign another manager first.";
+
                     return RedirectToAction(nameof(Index));
                 }
 
-                // Store image info before deletion
-                var imageUrl = employee.ImageUrl;
-                var isDefaultAvatar = _documentSettings.IsDefaultAvatar(imageUrl);
+                // Capture image info BEFORE deletion
+                imageUrlToDelete = employee.ImageUrl;
+                isDefaultAvatar = _documentSettings.IsDefaultAvatar(imageUrlToDelete);
 
-                // Soft delete the employee
-                _unitOfWork.EmployeeRepository.Delete(id);
+                // Delete employee (soft delete)
+                await _unitOfWork.EmployeeRepository.DeleteAsync(id);
+                await _unitOfWork.CompleteAsync();
 
-                // FIXED: Save changes to database
-                var result = await _unitOfWork.CompleteAsync();
-
-                if (result > 0)
+                // DB succeeded → now cleanup file (OUTSIDE transaction)
+                if (!string.IsNullOrWhiteSpace(imageUrlToDelete) && !isDefaultAvatar)
                 {
-                    // Only delete physical file if database deletion succeeded
-                    if (!string.IsNullOrEmpty(imageUrl) && !isDefaultAvatar)
+                    try
                     {
-                        try
-                        {
-                            _documentSettings.DeleteImage(imageUrl, "images");
-                        }
-                        catch (Exception ex)
-                        {
-                            // Log but don't fail the operation if image deletion fails
-                            _logger.LogWarning(ex,
-                                "Failed to delete image file {ImageUrl} for employee {EmployeeId}",
-                                imageUrl, id);
-                        }
+                        _documentSettings.DeleteImage(imageUrlToDelete, "images");
                     }
-
-                    await transaction.CommitAsync();
-
-                    TempData["SuccessMessage"] = $"Employee '{employee.FirstName} {employee.LastName}' deleted successfully!";
-                    return RedirectToAction(nameof(Index));
+                    catch (Exception ex)
+                    {
+                        // Non-fatal: DB is already consistent
+                        _logger.LogWarning(ex,
+                            "Employee {EmployeeId} deleted but image cleanup failed: {ImageUrl}",
+                            id, imageUrlToDelete);
+                    }
                 }
-                else
-                {
-                    await transaction.RollbackAsync();
-                    TempData["ErrorMessage"] = "Failed to delete employee. Please try again.";
-                    return RedirectToAction(nameof(Index));
-                }
+
+                TempData["SuccessMessage"] =
+                    $"Employee '{employee.FirstName} {employee.LastName}' deleted successfully!";
+
+                return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Error deleting employee {EmployeeId}", id);
+                _logger.LogError(ex, "Critical error deleting employee {EmployeeId}", id);
 
-                TempData["ErrorMessage"] = "An error occurred while deleting the employee. Please try again.";
+                TempData["ErrorMessage"] =
+                    "An unexpected error occurred while deleting the employee.";
+
                 return RedirectToAction(nameof(Index));
             }
         }

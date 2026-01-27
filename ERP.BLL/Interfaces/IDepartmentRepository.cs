@@ -18,5 +18,13 @@ namespace ERP.BLL.Interfaces
         /// </summary>
         Task<Department?> GetByCodeAsync(string code);
 
+        /// <summary>
+        ///  Get department by manager id for update operation
+        /// </summary>
+        /// <param name="managerId"></param>
+        /// <param name="excludeDepartmentId"></param>
+        /// <returns></returns>
+        Task<Department?> GetDepartmentByManagerForUpdateAsync(int managerId, int excludeDepartmentId);
+
     }
 }

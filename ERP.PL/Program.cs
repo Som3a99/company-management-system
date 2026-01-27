@@ -6,6 +6,8 @@ using ERP.DAL.Data.Contexts;
 using ERP.PL.Helpers;
 using ERP.PL.Mapping.Department;
 using ERP.PL.Mapping.Employee;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NuGet.Protocol.Core.Types;
@@ -54,7 +56,10 @@ namespace ERP.PL
             builder.Services.AddAntiforgery(options =>
             {
                 options.HeaderName = "X-CSRF-TOKEN";
-                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only in production
+                // Use HTTPS only in production; allow HTTP in development
+                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() 
+                    ? CookieSecurePolicy.SameAsRequest 
+                    : CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Strict;
             });
 
@@ -78,6 +83,22 @@ namespace ERP.PL
                 builder.Logging.SetMinimumLevel(LogLevel.Warning);
             }
 
+            builder.Services.Configure<FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = 10 * 1024 * 1024; // 10 MB
+                options.ValueLengthLimit = 10 * 1024 * 1024;
+                options.MultipartHeadersLengthLimit = 10 * 1024 * 1024;
+            });
+
+            builder.Services.Configure<KestrelServerOptions>(options =>
+            {
+                options.Limits.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
+            });
+
+            builder.Services.Configure<IISServerOptions>(options =>
+            {
+                options.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
+            });
             #endregion
 
             var app = builder.Build();
@@ -99,6 +120,18 @@ namespace ERP.PL
             app.UseStaticFiles();
 
             app.UseRouting();
+
+            app.UseStatusCodePages(async context =>
+            {
+                if (context.HttpContext.Response.StatusCode == StatusCodes.Status413PayloadTooLarge)
+                {
+                    context.HttpContext.Response.ContentType = "application/json";
+                    await context.HttpContext.Response.WriteAsync(
+                        "{\"error\":\"File size exceeds the 10MB limit.\"}"
+                    );
+                }
+            });
+
 
 
             // SECURITY: Add authentication/authorization (when implemented)

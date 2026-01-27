@@ -3,7 +3,6 @@ using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.EntityFrameworkCore;
-using System.Linq;
 using System.Linq.Expressions;
 
 namespace ERP.BLL.Repositories
@@ -19,8 +18,7 @@ namespace ERP.BLL.Repositories
         {
             return await _context.Departments
                 .AsNoTracking()
-                .Where(d => !d.IsDeleted)
-                .Include(d => d.Employees.Where(e => !e.IsDeleted)) // Filter deleted employees
+                .Include(d => d.Employees)
                 .Include(d => d.Manager) // Include manager
                 .ToListAsync();
         }
@@ -30,8 +28,18 @@ namespace ERP.BLL.Repositories
         {
             return await _context.Departments
                 .AsNoTracking()
-                .Where(d => !d.IsDeleted)
-                .Include(d => d.Employees.Where(e => !e.IsDeleted))
+                .Include(d => d.Employees)
+                .Include(d => d.Manager)
+                .FirstOrDefaultAsync(d => d.Id == id);
+        }
+
+        /// <summary>
+        /// Get department by ID with tracking enabled (for update operations)
+        /// </summary>
+        public override async Task<Department?> GetByIdTrackedAsync(int id)
+        {
+            return await _context.Departments
+                .Include(d => d.Employees)
                 .Include(d => d.Manager)
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
@@ -41,7 +49,22 @@ namespace ERP.BLL.Repositories
         /// </summary>
         public override void Delete(int id)
         {
-            var department = _context.Departments.Find(id);
+            var department = _context.Departments.IgnoreQueryFilters().FirstOrDefault(e => e.Id == id);
+            if (department != null)
+            {
+                department.IsDeleted = true;
+                _context.Update(department);
+            }
+        }
+
+        /// <summary>
+        /// Async soft delete for department
+        /// </summary>
+        public override async Task DeleteAsync(int id)
+        {
+            var department = await _context.Departments
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.Id == id);
             if (department != null)
             {
                 department.IsDeleted = true;
@@ -57,7 +80,7 @@ namespace ERP.BLL.Repositories
         {
             var query = _context.Departments
                 .AsNoTracking()
-                .Where(d => !d.IsDeleted && d.ManagerId == managerId); // Filter soft-deleted
+                .Where(d => d.ManagerId == managerId); // Filter soft-deleted
 
             if (excludeDepartmentId.HasValue)
                 query = query.Where(d => d.Id != excludeDepartmentId.Value);
@@ -77,7 +100,7 @@ namespace ERP.BLL.Repositories
 
             var query = _context.Departments
                 .AsNoTracking()
-                .Where(d => !d.IsDeleted && d.DepartmentCode.Equals(normalizedCode, StringComparison.CurrentCultureIgnoreCase));
+                .Where(d => d.DepartmentCode.Equals(normalizedCode, StringComparison.CurrentCultureIgnoreCase));
 
             if (excludeDepartmentId.HasValue)
             {
@@ -99,9 +122,9 @@ namespace ERP.BLL.Repositories
 
             return await _context.Departments
                 .AsNoTracking()
-                .Include(d => d.Employees.Where(e => !e.IsDeleted))
+                .Include(d => d.Employees)
                 .Include(d => d.Manager)
-                .FirstOrDefaultAsync(d => !d.IsDeleted && d.DepartmentCode.ToUpper() == normalizedCode);
+                .FirstOrDefaultAsync(d => d.DepartmentCode.ToUpper() == normalizedCode);
         }
 
         /// <summary>
@@ -119,9 +142,8 @@ namespace ERP.BLL.Repositories
 
             IQueryable<Department> query = _context.Departments
                 .AsNoTracking()
-                .Include(d => d.Employees.Where(e => !e.IsDeleted))
-                .Include(d => d.Manager)
-                .Where(d => !d.IsDeleted);
+                .Include(d => d.Employees)
+                .Include(d => d.Manager);
 
             if (filter != null)
             {
@@ -147,5 +169,28 @@ namespace ERP.BLL.Repositories
 
             return new PagedResult<Department>(items, totalCount, pageNumber, pageSize);
         }
+
+        /// <summary>
+        /// Retrieves the first non-deleted department managed by the specified manager, excluding a given department,
+        /// with an update lock for concurrency.
+        /// </summary>
+        /// <param name="managerId">The ID of the manager whose department is to be retrieved.</param>
+        /// <param name="excludeDepartmentId">The ID of the department to exclude from the search.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the matching Department entity
+        /// or null if not found.</returns>
+        public async Task<Department?> GetDepartmentByManagerForUpdateAsync(int managerId, int excludeDepartmentId)
+        {
+            return await _context.Departments
+                .FromSqlRaw(
+                    @"SELECT * FROM Departments WITH (UPDLOCK)
+                      WHERE ManagerId = {0}
+                      AND Id != {1}
+                      AND IsDeleted = 0",
+                    managerId,
+                    excludeDepartmentId)
+                .AsTracking()
+                .FirstOrDefaultAsync();
+        }
+
     }
 }

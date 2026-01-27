@@ -1,11 +1,13 @@
 ﻿using AutoMapper;
 using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
+using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
 using ERP.PL.ViewModels.Department;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PL.Controllers
 {
@@ -13,7 +15,6 @@ namespace ERP.PL.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
         public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork)
         {
 
@@ -27,40 +28,32 @@ namespace ERP.PL.Controllers
         {
             try
             {
-                // ✅ Sanitize search input
-                if (!string.IsNullOrWhiteSpace(searchTerm))
-                {
-                    searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
-                }
 
                 ViewData["SearchTerm"] = searchTerm;
 
-                PagedResult<Department> pagedDepartments;
+                string? likePattern = null;
 
                 if (!string.IsNullOrWhiteSpace(searchTerm))
                 {
-                    var searchLower = searchTerm.ToLower();
-                    pagedDepartments = await _unitOfWork.DepartmentRepository.GetPagedAsync(
-                        pageNumber,
-                        pageSize,
-                        filter: d =>
-                            d.DepartmentCode.ToLower().Contains(searchLower) ||
-                            d.DepartmentName.ToLower().Contains(searchLower) ||
-                            (d.Manager != null && (
-                                d.Manager.FirstName.ToLower().Contains(searchLower) ||
-                                d.Manager.LastName.ToLower().Contains(searchLower)
-                            )),
-                        orderBy: q => q.OrderBy(d => d.DepartmentCode)
-                    );
+                    searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
+                    searchTerm = InputSanitizer.SanitizeLikeQuery(searchTerm);
+                    likePattern = $"%{searchTerm}%";
                 }
-                else
-                {
-                    pagedDepartments = await _unitOfWork.DepartmentRepository.GetPagedAsync(
-                        pageNumber,
-                        pageSize,
-                        orderBy: q => q.OrderBy(d => d.DepartmentCode)
-                    );
-                }
+
+                var pagedDepartments = await _unitOfWork.DepartmentRepository.GetPagedAsync(
+                    pageNumber,
+                    pageSize,
+                    filter: d =>
+                        likePattern == null ||
+                        EF.Functions.Like(d.DepartmentCode, likePattern) ||
+                        EF.Functions.Like(d.DepartmentName, likePattern) ||
+                        (d.Manager != null &&
+                         (
+                             EF.Functions.Like(d.Manager.FirstName, likePattern) ||
+                             EF.Functions.Like(d.Manager.LastName, likePattern)
+                         )),
+                    orderBy: q => q.OrderBy(d => d.DepartmentCode)
+                );
 
                 var departmentViewModels = _mapper.Map<List<DepartmentViewModel>>(pagedDepartments.Items);
 
@@ -93,43 +86,98 @@ namespace ERP.PL.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(DepartmentViewModel department)
         {
-            ModelState.Remove("Manager"); // Remove Manager from ModelState validation it's not bound from the form
+            ModelState.Remove("Manager");
 
+            // Input sanitization
             if (!string.IsNullOrWhiteSpace(department.DepartmentCode))
             {
-                department.DepartmentCode = InputSanitizer.SanitizeDepartmentCode(department.DepartmentCode)
+                department.DepartmentCode =
+                    InputSanitizer.SanitizeDepartmentCode(department.DepartmentCode)
                     ?? department.DepartmentCode;
             }
 
             if (!string.IsNullOrWhiteSpace(department.DepartmentName))
             {
-                department.DepartmentName = InputSanitizer.NormalizeWhitespace(department.DepartmentName);
+                department.DepartmentName =
+                    InputSanitizer.NormalizeWhitespace(department.DepartmentName);
             }
 
-            if (ModelState.IsValid)
+            // Validate model first (NO transaction yet)
+            if (!ModelState.IsValid)
             {
-                // Validate manager logic
-                var (isValid, errorMessage) = await ValidateManagerAssignmentAsync(
-                    department.ManagerId,
-                    null  // null for new departments
-                );
+                await LoadManagersAsync(department.ManagerId);
+                return View(department);
+            }
 
-                if (!isValid)
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                //Optional UX validation (NOT trusted for safety)
+                if (department.ManagerId.HasValue)
                 {
-                    ModelState.AddModelError("ManagerId", errorMessage ?? "Invalid manager selection");
-                    await LoadManagersAsync(department.ManagerId);
-                    return View(department);
+                    var manager = await _unitOfWork.EmployeeRepository
+                        .GetByIdAsync(department.ManagerId.Value);
+
+                    if (manager == null)
+                    {
+                        ModelState.AddModelError("ManagerId", "Selected manager does not exist.");
+                        await LoadManagersAsync(department.ManagerId);
+                        return View(department);
+                    }
                 }
 
+                // Create department
                 var mappedDepartment = _mapper.Map<Department>(department);
+
                 await _unitOfWork.DepartmentRepository.AddAsync(mappedDepartment);
                 await _unitOfWork.CompleteAsync();
 
-                TempData["SuccessMessage"] = $"Department '{mappedDepartment.DepartmentName}' created successfully!";
+                await transaction.CommitAsync();
+
+                TempData["SuccessMessage"] =
+                    $"Department '{mappedDepartment.DepartmentName}' created successfully!";
+
                 return RedirectToAction(nameof(Index));
             }
-            await LoadManagersAsync();
-            return View(department);
+            catch (DbUpdateException ex)
+                when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
+            {
+                await transaction.RollbackAsync();
+
+                // Database constraint safety net
+                ModelState.AddModelError(
+                    "ManagerId",
+                    "This manager is already assigned to another department."
+                );
+
+                await LoadManagersAsync(department.ManagerId);
+                return View(department);
+            }
+            catch (DbUpdateException ex)
+            {
+                await transaction.RollbackAsync();
+
+                // Handle CHECK constraint or other DB errors
+                var errorMessage = "An error occurred while creating the department.";
+                if (ex.InnerException?.Message.Contains("CK_Department_DepartmentCode_Format") == true)
+                {
+                    errorMessage = "Invalid department code format. Expected format: ABC_123 (3 uppercase letters, underscore, 3 digits).";
+                    ModelState.AddModelError("DepartmentCode", errorMessage);
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, errorMessage);
+                }
+
+                await LoadManagersAsync(department.ManagerId);
+                return View(department);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         #endregion
 
@@ -148,40 +196,113 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(DepartmentViewModel department)
         {
-            ModelState.Remove("Manager"); // Remove Manager from ModelState validation it's not bound from the form
-            if (ModelState.IsValid)
-            {
-                // Validate manager logic with department ID
-                var (isValid, errorMessage) = await ValidateManagerAssignmentAsync(
-                    department.ManagerId,
-                    department.Id  // Pass existing department ID
-                );
+            // Remove navigation-only validation
+            ModelState.Remove("Manager");
 
-                if (!isValid)
+            // Validate model FIRST (no transaction yet)
+            if (!ModelState.IsValid)
+            {
+                await LoadManagersAsync(department.ManagerId, department.Id);
+                return View(department);
+            }
+
+            // Start transaction only when needed
+            using var transaction = await _unitOfWork.BeginTransactionAsync();
+
+            try
+            {
+                // Validate manager existence & assignment (inside transaction)
+                if (department.ManagerId.HasValue)
                 {
-                    ModelState.AddModelError("ManagerId", errorMessage ?? "Invalid manager selection");
-                    await LoadManagersAsync(department.ManagerId, department.Id);
-                    return View(department);
+                    var manager = await _unitOfWork.EmployeeRepository
+                        .GetByIdAsync(department.ManagerId.Value);
+
+                    if (manager == null)
+                    {
+                        ModelState.AddModelError("ManagerId", "Selected manager does not exist.");
+                        await LoadManagersAsync(department.ManagerId, department.Id);
+                        return View(department);
+                    }
+
+                    // Lock + check if manager already assigned elsewhere
+                    var conflict = await _unitOfWork.DepartmentRepository
+                        .GetDepartmentByManagerForUpdateAsync(
+                            department.ManagerId.Value,
+                            department.Id);
+
+                    if (conflict != null)
+                    {
+                        ModelState.AddModelError(
+                            "ManagerId",
+                            $"Manager is already assigned to '{conflict.DepartmentName}'."
+                        );
+
+                        await LoadManagersAsync(department.ManagerId, department.Id);
+                        return View(department);
+                    }
                 }
 
+                // Load existing department (TRACKED for update)
                 var existingDepartment =
-                    await _unitOfWork.DepartmentRepository.GetByIdAsync(department.Id);
+                    await _unitOfWork.DepartmentRepository.GetByIdTrackedAsync(department.Id);
 
                 if (existingDepartment == null)
                     return NotFound();
 
+                // Apply allowed updates
                 _mapper.Map(department, existingDepartment);
                 _unitOfWork.DepartmentRepository.Update(existingDepartment);
-                await _unitOfWork.CompleteAsync();
 
-                TempData["SuccessMessage"] = $"Department '{existingDepartment.DepartmentName}' updated successfully!";
+                // Commit DB changes
+                await _unitOfWork.CompleteAsync();
+                await transaction.CommitAsync();
+
+                TempData["SuccessMessage"] =
+                    $"Department '{existingDepartment.DepartmentName}' updated successfully!";
+
                 return RedirectToAction(nameof(Index));
             }
-            await LoadManagersAsync(department.ManagerId);
-            return View(department);
+            catch (DbUpdateException ex)
+                when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
+            {
+                await transaction.RollbackAsync();
 
+                // DB constraint safety net
+                ModelState.AddModelError(
+                    "ManagerId",
+                    "This manager is already assigned to another department."
+                );
+
+                await LoadManagersAsync(department.ManagerId, department.Id);
+                return View(department);
+            }
+            catch (DbUpdateException ex)
+            {
+                await transaction.RollbackAsync();
+
+                // Handle CHECK constraint or other DB errors
+                var errorMessage = "An error occurred while saving the department.";
+                if (ex.InnerException?.Message.Contains("CK_Department_DepartmentCode_Format") == true)
+                {
+                    errorMessage = "Invalid department code format. Expected format: ABC_123 (3 uppercase letters, underscore, 3 digits).";
+                    ModelState.AddModelError("DepartmentCode", errorMessage);
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, errorMessage);
+                }
+
+                await LoadManagersAsync(department.ManagerId, department.Id);
+                return View(department);
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         #endregion
 
@@ -198,6 +319,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
@@ -212,7 +334,7 @@ namespace ERP.PL.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            _unitOfWork.DepartmentRepository.Delete(id);
+            await _unitOfWork.DepartmentRepository.DeleteAsync(id);
             await _unitOfWork.CompleteAsync();
 
             TempData["SuccessMessage"] = $"Department '{department.DepartmentName}' deleted successfully!";
