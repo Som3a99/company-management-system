@@ -1,0 +1,58 @@
+@model ProjectViewModel
+
+@{
+    ViewData["Title"] = "Delete Project";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in" style="background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);">
+        <div class="container-fluid px-4">
+            <h1>Delete Project</h1>
+            <p>This action cannot be undone</p>
+        </div>
+    </div>
+
+    <div class="row animate-in">
+        <div class="col-lg-8 col-xl-6 mx-auto">
+            <div class="card" style="border: 2px solid var(--danger);">
+                <div class="card-body p-4">
+                    <div class="alert alert-danger">
+                        <strong>Warning:</strong> You are about to permanently delete this project.
+                    </div>
+
+                    <h5>Project Details</h5>
+                    <dl class="row">
+                        <dt class="col-sm-4">Project Code</dt>
+                        <dd class="col-sm-8">@Model.ProjectCode</dd>
+
+                        <dt class="col-sm-4">Project Name</dt>
+                        <dd class="col-sm-8">@Model.ProjectName</dd>
+
+                        <dt class="col-sm-4">Department</dt>
+                        <dd class="col-sm-8">@Model.Department?.DepartmentName</dd>
+
+                        <dt class="col-sm-4">Project Manager</dt>
+                        <dd class="col-sm-8">@(Model.ProjectManager != null ? $"{Model.ProjectManager.FirstName} {Model.ProjectManager.LastName}" : "Not Assigned")</dd>
+
+                        <dt class="col-sm-4">Budget</dt>
+                        <dd class="col-sm-8">$@Model.Budget.ToString("N2")</dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">@Model.Status</dd>
+
+                        <dt class="col-sm-4">Start Date</dt>
+                        <dd class="col-sm-8">@Model.StartDate.ToString("MMM dd, yyyy")</dd>
+                    </dl>
+
+                    <form asp-action="Delete" method="post">
+                        <input type="hidden" asp-for="Id" />
+                        <div class="d-flex gap-3">
+                            <button type="submit" class="btn btn-danger">Yes, Delete This Project</button>
+                            <a asp-action="Index" class="btn btn-secondary">No, Keep Project</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

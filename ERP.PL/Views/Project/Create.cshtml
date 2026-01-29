@@ -1,0 +1,116 @@
+﻿@model ProjectViewModel
+
+@{
+    ViewData["Title"] = "Create Project";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in">
+        <div class="container-fluid px-4">
+            <h1>Create New Project</h1>
+            <p>Add a new project to your organizational portfolio</p>
+        </div>
+    </div>
+
+    <div class="row animate-in">
+        <div class="col-lg-8 col-xl-6 mx-auto">
+            <div class="card">
+                <div class="card-body p-4">
+                    <form asp-action="Create" method="post">
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                        <div class="form-group">
+                            <label asp-for="ProjectCode" class="form-label">Project Code <span class="text-danger">*</span></label>
+                            <input asp-for="ProjectCode" class="form-control" placeholder="PRJ-2026-001" />
+                            <span asp-validation-for="ProjectCode" class="text-danger"></span>
+                            <small class="form-text text-muted mt-1 d-block">Format: PRJ-YYYY-XXX (e.g., PRJ-2026-001)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="ProjectName" class="form-label">Project Name <span class="text-danger">*</span></label>
+                            <input asp-for="ProjectName" class="form-control" />
+                            <span asp-validation-for="ProjectName" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="Description" class="form-label">Description</label>
+                            <textarea asp-for="Description" class="form-control" rows="4"></textarea>
+                            <span asp-validation-for="Description" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="DepartmentId" class="form-label">Department <span class="text-danger">*</span></label>
+                            <select asp-for="DepartmentId" class="form-control" asp-items="ViewBag.Departments">
+                                <option value="">-- Select Department --</option>
+                            </select>
+                            <span asp-validation-for="DepartmentId" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="ProjectManagerId" class="form-label">Project Manager <span class="text-muted">(Optional)</span></label>
+                            <select asp-for="ProjectManagerId" class="form-control" asp-items="ViewBag.ProjectManagers">
+                                <option value="">-- No Manager Assigned --</option>
+                            </select>
+                            <span asp-validation-for="ProjectManagerId" class="text-danger"></span>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="StartDate" class="form-label">Start Date <span class="text-danger">*</span></label>
+                                    <input asp-for="StartDate" type="date" class="form-control" />
+                                    <span asp-validation-for="StartDate" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="EndDate" class="form-label">End Date</label>
+                                    <input asp-for="EndDate" type="date" class="form-control" />
+                                    <span asp-validation-for="EndDate" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="Budget" class="form-label">Budget <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input asp-for="Budget" type="number" step="0.01" class="form-control" />
+                                    </div>
+                                    <span asp-validation-for="Budget" class="text-danger"></span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label asp-for="Status" class="form-label">Status <span class="text-danger">*</span></label>
+                                    <select asp-for="Status" class="form-control" asp-items="Html.GetEnumSelectList<ProjectStatus>()">
+                                        <option value="">-- Select Status --</option>
+                                    </select>
+                                    <span asp-validation-for="Status" class="text-danger"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-3 mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2" />
+                                </svg>
+                                Create Project
+                            </button>
+                            <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

@@ -16,6 +16,9 @@
         // Department Manager Relationship
         public int? ManagerId { get; set; }
         public Employee? Manager { get; set; }
+
+        // Projects in the Department
+        public ICollection<Project> Projects { get; set; } = new HashSet<Project>();
         #endregion
     }
 }

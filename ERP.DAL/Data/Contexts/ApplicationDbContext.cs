@@ -14,12 +14,14 @@ namespace ERP.DAL.Data.Contexts
 
         public DbSet<Department> Departments { get; set; } = null!;
         public DbSet<Employee> Employees { get; set; } = null!;
+        public DbSet<Project> Projects { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Global query filters for soft delete
             modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<Department>().HasQueryFilter(d => !d.IsDeleted);
+            modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         }
     }

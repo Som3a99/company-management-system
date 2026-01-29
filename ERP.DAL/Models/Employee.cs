@@ -28,6 +28,9 @@
 
         // Managed Department Inverse Property
         public Department? ManagedDepartment { get; set; }
+
+        // Managed Project Inverse Property (One-to-One)
+        public Project? ManagedProject { get; set; }
         #endregion
     }
 }

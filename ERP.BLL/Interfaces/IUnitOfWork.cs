@@ -6,6 +6,7 @@ namespace ERP.BLL.Interfaces
     {
         public IDepartmentRepository DepartmentRepository { get; }
         public IEmployeeRepository EmployeeRepository { get; }
+        public IProjectRepository ProjectRepository { get; }
         Task<int> CompleteAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();
     }

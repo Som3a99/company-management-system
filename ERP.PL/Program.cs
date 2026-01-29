@@ -6,6 +6,7 @@ using ERP.DAL.Data.Contexts;
 using ERP.PL.Helpers;
 using ERP.PL.Mapping.Department;
 using ERP.PL.Mapping.Employee;
+using ERP.PL.Mapping.Project;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
@@ -40,11 +41,13 @@ namespace ERP.PL
             // Repository Pattern -Scoped lifetime(one per request)
             builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+            builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
             // Auto Mapper Configurations
             builder.Services.AddAutoMapper(cfg => { }, typeof(EmployeeProfile).Assembly);
             builder.Services.AddAutoMapper(cfg => { }, typeof(DepartmentProfile).Assembly);
+            builder.Services.AddAutoMapper(cfg => { }, typeof(ProjectProfile).Assembly);
 
             // Document Settings
             builder.Services.AddScoped<DocumentSettings>();
