@@ -204,7 +204,38 @@
                                         </div>
                                     </div>
                                 </div>
-
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label asp-for="ProjectId" class="form-label">
+                                            Assigned Project
+                                            <span class="text-muted">(Optional)</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" />
+                                                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke="currentColor" stroke-width="2" />
+                                                </svg>
+                                            </span>
+                                            <select asp-for="ProjectId" class="form-control" asp-items="ViewBag.Projects">
+                                                <option value="">-- No Project Assigned --</option>
+                                            </select>
+                                        </div>
+                                        <span asp-validation-for="ProjectId" class="text-danger"></span>
+                                        @if (Model.Project != null)
+                                        {
+                                            <small class="form-text text-muted mt-1 d-block">
+                                                Currently assigned to: <strong>@Model.Project.ProjectCode - @Model.Project.ProjectName</strong>
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <small class="form-text text-muted mt-1 d-block">
+                                                This employee is not assigned to any project.
+                                            </small>
+                                        }
+                                    </div>
+                                </div>
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <div class="form-group">

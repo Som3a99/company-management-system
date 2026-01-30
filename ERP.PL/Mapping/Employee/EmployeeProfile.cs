@@ -17,7 +17,8 @@ namespace ERP.PL.Mapping.Employee
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.ImageUrl, opt => opt.Ignore())
                 .ForMember(dest => dest.Department, opt => opt.Ignore())
-                .ForMember(dest => dest.ManagedDepartment, opt => opt.Ignore());
+                .ForMember(dest => dest.ManagedDepartment, opt => opt.Ignore())
+                .ForMember(dest => dest.Project, opt => opt.Ignore());
         }
     }
 }

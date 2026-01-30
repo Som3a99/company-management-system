@@ -73,6 +73,15 @@ namespace ERP.DAL.Data.Configurations
                 .HasForeignKey<Project>(p => p.ProjectManagerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Project Employees relationship (One-to-Many)
+            // Each Project can have many Employees
+            // Each Employee can work on only one Project
+            // Use the existing Employees navigation property instead of creating a new relationship
+            builder.HasMany(p => p.Employees)
+                .WithOne(e => e.Project)
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Indexes
             builder.HasIndex(p => p.IsDeleted);
 

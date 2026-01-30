@@ -31,6 +31,10 @@
 
         // Managed Project Inverse Property (One-to-One)
         public Project? ManagedProject { get; set; }
+
+        // Project Assignment (Each employee works on one project)
+        public int? ProjectId { get; set; }
+        public Project? Project { get; set; }
         #endregion
     }
 }

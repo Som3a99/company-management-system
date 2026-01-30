@@ -61,5 +61,9 @@ namespace ERP.PL.ViewModels.Project
         // Navigation properties for display
         public DAL.Models.Department? Department { get; set; }
         public DAL.Models.Employee? ProjectManager { get; set; }
+
+        // Assigned Employees
+        [Display(Name = "Assigned Employees")]
+        public ICollection<DAL.Models.Employee>? AssignedEmployees { get; set; }
     }
 }

@@ -72,6 +72,12 @@ namespace ERP.PL.ViewModels.Employee
         public int DepartmentId { get; set; }
 
         public DAL.Models.Department? Department { get; set; }
+
+        // Project Assignment
+        [Display(Name = "Assigned Project")]
+        public int? ProjectId { get; set; }
+
+        public DAL.Models.Project? Project { get; set; }
         #endregion
     }
 }

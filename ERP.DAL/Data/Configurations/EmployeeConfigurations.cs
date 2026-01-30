@@ -61,6 +61,9 @@ namespace ERP.DAL.Data.Configurations
 
             builder.HasIndex(e => e.IsDeleted);
 
+            // Index on ProjectId for query performance
+            builder.HasIndex(e => e.ProjectId);
+
             builder.HasIndex(e => new { e.IsActive, e.IsDeleted });
 
             builder.HasIndex(e => e.DepartmentId);

@@ -158,7 +158,50 @@ namespace ERP.BLL.Repositories
                 .OrderBy(p => p.StartDate)
                 .ToListAsync();
         }
+        /// <summary>
+        /// Get all employees assigned to a specific project
+        /// </summary>
+        public async Task<IEnumerable<Employee>> GetEmployeesByProjectAsync(int projectId)
+        {
+            return await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .Where(e => e.ProjectId == projectId && !e.IsDeleted)
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ToListAsync();
+        }
 
+        /// <summary>
+        /// Check if employee is already assigned to a project
+        /// </summary>
+        public async Task<bool> IsEmployeeAssignedToProjectAsync(int employeeId, int? excludeProjectId = null)
+        {
+            var query = _context.Employees
+                .AsNoTracking()
+                .Where(e => e.Id == employeeId && e.ProjectId.HasValue && !e.IsDeleted);
+
+            if (excludeProjectId.HasValue)
+            {
+                query = query.Where(e => e.ProjectId != excludeProjectId.Value);
+            }
+
+            return await query.AnyAsync();
+        }
+
+        /// <summary>
+        /// Get project with all employees included
+        /// </summary>
+        public async Task<Project?> GetProjectWithEmployeesAsync(int projectId)
+        {
+            return await _context.Projects
+                .AsNoTracking()
+                .Include(p => p.Department)
+                .Include(p => p.ProjectManager)
+                .Include(p => p.Department)
+                    .ThenInclude(d => d.Employees.Where(e => e.ProjectId == projectId && !e.IsDeleted))
+                .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
+        }
         /// <summary>
         /// Get paginated projects with department and manager info
         /// </summary>

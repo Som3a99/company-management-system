@@ -95,6 +95,34 @@ namespace ERP.BLL.Repositories
         }
 
         /// <summary>
+        /// Get all employees assigned to a specific project
+        /// </summary>
+        public async Task<IEnumerable<Employee>> GetEmployeesByProjectIdAsync(int projectId)
+        {
+            return await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .Where(e => e.ProjectId == projectId && !e.IsDeleted)
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Get all employees NOT assigned to any project (available for assignment)
+        /// </summary>
+        public async Task<IEnumerable<Employee>> GetUnassignedEmployeesAsync()
+        {
+            return await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .Where(e => !e.ProjectId.HasValue && e.IsActive && !e.IsDeleted)
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ToListAsync();
+        }
+
+        /// <summary>
         /// Get paginated employees with department info
         /// </summary>
         public override async Task<PagedResult<Employee>> GetPagedAsync(

@@ -16,5 +16,15 @@ namespace ERP.BLL.Interfaces
         /// Get employee by email address
         /// </summary>
         Task<Employee?> GetByEmailAsync(string email);
+
+        /// <summary>
+        ///  Get all employees assigned to a specific project
+        /// </summary>
+        Task<IEnumerable<Employee>> GetEmployeesByProjectIdAsync(int projectId);
+
+        /// <summary>
+        /// Get all employees NOT assigned to any project (available for assignment)
+        /// </summary>
+        Task<IEnumerable<Employee>> GetUnassignedEmployeesAsync();
     }
 }

@@ -228,6 +228,8 @@ namespace ERP.PL.Controllers
                 return NotFound();
             
             await LoadDepartmentsAsync(employee.DepartmentId);
+            await LoadAvailableProjectsAsync(employee.ProjectId);
+
 
             var employeeViewModel = _mapper.Map<EmployeeViewModel>(employee);
             return View(employeeViewModel);
@@ -241,10 +243,12 @@ namespace ERP.PL.Controllers
             ModelState.Remove("Department");
             ModelState.Remove("Image"); // Optional
             ModelState.Remove("ImageUrl"); // Set by controller
+            ModelState.Remove("Project");
 
             if (!ModelState.IsValid)
             {
                 await LoadDepartmentsAsync(viewModel.DepartmentId);
+                await LoadAvailableProjectsAsync(viewModel.ProjectId);
                 return View(viewModel);
             }
             // FIX #13: Phone number sanitization and validation
@@ -255,6 +259,7 @@ namespace ERP.PL.Controllers
                 {
                     ModelState.AddModelError("PhoneNumber", "Invalid phone number format.");
                     await LoadDepartmentsAsync(viewModel.DepartmentId);
+                    await LoadAvailableProjectsAsync(viewModel.ProjectId);
                     return View(viewModel);
                 }
                 viewModel.PhoneNumber = sanitizedPhone;
@@ -269,6 +274,7 @@ namespace ERP.PL.Controllers
                 ModelState.AddModelError("Salary",
                     $"Salary must be between {salaryMin:C} and {salaryMax:C}. Current value: {viewModel.Salary:C}");
                 await LoadDepartmentsAsync(viewModel.DepartmentId);
+                await LoadAvailableProjectsAsync(viewModel.ProjectId);
                 return View(viewModel);
             }
             // CRITICAL: Load existing entity from database (TRACKED for update)
@@ -276,6 +282,36 @@ namespace ERP.PL.Controllers
 
             if (existingEmployee == null)
                 return NotFound();
+
+            // Validate project assignment change
+            if (viewModel.ProjectId.HasValue && viewModel.ProjectId != existingEmployee.ProjectId)
+            {
+                // Check if the project exists
+                var project = await _unitOfWork.ProjectRepository.GetByIdAsync(viewModel.ProjectId.Value);
+                if (project == null)
+                {
+                    ModelState.AddModelError("ProjectId", "Selected project does not exist.");
+                    await LoadDepartmentsAsync(viewModel.DepartmentId);
+                    await LoadAvailableProjectsAsync(viewModel.ProjectId);
+                    return View(viewModel);
+                }
+
+                // Check if employee is already assigned to another project
+                var isAssigned = await _unitOfWork.ProjectRepository
+                    .IsEmployeeAssignedToProjectAsync(viewModel.Id, viewModel.ProjectId);
+
+                if (isAssigned)
+                {
+                    var currentProject = await _unitOfWork.EmployeeRepository
+                        .GetByIdAsync(viewModel.Id);
+
+                    ModelState.AddModelError("ProjectId",
+                        $"This employee is already assigned to another project.");
+                    await LoadDepartmentsAsync(viewModel.DepartmentId);
+                    await LoadAvailableProjectsAsync(viewModel.ProjectId);
+                    return View(viewModel);
+                }
+            }
 
             // Handle image logic BEFORE mapping (manual control)
             if (viewModel.Image != null && viewModel.Image.Length > 0)
@@ -295,6 +331,7 @@ namespace ERP.PL.Controllers
                 {
                     ModelState.AddModelError("Image", ex.Message);
                     await LoadDepartmentsAsync(viewModel.DepartmentId);
+                    await LoadAvailableProjectsAsync(viewModel.ProjectId);
                     return View(viewModel);
                 }
             }
@@ -325,6 +362,7 @@ namespace ERP.PL.Controllers
             {
                 ModelState.AddModelError("Email", "This email address is already registered.");
                 await LoadDepartmentsAsync(viewModel.DepartmentId);
+                await LoadAvailableProjectsAsync(viewModel.ProjectId);
                 return View(viewModel);
             }
         }
@@ -441,6 +479,30 @@ namespace ERP.PL.Controllers
                 "Id",
                 "DisplayText",
                 selectedDepartmentId
+            );
+        }
+
+        /// <summary>
+        /// Load available projects for employee assignment
+        /// </summary>
+        private async Task LoadAvailableProjectsAsync(int? selectedProjectId = null)
+        {
+            var allProjects = await _unitOfWork.ProjectRepository.GetAllAsync();
+
+            // Filter to show only active projects (not deleted)
+            var availableProjects = allProjects
+                .Where(p => !p.IsDeleted)
+                .OrderBy(p => p.ProjectCode);
+
+            ViewBag.Projects = new SelectList(
+                availableProjects.Select(p => new
+                {
+                    p.Id,
+                    DisplayText = $"{p.ProjectCode} - {p.ProjectName}"
+                }),
+                "Id",
+                "DisplayText",
+                selectedProjectId
             );
         }
         #endregion

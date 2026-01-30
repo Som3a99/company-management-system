@@ -399,6 +399,28 @@ namespace ERP.PL.Controllers
         }
         #endregion
 
+        #region ProjectEmployees
+        /// <summary>
+        /// View all employees assigned to a specific project
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ProjectEmployees(int id)
+        {
+            var project = await _unitOfWork.ProjectRepository.GetByIdAsync(id);
+
+            if (project == null)
+                return NotFound();
+
+            // Get all employees assigned to this project
+            var employees = await _unitOfWork.ProjectRepository.GetEmployeesByProjectAsync(id);
+
+            var projectViewModel = _mapper.Map<ProjectViewModel>(project);
+            projectViewModel.AssignedEmployees = employees.ToList();
+
+            return View(projectViewModel);
+        }
+        #endregion
+
         #region Remote Validation
         /// <summary>
         /// Remote validation for project code uniqueness

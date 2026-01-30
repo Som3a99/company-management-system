@@ -33,5 +33,20 @@ namespace ERP.BLL.Interfaces
         /// Get projects by status
         /// </summary>
         Task<IEnumerable<Project>> GetProjectsByStatusAsync(ProjectStatus status);
+
+        /// <summary>
+        /// Get all employees assigned to a specific project
+        /// </summary>
+        Task<IEnumerable<Employee>> GetEmployeesByProjectAsync(int projectId);
+
+        /// <summary>
+        /// Check if employee is already assigned to a project
+        /// </summary>
+        Task<bool> IsEmployeeAssignedToProjectAsync(int employeeId, int? excludeProjectId = null);
+
+        /// <summary>
+        /// Get project with all employees included
+        /// </summary>
+        Task<Project?> GetProjectWithEmployeesAsync(int projectId);
     }
 }

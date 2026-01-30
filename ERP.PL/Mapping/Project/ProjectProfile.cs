@@ -16,7 +16,9 @@ namespace ERP.PL.Mapping.Project
                 .ForMember(dest => dest.IsDeleted, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForMember(dest => dest.Department, opt => opt.Ignore())
-                .ForMember(dest => dest.ProjectManager, opt => opt.Ignore());
+                .ForMember(dest => dest.ProjectManager, opt => opt.Ignore())
+                .ForMember(dest => dest.Employees, opt => opt.Ignore());
+
         }
     }
 }

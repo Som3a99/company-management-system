@@ -33,7 +33,8 @@
         public int? ProjectManagerId { get; set; }
         public Employee? ProjectManager { get; set; }
 
-        // Project Team Members (Many-to-Many will be added later)
+        // Project Employees relationship (One-to-Many)
+        public ICollection<Employee> Employees { get; set; } = new HashSet<Employee>();
         #endregion
     }
 }
