@@ -1,4 +1,5 @@
 ﻿using ERP.BLL.Common;
+using ERP.PL.ViewModels.Pagination;
 using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PL.Extensions
@@ -21,6 +22,17 @@ namespace ERP.PL.Extensions
                 .ToListAsync();
 
             return new PagedResult<T>(items, count, pageNumber, pageSize);
+        }
+
+        // Convert PagedResult to PaginationInfoViewModel
+        public static PaginationInfoViewModel ToPaginationInfo<T>(this PagedResult<T> pagedResult)
+        {
+            return new PaginationInfoViewModel
+            {
+                PageNumber = pagedResult.PageNumber,
+                PageSize = pagedResult.PageSize,
+                TotalCount = pagedResult.TotalCount
+            };
         }
     }
 }

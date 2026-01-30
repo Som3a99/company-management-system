@@ -7,51 +7,6 @@
     var searchTerm = ViewData["SearchTerm"] as string;
 }
 
-<style>
-    .pagination {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 1.5rem;
-    }
-
-        .pagination a,
-        .pagination span {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 40px;
-            height: 40px;
-            padding: 0.5rem 0.75rem;
-            border: 1px solid var(--gray-300);
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            text-decoration: none;
-            color: var(--gray-700);
-            background-color: white;
-            transition: all 0.2s;
-        }
-
-            .pagination a:hover {
-                background-color: var(--gray-50);
-                border-color: var(--primary-main);
-                color: var(--primary-main);
-            }
-
-        .pagination .active {
-            background-color: var(--primary-main);
-            border-color: var(--primary-main);
-            color: white;
-        }
-
-        .pagination .disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-</style>
 
 <div class="container-fluid px-4">
     <div class="page-header animate-in">
@@ -304,84 +259,19 @@
 
         @if (Model.TotalPages > 1)
         {
-            <div class="pagination animate-in">
-                @if (Model.HasPreviousPage)
+            <!-- Pagination -->
+            @if (Model.TotalPages > 1)
+            {
+                var paginationInfo = new PaginationInfoViewModel
                 {
-                    <a asp-action="Index" asp-route-pageNumber="@(Model.PageNumber - 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        Previous
-                    </a>
-                }
-                else
-                {
-                    <span class="disabled">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                        Previous
-                    </span>
-                }
+                    PageNumber = Model.PageNumber,
+                    PageSize = Model.PageSize,
+                    TotalCount = Model.TotalCount
+                };
 
-                @{
-                    var startPage = Math.Max(1, Model.PageNumber - 2);
-                    var endPage = Math.Min(Model.TotalPages, Model.PageNumber + 2);
-
-                    if (startPage > 1)
-                    {
-                        <a asp-action="Index" asp-route-pageNumber="1" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">1</a>
-                        if (startPage > 2)
-                        {
-                            <span>...</span>
-                        }
-                    }
-
-                    for (var i = startPage; i <= endPage; i++)
-                    {
-                        if (i == Model.PageNumber)
-                        {
-                            <span class="active">@i</span>
-                        }
-                        else
-                        {
-                            <a asp-action="Index" asp-route-pageNumber="@i" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">@i</a>
-                        }
-                    }
-
-                    if (endPage < Model.TotalPages)
-                    {
-                        if (endPage < Model.TotalPages - 1)
-                        {
-                            <span>...</span>
-                        }
-                        <a asp-action="Index" asp-route-pageNumber="@Model.TotalPages" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">@Model.TotalPages</a>
-                    }
-                }
-
-                @if (Model.HasNextPage)
-                {
-                    <a asp-action="Index" asp-route-pageNumber="@(Model.PageNumber + 1)" asp-route-pageSize="@Model.PageSize" asp-route-searchTerm="@searchTerm">
-                        Next
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </a>
-                }
-                else
-                {
-                    <span class="disabled">
-                        Next
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </span>
-                }
-            </div>
-
-            <div class="text-center mt-3 text-muted small">
-                Showing @Model.StartIndex - @Model.EndIndex of @Model.TotalCount employees
-            </div>
+                <partial name="_PaginationPartial" model="@Model.ToPaginationInfo()"
+                         view-data="@(new ViewDataDictionary(ViewData) { { "ItemName", "employees" } })" />
+            }
         }
     }
     else
