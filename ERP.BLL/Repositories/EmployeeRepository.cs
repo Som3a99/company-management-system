@@ -123,6 +123,28 @@ namespace ERP.BLL.Repositories
         }
 
         /// <summary>
+        /// Get employee with all related data for profile page
+        /// Includes: Department, ManagedDepartment, ManagedProject, Project
+        /// </summary>
+        public async Task<Employee?> GetEmployeeProfileAsync(int id)
+        {
+            return await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                    .ThenInclude(d => d.Manager) // Department's manager
+                .Include(e => e.ManagedDepartment) // If this employee manages a department
+                    .ThenInclude(d => d!.Employees.Where(emp => !emp.IsDeleted)) // Employees in managed dept
+                .Include(e => e.ManagedProject) // If this employee manages a project
+                    .ThenInclude(p => p!.Department) // Project's department
+                .Include(e => e.Project) // Project this employee is assigned to
+                    .ThenInclude(p => p!.Department) // Assigned project's department
+                .Include(e => e.Project)
+                    .ThenInclude(p => p!.ProjectManager) // Assigned project's manager
+                .Where(e => e.Id == id && !e.IsDeleted)
+                .FirstOrDefaultAsync();
+        }
+
+        /// <summary>
         /// Get paginated employees with department info
         /// </summary>
         public override async Task<PagedResult<Employee>> GetPagedAsync(

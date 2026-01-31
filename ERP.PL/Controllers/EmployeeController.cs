@@ -452,6 +452,40 @@ namespace ERP.PL.Controllers
         }
         #endregion
 
+        #region Profile
+
+        /// <summary>
+        /// Display employee profile with all related information
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> Profile(int id)
+        {
+            try
+            {
+                // Get employee with all related data
+                var employee = await _unitOfWork.EmployeeRepository.GetEmployeeProfileAsync(id);
+
+                if (employee == null)
+                {
+                    TempData["ErrorMessage"] = "Employee not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Map to profile ViewModel
+                var profileViewModel = _mapper.Map<EmployeeProfileViewModel>(employee);
+
+                return View(profileViewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading employee profile for ID: {EmployeeId}", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the employee profile.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        #endregion
+
         #region Remote Validation
 
         /// <summary>

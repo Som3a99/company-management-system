@@ -605,3 +605,15 @@ body {
         cursor: not-allowed;
         pointer-events: none;
     }
+
+.clickable-link {
+    color: var(--primary-main);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+    .clickable-link:hover {
+        color: var(--primary-dark);
+        text-decoration: underline;
+    }

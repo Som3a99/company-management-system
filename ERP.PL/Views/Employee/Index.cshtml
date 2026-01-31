@@ -184,16 +184,20 @@
 
                         <tr>
                             <td>
-                                <img src="@imageUrl"
-                                     alt="@employee.FirstName @employee.LastName"
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200);" />
+                                <a asp-action="Profile" asp-route-id="@employee.Id">
+                                    <img src="@imageUrl"
+                                         alt="@employee.FirstName @employee.LastName"
+                                         style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200); cursor: pointer;" />
+                                </a>
                             </td>
                             <td>
                                 <span class="table-code">@employee.Id</span>
                             </td>
                             <td>
                                 <div>
-                                    <strong>@employee.FirstName @employee.LastName</strong>
+                                    <a asp-action="Profile" asp-route-id="@employee.Id" class="clickable-link">
+                                        <strong>@employee.FirstName @employee.LastName</strong>
+                                    </a>
                                     <br>
                                     <small class="text-muted">@employee.Email</small>
                                 </div>
