@@ -30,11 +30,14 @@ namespace ERP.PL.Controllers
 
         #region Index
         [HttpGet]
-        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10, string? searchTerm = null)
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
+                                                string? searchTerm = null, string? status = null)
         {
             try
             {
+                // Store search parameters for view
                 ViewData["SearchTerm"] = searchTerm;
+                ViewData["Status"] = status ?? "all";
 
                 string? likePattern = null;
 
@@ -49,13 +52,15 @@ namespace ERP.PL.Controllers
                     pageNumber,
                     pageSize,
                     filter: p =>
-                        likePattern == null ||
-                        EF.Functions.Like(p.ProjectCode, likePattern) ||
-                        EF.Functions.Like(p.ProjectName, likePattern) ||
-                        (p.Department != null && EF.Functions.Like(p.Department.DepartmentName, likePattern)) ||
-                        (p.ProjectManager != null &&
-                         (EF.Functions.Like(p.ProjectManager.FirstName, likePattern) ||
-                          EF.Functions.Like(p.ProjectManager.LastName, likePattern))),
+                        (likePattern == null ||
+                         EF.Functions.Like(p.ProjectCode, likePattern) ||
+                         EF.Functions.Like(p.ProjectName, likePattern) ||
+                         (p.Department != null && EF.Functions.Like(p.Department.DepartmentName, likePattern)) ||
+                         (p.ProjectManager != null &&
+                          (EF.Functions.Like(p.ProjectManager.FirstName, likePattern) ||
+                           EF.Functions.Like(p.ProjectManager.LastName, likePattern)))) &&
+                        (status == null || status == "all" || p.Status.ToString().ToLower() == status) &&
+                        !p.IsDeleted,
                     orderBy: q => q.OrderBy(p => p.ProjectCode)
                 );
 
@@ -401,21 +406,70 @@ namespace ERP.PL.Controllers
 
         #region ProjectEmployees
         /// <summary>
-        /// View all employees assigned to a specific project
+        /// View all employees assigned to a specific project with pagination and search
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> ProjectEmployees(int id)
+        public async Task<IActionResult> ProjectEmployees(int id, int pageNumber = 1, int pageSize = 10,
+                                                         string? searchTerm = null, string? status = null)
         {
             var project = await _unitOfWork.ProjectRepository.GetByIdAsync(id);
 
             if (project == null)
                 return NotFound();
 
-            // Get all employees assigned to this project
-            var employees = await _unitOfWork.ProjectRepository.GetEmployeesByProjectAsync(id);
+            // Store search parameters for view
+            ViewData["SearchTerm"] = searchTerm;
+            ViewData["Status"] = status;
+            ViewData["ProjectId"] = id;
+
+            string? likePattern = null;
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
+                searchTerm = InputSanitizer.SanitizeLikeQuery(searchTerm);
+                likePattern = $"%{searchTerm}%";
+            }
+
+            // Get paginated employees assigned to this project with filters
+            var employees = await _unitOfWork.ProjectRepository.GetEmployeesByProjectQueryableAsync(id);
+
+            // Apply filters manually since we're getting all employees for the project
+            var filteredEmployees = employees
+                .Where(e => !e.IsDeleted &&
+                           (status == null || status == "all" ||
+                            (status == "active" && e.IsActive) ||
+                            (status == "inactive" && !e.IsActive)) &&
+                           (likePattern == null ||
+                            EF.Functions.Like(e.FirstName, likePattern) ||
+                            EF.Functions.Like(e.LastName, likePattern) ||
+                            EF.Functions.Like(e.Position, likePattern) ||
+                            EF.Functions.Like(e.Email, likePattern) ||
+                            EF.Functions.Like(e.PhoneNumber, likePattern) ||
+                            (e.Department != null && EF.Functions.Like(e.Department.DepartmentName, likePattern))))
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ToList();
+
+            // Manual pagination since we're filtering in memory
+            var totalCount = filteredEmployees.Count;
+            var pagedItems = filteredEmployees
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var employeeViewModels = _mapper.Map<List<ERP.PL.ViewModels.Employee.EmployeeViewModel>>(pagedItems);
+
+            var pagedResult = new PagedResult<ERP.PL.ViewModels.Employee.EmployeeViewModel>(
+                employeeViewModels,
+                totalCount,
+                pageNumber,
+                pageSize
+            );
 
             var projectViewModel = _mapper.Map<ProjectViewModel>(project);
-            projectViewModel.AssignedEmployees = employees.ToList();
+            projectViewModel.AssignedEmployees = filteredEmployees;
+            ViewBag.PagedEmployees = pagedResult;
 
             return View(projectViewModel);
         }

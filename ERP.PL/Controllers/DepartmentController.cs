@@ -4,6 +4,8 @@ using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
 using ERP.PL.ViewModels.Department;
+using ERP.PL.ViewModels.Employee;
+using ERP.PL.ViewModels.Project;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -23,12 +25,13 @@ namespace ERP.PL.Controllers
 
         #region Index
         [HttpGet]
-        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10, string? searchTerm = null)
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
+                                                string? searchTerm = null, string? managerStatus = null)
         {
             try
             {
-
                 ViewData["SearchTerm"] = searchTerm;
+                ViewData["ManagerStatus"] = managerStatus ?? "all";
 
                 string? likePattern = null;
 
@@ -43,14 +46,15 @@ namespace ERP.PL.Controllers
                     pageNumber,
                     pageSize,
                     filter: d =>
-                        likePattern == null ||
-                        EF.Functions.Like(d.DepartmentCode, likePattern) ||
-                        EF.Functions.Like(d.DepartmentName, likePattern) ||
-                        (d.Manager != null &&
-                         (
-                             EF.Functions.Like(d.Manager.FirstName, likePattern) ||
-                             EF.Functions.Like(d.Manager.LastName, likePattern)
-                         )),
+                        (likePattern == null ||
+                         EF.Functions.Like(d.DepartmentCode, likePattern) ||
+                         EF.Functions.Like(d.DepartmentName, likePattern) ||
+                         (d.Manager != null &&
+                          (EF.Functions.Like(d.Manager.FirstName, likePattern) ||
+                           EF.Functions.Like(d.Manager.LastName, likePattern)))) &&
+                        (managerStatus == null || managerStatus == "all" ||
+                         (managerStatus == "withManager" && d.ManagerId != null) ||
+                         (managerStatus == "noManager" && d.ManagerId == null)),
                     orderBy: q => q.OrderBy(d => d.DepartmentCode)
                 );
 
@@ -366,16 +370,131 @@ namespace ERP.PL.Controllers
         #endregion
 
         #region DepartmentEmployees
-        // New action to view all employees in a specific department
+        /// <summary>
+        /// View all employees in a specific department with pagination and search
+        /// </summary>
+        // Update the DepartmentEmployees action to include status filtering
         [HttpGet]
-        public async Task<IActionResult> DepartmentEmployees(int id)
+        public async Task<IActionResult> DepartmentEmployees(int id, int pageNumber = 1, int pageSize = 10,
+                                                             string? searchTerm = null, string? status = null)
         {
             var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
 
             if (department == null)
                 return NotFound();
 
+            // Store search parameters for view
+            ViewData["SearchTerm"] = searchTerm;
+            ViewData["Status"] = status;
+            ViewData["DepartmentId"] = id;
+
+            string? likePattern = null;
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
+                searchTerm = InputSanitizer.SanitizeLikeQuery(searchTerm);
+                likePattern = $"%{searchTerm}%";
+            }
+
+            // Get paginated employees with filters
+            var pagedEmployees = await _unitOfWork.EmployeeRepository.GetPagedAsync(
+                pageNumber,
+                pageSize,
+                filter: e => e.DepartmentId == id &&
+                            !e.IsDeleted &&
+                            (status == null || status == "all" ||
+                             (status == "active" && e.IsActive) ||
+                             (status == "inactive" && !e.IsActive)) &&
+                            (likePattern == null ||
+                             EF.Functions.Like(e.FirstName, likePattern) ||
+                             EF.Functions.Like(e.LastName, likePattern) ||
+                             EF.Functions.Like(e.Position, likePattern) ||
+                             EF.Functions.Like(e.Email, likePattern) ||
+                             EF.Functions.Like(e.PhoneNumber, likePattern)),
+                orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
+            );
+
+            var employeeViewModels = _mapper.Map<List<EmployeeViewModel>>(pagedEmployees.Items);
+
+            var pagedResult = new PagedResult<EmployeeViewModel>(
+                employeeViewModels,
+                pagedEmployees.TotalCount,
+                pagedEmployees.PageNumber,
+                pagedEmployees.PageSize
+            );
+
             var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
+            ViewBag.PagedEmployees = pagedResult;
+
+            return View(departmentViewModel);
+        }
+        #endregion
+
+        #region DepartmentProjects
+        /// <summary>
+        /// View all projects in a specific department with pagination and search
+        /// </summary>
+        [HttpGet]
+        // localhost:5001/Department/DepartmentProjects/1
+        public async Task<IActionResult> DepartmentProjects(int id, int pageNumber = 1, int pageSize = 10,
+                                                           string? searchTerm = null, string? status = null)
+        {
+            var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
+
+            if (department == null)
+                return NotFound();
+
+            // Store search parameters for view
+            ViewData["SearchTerm"] = searchTerm;
+            ViewData["Status"] = status;
+            ViewData["DepartmentId"] = id;
+
+            string? likePattern = null;
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                searchTerm = InputSanitizer.NormalizeWhitespace(searchTerm);
+                searchTerm = InputSanitizer.SanitizeLikeQuery(searchTerm);
+                likePattern = $"%{searchTerm}%";
+            }
+
+            // Get paginated projects with filters
+            var pagedProjects = await _unitOfWork.ProjectRepository.GetPagedAsync(
+                pageNumber,
+                pageSize,
+                filter: p => p.DepartmentId == id &&
+                            !p.IsDeleted &&
+                            (status == null || status == "all" ||
+                             (status == "planning" && p.Status == ProjectStatus.Planning) ||
+                             (status == "inprogress" && p.Status == ProjectStatus.InProgress) ||
+                             (status == "completed" && p.Status == ProjectStatus.Completed) ||
+                             (status == "onhold" && p.Status == ProjectStatus.OnHold) ||
+                             (status == "cancelled" && p.Status == ProjectStatus.Cancelled)) &&
+                            (likePattern == null ||
+                             EF.Functions.Like(p.ProjectCode, likePattern) ||
+                             EF.Functions.Like(p.ProjectName, likePattern) ||
+                             (p.ProjectManager != null &&
+                              (EF.Functions.Like(p.ProjectManager.FirstName, likePattern) ||
+                               EF.Functions.Like(p.ProjectManager.LastName, likePattern)))),
+                orderBy: q => q.OrderBy(p => p.ProjectCode)
+            );
+
+            var projectViewModels = _mapper.Map<List<ProjectViewModel>>(pagedProjects.Items);
+
+            var pagedResult = new PagedResult<ProjectViewModel>(
+                projectViewModels,
+                pagedProjects.TotalCount,
+                pagedProjects.PageNumber,
+                pagedProjects.PageSize
+            );
+
+            var departmentViewModel = _mapper.Map<DepartmentViewModel>(department);
+
+            // Get all projects for stats (not just current page)
+            var allProjects = await _unitOfWork.DepartmentRepository.GetProjectsByDepartmentAsync(id);
+
+            ViewBag.PagedProjects = pagedResult;
 
             return View(departmentViewModel);
         }

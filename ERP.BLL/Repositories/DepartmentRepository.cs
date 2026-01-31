@@ -20,6 +20,7 @@ namespace ERP.BLL.Repositories
                 .AsNoTracking()
                 .Include(d => d.Employees)
                 .Include(d => d.Manager) // Include manager
+                .Include(d => d.Projects) // Include projects
                 .ToListAsync();
         }
 
@@ -30,6 +31,7 @@ namespace ERP.BLL.Repositories
                 .AsNoTracking()
                 .Include(d => d.Employees)
                 .Include(d => d.Manager)
+                .Include(d => d.Projects)
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 
@@ -42,6 +44,7 @@ namespace ERP.BLL.Repositories
                 .IgnoreQueryFilters()
                 .Include(d => d.Employees)
                 .Include(d => d.Manager)
+                .Include(d => d.Projects)
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 
@@ -102,6 +105,20 @@ namespace ERP.BLL.Repositories
         }
 
         /// <summary>
+        /// Get all projects for a specific department
+        /// </summary>
+        public async Task<IEnumerable<Project>> GetProjectsByDepartmentAsync(int departmentId)
+        {
+            return await _context.Projects
+                .AsNoTracking()
+                .Include(p => p.Department)
+                .Include(p => p.ProjectManager)
+                .Where(p => p.DepartmentId == departmentId && !p.IsDeleted)
+                .OrderBy(p => p.ProjectCode)
+                .ToListAsync();
+        }
+
+        /// <summary>
         /// Get paginated departments with employees and manager
         /// </summary>
         public override async Task<PagedResult<Department>> GetPagedAsync(
@@ -117,7 +134,8 @@ namespace ERP.BLL.Repositories
             IQueryable<Department> query = _context.Departments
                 .AsNoTracking()
                 .Include(d => d.Employees)
-                .Include(d => d.Manager);
+                .Include(d => d.Manager)
+                .Include(d => d.Projects);
 
             if (filter != null)
             {

@@ -1,4 +1,5 @@
 ﻿using ERP.DAL.Models;
+using ERP.PL.ViewModels.Project;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 namespace ERP.PL.ViewModels.Department
@@ -39,6 +40,7 @@ namespace ERP.PL.ViewModels.Department
 
         public DAL.Models.Employee? Manager { get; set; }
 
+        public ICollection<DAL.Models.Project>? Projects { get; set; } = new HashSet<DAL.Models.Project>();
 
     }
 }

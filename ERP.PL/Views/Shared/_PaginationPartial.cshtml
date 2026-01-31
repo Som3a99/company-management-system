@@ -3,10 +3,12 @@
 
 @{
     var searchTerm = ViewData["SearchTerm"] as string;
+    var status = ViewData["Status"] as string ?? ViewData["ManagerStatus"] as string ?? "all";
     var pageSize = Model.PageSize;
     var action = ViewContext.RouteData.Values["action"] as string;
     var controller = ViewContext.RouteData.Values["controller"] as string;
     var itemName = ViewData["ItemName"] as string ?? "items";
+    var departmentId = ViewData["DepartmentId"] as int?;
 }
 
 @if (Model.TotalPages > 1)
@@ -15,9 +17,12 @@
         @if (Model.HasPreviousPage)
         {
             <a asp-controller="@controller" asp-action="@action"
+               asp-route-id="@departmentId"
                asp-route-pageNumber="@(Model.PageNumber - 1)"
                asp-route-pageSize="@pageSize"
-               asp-route-searchTerm="@searchTerm">
+               asp-route-searchTerm="@searchTerm"
+               asp-route-status="@status"
+               asp-route-managerStatus="@status">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -41,9 +46,12 @@
             if (startPage > 1)
             {
                 <a asp-controller="@controller" asp-action="@action"
+                   asp-route-id="@departmentId"
                    asp-route-pageNumber="1"
                    asp-route-pageSize="@pageSize"
-                   asp-route-searchTerm="@searchTerm">1</a>
+                   asp-route-searchTerm="@searchTerm"
+                   asp-route-status="@status"
+                   asp-route-managerStatus="@status">1</a>
                 if (startPage > 2)
                 {
                     <span>...</span>
@@ -54,14 +62,27 @@
             {
                 if (i == Model.PageNumber)
                 {
-                    <span class="active">@i</span>
+                    <!-- ACTIVE PAGE - High contrast, cannot be missed -->
+                    <span class="active" style="
+                                        background-color: #2563eb;
+                                        color: white;
+                                        border-color: #2563eb;
+                                        font-weight: 600;
+                                        box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
+                                        position: relative;
+                                        z-index: 10;">
+                        @i
+                    </span>
                 }
                 else
                 {
                     <a asp-controller="@controller" asp-action="@action"
+                       asp-route-id="@departmentId"
                        asp-route-pageNumber="@i"
                        asp-route-pageSize="@pageSize"
-                       asp-route-searchTerm="@searchTerm">@i</a>
+                       asp-route-searchTerm="@searchTerm"
+                       asp-route-status="@status"
+                       asp-route-managerStatus="@status">@i</a>
                 }
             }
 
@@ -72,18 +93,24 @@
                     <span>...</span>
                 }
                 <a asp-controller="@controller" asp-action="@action"
+                   asp-route-id="@departmentId"
                    asp-route-pageNumber="@Model.TotalPages"
                    asp-route-pageSize="@pageSize"
-                   asp-route-searchTerm="@searchTerm">@Model.TotalPages</a>
+                   asp-route-searchTerm="@searchTerm"
+                   asp-route-status="@status"
+                   asp-route-managerStatus="@status">@Model.TotalPages</a>
             }
         }
 
         @if (Model.HasNextPage)
         {
             <a asp-controller="@controller" asp-action="@action"
+               asp-route-id="@departmentId"
                asp-route-pageNumber="@(Model.PageNumber + 1)"
                asp-route-pageSize="@pageSize"
-               asp-route-searchTerm="@searchTerm">
+               asp-route-searchTerm="@searchTerm"
+               asp-route-status="@status"
+               asp-route-managerStatus="@status">
                 Next
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M9 18l6-6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />

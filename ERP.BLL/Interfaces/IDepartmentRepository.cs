@@ -33,5 +33,9 @@ namespace ERP.BLL.Interfaces
         /// <returns></returns>
         Task<bool> HasActiveEmployeesAsync(int departmentId);
 
+        /// <summary>
+        /// Get projects by department ID
+        /// </summary>
+        Task<IEnumerable<Project>> GetProjectsByDepartmentAsync(int departmentId);
     }
 }

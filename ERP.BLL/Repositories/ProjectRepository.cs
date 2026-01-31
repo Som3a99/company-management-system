@@ -202,6 +202,19 @@ namespace ERP.BLL.Repositories
                     .ThenInclude(d => d.Employees.Where(e => e.ProjectId == projectId && !e.IsDeleted))
                 .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
         }
+
+        /// <summary>
+        /// Get employees assigned to a specific project as IQueryable
+        /// </summary>
+        /// <param name="projectId"></param>
+        /// <returns></returns>
+        public async Task<IQueryable<Employee>> GetEmployeesByProjectQueryableAsync(int projectId)
+        {
+            return await Task.FromResult(_context.Employees
+                .Where(e => e.ProjectId == projectId && !e.IsDeleted)
+                .Include(e => e.Department)
+                .AsQueryable());
+        }
         /// <summary>
         /// Get paginated projects with department and manager info
         /// </summary>

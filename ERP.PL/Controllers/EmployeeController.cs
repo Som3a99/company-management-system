@@ -31,12 +31,14 @@ namespace ERP.PL.Controllers
 
         #region Index
         [HttpGet]
-        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10, string? searchTerm = null)
+        public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
+                                                string? searchTerm = null, string? status = null)
         {
             try
             {
-                // Store search term in ViewData for the view
+                // Store search parameters for view
                 ViewData["SearchTerm"] = searchTerm;
+                ViewData["Status"] = status ?? "all";
 
                 string? likePattern = null;
 
@@ -51,13 +53,17 @@ namespace ERP.PL.Controllers
                     pageNumber,
                     pageSize,
                     filter: e =>
-                        likePattern == null ||
-                        EF.Functions.Like(e.FirstName, likePattern) ||
-                        EF.Functions.Like(e.LastName, likePattern) ||
-                        EF.Functions.Like(e.Email, likePattern) ||
-                        EF.Functions.Like(e.Position, likePattern) ||
-                        (e.Department != null &&
-                         EF.Functions.Like(e.Department.DepartmentName, likePattern)),
+                        (likePattern == null ||
+                         EF.Functions.Like(e.FirstName, likePattern) ||
+                         EF.Functions.Like(e.LastName, likePattern) ||
+                         EF.Functions.Like(e.Email, likePattern) ||
+                         EF.Functions.Like(e.Position, likePattern) ||
+                         (e.Department != null &&
+                          EF.Functions.Like(e.Department.DepartmentName, likePattern))) &&
+                        (status == null || status == "all" ||
+                         (status == "active" && e.IsActive) ||
+                         (status == "inactive" && !e.IsActive)) &&
+                        !e.IsDeleted,
                     orderBy: q => q.OrderBy(e => e.LastName).ThenBy(e => e.FirstName)
                 );
 

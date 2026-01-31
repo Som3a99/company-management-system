@@ -1,23 +1,24 @@
 ﻿@model DepartmentViewModel
 
 @{
-    ViewData["Title"] = $"{Model.DepartmentName} - Employees";
+    ViewData["Title"] = $"{Model.DepartmentName} - Projects";
 
-    // Get paginated employees from ViewBag
-    var pagedEmployees = ViewBag.PagedEmployees as PagedResult<ERP.PL.ViewModels.Employee.EmployeeViewModel> ??
-                        new PagedResult<ERP.PL.ViewModels.Employee.EmployeeViewModel>();
+    // Get paginated projects from ViewBag
+    var pagedProjects = ViewBag.PagedProjects as PagedResult<ProjectViewModel> ??
+                        new PagedResult<ProjectViewModel>();
 
     var searchTerm = ViewData["SearchTerm"] as string;
     var status = ViewData["Status"] as string ?? "all";
     var departmentId = ViewData["DepartmentId"] as int? ?? Model.Id;
 
-    // Calculate stats from ALL employees
-    var allEmployees = Model.Employees?.Where(e => !e.IsDeleted) ?? Enumerable.Empty<ERP.DAL.Models.Employee>();
-    var activeEmployees = allEmployees.Where(e => e.IsActive);
-    var inactiveEmployees = allEmployees.Where(e => !e.IsActive);
-    var totalEmployeesCount = allEmployees.Count();
-    var activeCount = activeEmployees.Count();
-    var inactiveCount = inactiveEmployees.Count();
+    // Calculate stats from ALL projects
+    var allProjects = Model.Projects?.Where(p => !p.IsDeleted) ?? Enumerable.Empty<ERP.DAL.Models.Project>();
+    var planningProjects = allProjects.Where(p => p.Status == ProjectStatus.Planning);
+    var inProgressProjects = allProjects.Where(p => p.Status == ProjectStatus.InProgress);
+    var completedProjects = allProjects.Where(p => p.Status == ProjectStatus.Completed);
+    var onHoldProjects = allProjects.Where(p => p.Status == ProjectStatus.OnHold);
+    var cancelledProjects = allProjects.Where(p => p.Status == ProjectStatus.Cancelled);
+    var totalProjectsCount = allProjects.Count();
 }
 
 <div class="container-fluid px-4">
@@ -33,7 +34,7 @@
                     <h1 class="mb-0">@Model.DepartmentName</h1>
                 </div>
             </div>
-            <p>Viewing all employees assigned to this department</p>
+            <p>Viewing all projects assigned to this department</p>
         </div>
     </div>
 
@@ -68,8 +69,8 @@
                         </div>
                         <div class="col-md-4">
                             <div class="text-md-end">
-                                <h2 class="mb-1">@totalEmployeesCount</h2>
-                                <p class="mb-0 opacity-75">Total Employees</p>
+                                <h2 class="mb-1">@totalProjectsCount</h2>
+                                <p class="mb-0 opacity-75">Total Projects</p>
                             </div>
                         </div>
                     </div>
@@ -84,6 +85,41 @@
             <div class="card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2v20M2 12h20" stroke="white" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="mb-0 fw-bold" style="color: #6366f1;">@planningProjects.Count()</h3>
+                            <p class="text-muted mb-0 small">Planning</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" />
+                                <polyline points="12 6 12 12 16 14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="mb-0 fw-bold" style="color: var(--warning);">@inProgressProjects.Count()</h3>
+                            <p class="text-muted mb-0 small">In Progress</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center gap-3">
                         <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); border-radius: var(--radius-md); flex-shrink: 0;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -91,18 +127,22 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="mb-0 fw-bold" style="color: var(--success);">@activeCount</h3>
-                            <p class="text-muted mb-0 small">Active Employees</p>
+                            <h3 class="mb-0 fw-bold" style="color: var(--success);">@completedProjects.Count()</h3>
+                            <p class="text-muted mb-0 small">Completed</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+    </div>
+
+    <!-- Additional Stats Row -->
+    <div class="row g-3 mb-4 animate-in">
+        <div class="col-md-6">
             <div class="card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--gray-400) 0%, var(--gray-500) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, #f87171 0%, #ef4444 100%); border-radius: var(--radius-md); flex-shrink: 0;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" />
                                 <line x1="15" y1="9" x2="9" y2="15" stroke="white" stroke-width="2" stroke-linecap="round" />
@@ -110,25 +150,26 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="mb-0 fw-bold" style="color: var(--gray-500);">@inactiveCount</h3>
-                            <p class="text-muted mb-0 small">Inactive Employees</p>
+                            <h3 class="mb-0 fw-bold" style="color: #ef4444;">@onHoldProjects.Count()</h3>
+                            <p class="text-muted mb-0 small">On Hold</p>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent-main) 0%, var(--accent-light) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--gray-400) 0%, var(--gray-500) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2v20M2 12h20" stroke="white" stroke-width="2" stroke-linecap="round" />
+                                <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" />
+                                <line x1="8" y1="12" x2="16" y2="12" stroke="white" stroke-width="2" stroke-linecap="round" />
                             </svg>
                         </div>
                         <div>
-                            <h3 class="mb-0 fw-bold" style="color: var(--accent-main);">@(allEmployees.Any() ? allEmployees.Average(e => e.Salary).ToString("C0") : "$0")</h3>
-                            <p class="text-muted mb-0 small">Avg. Salary</p>
+                            <h3 class="mb-0 fw-bold" style="color: var(--gray-500);">@cancelledProjects.Count()</h3>
+                            <p class="text-muted mb-0 small">Cancelled</p>
                         </div>
                     </div>
                 </div>
@@ -139,7 +180,7 @@
     <!-- Search and Filter - Server-side Form -->
     <div class="card mb-3 animate-in">
         <div class="card-body p-3">
-            <form method="get" asp-action="DepartmentEmployees" asp-route-id="@departmentId" id="searchForm">
+            <form method="get" asp-action="DepartmentProjects" asp-route-id="@departmentId" id="searchForm">
                 <div class="row g-3 align-items-center">
                     <div class="col-lg-6">
                         <div class="input-group">
@@ -150,7 +191,7 @@
                                 </svg>
                             </span>
                             <input type="text" name="searchTerm" class="form-control"
-                                   placeholder="Search by name, position, or contact..."
+                                   placeholder="Search by project code, name, or manager..."
                                    value="@searchTerm"
                                    id="searchInput">
                             <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()" title="Clear search">
@@ -166,22 +207,26 @@
                                 <input type="hidden" name="status" id="statusFilter" value="@status">
                                 <button type="button" class="btn btn-sm @(status == "all" ? "btn-primary" : "btn-outline-secondary")"
                                         onclick="setStatusFilter('all')">
-                                    All Employees (@totalEmployeesCount)
+                                    All Projects (@totalProjectsCount)
                                 </button>
-                                <button type="button" class="btn btn-sm @(status == "active" ? "btn-primary" : "btn-outline-secondary")"
-                                        onclick="setStatusFilter('active')">
-                                    Active Only (@activeCount)
+                                <button type="button" class="btn btn-sm @(status == "planning" ? "btn-primary" : "btn-outline-secondary")"
+                                        onclick="setStatusFilter('planning')">
+                                    Planning (@planningProjects.Count())
                                 </button>
-                                <button type="button" class="btn btn-sm @(status == "inactive" ? "btn-primary" : "btn-outline-secondary")"
-                                        onclick="setStatusFilter('inactive')">
-                                    Inactive Only (@inactiveCount)
+                                <button type="button" class="btn btn-sm @(status == "inprogress" ? "btn-primary" : "btn-outline-secondary")"
+                                        onclick="setStatusFilter('inprogress')">
+                                    In Progress (@inProgressProjects.Count())
+                                </button>
+                                <button type="button" class="btn btn-sm @(status == "completed" ? "btn-primary" : "btn-outline-secondary")"
+                                        onclick="setStatusFilter('completed')">
+                                    Completed (@completedProjects.Count())
                                 </button>
                             </div>
-                            <a asp-controller="Employee" asp-action="Create" class="btn btn-sm btn-primary">
+                            <a asp-controller="Project" asp-action="Create" class="btn btn-sm btn-primary">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                                 </svg>
-                                Add Employee
+                                Add Project
                             </a>
                         </div>
                     </div>
@@ -190,7 +235,7 @@
         </div>
     </div>
 
-    @if (pagedEmployees.Items != null && pagedEmployees.Items.Any())
+    @if (pagedProjects.Items != null && pagedProjects.Items.Any())
     {
         <div class="table-container animate-in">
             <!-- Loading Indicator (hidden by default) -->
@@ -198,93 +243,100 @@
                 <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Loading...</span>
                 </div>
-                <p class="mt-2 text-muted">Loading employees...</p>
+                <p class="mt-2 text-muted">Loading projects...</p>
             </div>
 
-            <table class="table table-hover mb-0" id="employeeTable">
+            <table class="table table-hover mb-0" id="projectTable">
                 <thead>
                     <tr>
-                        <th style="width: 60px;">Photo</th>
-                        <th>ID</th>
-                        <th>Name</th>
-                        <th>Position</th>
-                        <th>Contact</th>
-                        <th>Hire Date</th>
-                        <th>Salary</th>
-                        <th>Status</th>
-                        <th class="text-center" style="width: 200px;">Actions</th>
+                        <th style="width: 12%;">Code</th>
+                        <th style="width: 20%;">Project Name</th>
+                        <th style="width: 18%;">Manager</th>
+                        <th style="width: 10%;">Budget</th>
+                        <th style="width: 12%;">Start Date</th>
+                        <th style="width: 12%;">End Date</th>
+                        <th style="width: 10%;">Status</th>
+                        <th class="text-center" style="width: 15%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var employee in pagedEmployees.Items)
+                    @foreach (var project in pagedProjects.Items)
                     {
+                        var statusBadgeStyle = project.Status switch
+                        {
+                            ProjectStatus.Planning => "background-color: #dbeafe; color: #1e40af;",
+                            ProjectStatus.InProgress => "background-color: #fef3c7; color: #92400e;",
+                            ProjectStatus.OnHold => "background-color: #fee2e2; color: #991b1b;",
+                            ProjectStatus.Completed => "background-color: #dcfce7; color: #166534;",
+                            ProjectStatus.Cancelled => "background-color: #f3f4f6; color: #4b5563;",
+                            _ => "background-color: #f3f4f6; color: #4b5563;"
+                        };
+
                         <tr>
-                            <td>
-                                <img src="/uploads/images/@employee.ImageUrl"
-                                     alt="@employee.FirstName @employee.LastName"
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200);"
-                                     onerror="this.src='https://via.placeholder.com/40?text=@(employee.FirstName[0])@(employee.LastName[0])'" />
+                            <td style="width: 12%;">
+                                <span class="table-code">@project.ProjectCode</span>
                             </td>
-                            <td>
-                                <span class="table-code">@employee.Id</span>
-                            </td>
-                            <td>
-                                <div>
-                                    <strong>@employee.FirstName @employee.LastName</strong>
-                                    <br>
-                                    <small class="text-muted">@employee.Email</small>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge-custom">@employee.Position</span>
-                            </td>
-                            <td>
-                                <small class="text-muted">@employee.PhoneNumber</small>
-                            </td>
-                            <td>
-                                <span class="text-muted">@employee.HireDate.ToString("MMM dd, yyyy")</span>
-                            </td>
-                            <td>
-                                <strong style="color: var(--gray-900);">$@employee.Salary.ToString("N2")</strong>
-                            </td>
-                            <td>
-                                @if (employee.IsActive)
+                            <td style="width: 20%;">
+                                <strong style="color: var(--gray-900);">@project.ProjectName</strong>
+                                @if (!string.IsNullOrEmpty(project.Description))
                                 {
-                                    <span class="badge" style="background-color: #dcfce7; color: #166534; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.8125rem;">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -1px;">
-                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
-                                            <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        Active
-                                    </span>
+                                    <br>
+                                    <small class="text-muted">@(project.Description.Length > 50 ? project.Description.Substring(0, 50) + "..." : project.Description)</small>
+                                }
+                            </td>
+                            <td style="width: 18%;">
+                                @if (project.ProjectManager != null)
+                                {
+                                    <div>
+                                        <strong style="font-size: 0.875rem;">@project.ProjectManager.FirstName @project.ProjectManager.LastName</strong>
+                                        <br>
+                                        <small class="text-muted">@project.ProjectManager.Position</small>
+                                    </div>
                                 }
                                 else
                                 {
-                                    <span class="badge" style="background-color: #f3f4f6; color: #4b5563; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.8125rem;">
-                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -1px;">
-                                            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
-                                            <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                                            <line x1="9" y1="9" x2="15" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                                        </svg>
-                                        Inactive
-                                    </span>
+                                    <span class="text-muted small">Not Assigned</span>
                                 }
                             </td>
-                            <td class="text-center">
+                            <td style="width: 10%;">
+                                <strong style="color: var(--accent-main);">$@project.Budget.ToString("N2")</strong>
+                            </td>
+                            <td style="width: 12%;">
+                                <span class="text-muted">@project.StartDate.ToString("MMM dd, yyyy")</span>
+                            </td>
+                            <td style="width: 12%;">
+                                @if (project.EndDate.HasValue)
+                                {
+                                    <span class="text-muted">@project.EndDate.Value.ToString("MMM dd, yyyy")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td style="width: 10%;">
+                                <span class="badge" style="@statusBadgeStyle padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.8125rem;">
+                                    @project.Status
+                                </span>
+                            </td>
+                            <td class="text-center" style="width: 15%;">
                                 <div class="d-inline-flex gap-2">
-                                    <a asp-controller="Employee" asp-action="Edit" asp-route-id="@employee.Id" class="btn btn-sm btn-outline-secondary" title="Edit Employee">
+                                    <a asp-controller="Project" asp-action="ProjectEmployees" asp-route-id="@project.Id"
+                                       class="btn btn-sm btn-outline-primary"
+                                       title="View Team Members">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" />
+                                            <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" />
+                                        </svg>
+                                        Team
+                                    </a>
+                                    <a asp-controller="Project" asp-action="Edit" asp-route-id="@project.Id"
+                                       class="btn btn-sm btn-outline-secondary" title="Edit Project">
                                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
                                         Edit
-                                    </a>
-                                    <a asp-controller="Employee" asp-action="Delete" asp-route-id="@employee.Id" class="btn btn-sm btn-danger" title="Delete Employee">
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                        Delete
                                     </a>
                                 </div>
                             </td>
@@ -295,31 +347,18 @@
         </div>
 
         <!-- Add Pagination -->
-        @if (pagedEmployees.TotalPages > 1)
+        @if (pagedProjects.TotalPages > 1)
         {
             var paginationInfo = new PaginationInfoViewModel
             {
-                PageNumber = pagedEmployees.PageNumber,
-                PageSize = pagedEmployees.PageSize,
-                TotalCount = pagedEmployees.TotalCount
+                PageNumber = pagedProjects.PageNumber,
+                PageSize = pagedProjects.PageSize,
+                TotalCount = pagedProjects.TotalCount
             };
 
             <partial name="_PaginationPartial" model="@paginationInfo"
-                     view-data="@(new ViewDataDictionary(ViewData) { { "ItemName", "employees" } })" />
+                     view-data="@(new ViewDataDictionary(ViewData) { { "ItemName", "projects" } })" />
         }
-
-        <!-- Results Count -->
-        <div class="text-center mt-3 text-muted small">
-            Showing @pagedEmployees.StartIndex - @pagedEmployees.EndIndex of @pagedEmployees.TotalCount employees
-            @if (!string.IsNullOrEmpty(searchTerm))
-            {
-                <span>for "<strong>@searchTerm</strong>"</span>
-            }
-            @if (status != "all")
-            {
-                <span>(@status status)</span>
-            }
-        </div>
     }
     else
     {
@@ -327,34 +366,33 @@
             <div class="empty-state">
                 <div class="empty-state-icon">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                        <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" />
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                 </div>
-                <h5>No Employees Found</h5>
+                <h5>No Projects Found</h5>
                 @if (!string.IsNullOrEmpty(searchTerm))
                 {
-                    <p>No employees found for "<strong>@searchTerm</strong>" in this department.</p>
+                    <p>No projects found for "<strong>@searchTerm</strong>" in this department.</p>
                     <button onclick="clearSearch()" class="btn btn-outline-primary">
                         Clear Search
                     </button>
                 }
                 else if (status != "all")
                 {
-                    <p>No @(status) employees in this department.</p>
+                    <p>No @(status) projects in this department.</p>
                     <button onclick="setStatusFilter('all')" class="btn btn-outline-primary">
-                        Show All Employees
+                        Show All Projects
                     </button>
                 }
                 else
                 {
-                    <p>This department doesn't have any employees assigned yet. Add employees to get started.</p>
-                    <a asp-controller="Employee" asp-action="Create" class="btn btn-primary btn-primary-lg">
+                    <p>This department doesn't have any projects assigned yet. Add projects to get started.</p>
+                    <a asp-controller="Project" asp-action="Create" class="btn btn-primary btn-primary-lg">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                         </svg>
-                        <span>Add First Employee</span>
+                        <span>Add First Project</span>
                     </a>
                 }
             </div>
