@@ -220,17 +220,24 @@
                     {
                         <tr>
                             <td>
-                                <img src="/uploads/images/@employee.ImageUrl"
-                                     alt="@employee.FirstName @employee.LastName"
-                                     style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200);"
-                                     onerror="this.src='https://via.placeholder.com/40?text=@(employee.FirstName[0])@(employee.LastName[0])'" />
+                                <a asp-controller="Employee" asp-action="Profile" asp-route-id="@employee.Id">
+                                    <img src="/uploads/images/@employee.ImageUrl"
+                                         alt="@employee.FirstName @employee.LastName"
+                                         style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200); cursor: pointer; transition: transform 0.2s ease;"
+                                         onerror="this.src='https://via.placeholder.com/40?text=@(employee.FirstName[0])@(employee.LastName[0])'"
+                                         onmouseover="this.style.transform='scale(1.1)'"
+                                         onmouseout="this.style.transform='scale(1)'" />
+                                </a>
                             </td>
                             <td>
                                 <span class="table-code">@employee.Id</span>
                             </td>
                             <td>
                                 <div>
-                                    <strong>@employee.FirstName @employee.LastName</strong>
+                                    <a asp-controller="Employee" asp-action="Profile" asp-route-id="@employee.Id"
+                                       class="clickable-link text-decoration-none">
+                                        <strong>@employee.FirstName @employee.LastName</strong>
+                                    </a>
                                     <br>
                                     <small class="text-muted">@employee.Email</small>
                                 </div>

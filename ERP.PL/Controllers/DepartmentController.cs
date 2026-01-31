@@ -16,11 +16,13 @@ namespace ERP.PL.Controllers
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork)
+        private readonly ILogger<DepartmentController> _logger;
+        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork, ILogger<DepartmentController> logger)
         {
 
             _mapper=mapper;
             _unitOfWork=unitOfWork;
+            _logger=logger;
         }
 
         #region Index
@@ -498,6 +500,40 @@ namespace ERP.PL.Controllers
 
             return View(departmentViewModel);
         }
+        #endregion
+
+        #region Profile
+
+        /// <summary>
+        /// Display department profile with comprehensive information
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> Profile(int id)
+        {
+            try
+            {
+                // Get department with all related data
+                var department = await _unitOfWork.DepartmentRepository.GetDepartmentProfileAsync(id);
+
+                if (department == null)
+                {
+                    TempData["ErrorMessage"] = "Department not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Map to profile ViewModel
+                var profileViewModel = _mapper.Map<DepartmentProfileViewModel>(department);
+
+                return View(profileViewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading department profile for ID {DepartmentId}", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the department profile.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
         #endregion
 
         #region Remote Validation

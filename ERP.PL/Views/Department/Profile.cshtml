@@ -1,0 +1,434 @@
+@model DepartmentProfileViewModel
+
+@{
+    ViewData["Title"] = $"{Model.DepartmentName} - Profile";
+}
+
+<style>
+    .profile-header {
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: var(--radius-lg);
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        height: 100%;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .section-card {
+        background: white;
+        border-radius: var(--radius-lg);
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid var(--primary-main);
+    }
+
+    .manager-card {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: var(--radius-md);
+        padding: 1.5rem;
+        border-left: 4px solid var(--primary-main);
+    }
+
+    .manager-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 3px solid white;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        object-fit: cover;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+    }
+
+    .manager-avatar:hover {
+        transform: scale(1.05);
+    }
+
+    .employee-card {
+        background: var(--gray-50);
+        border-radius: var(--radius-md);
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s ease;
+        border-left: 3px solid transparent;
+    }
+
+    .employee-card:hover {
+        background: white;
+        border-left-color: var(--primary-main);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateX(4px);
+    }
+
+    .employee-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 2px solid var(--gray-300);
+        object-fit: cover;
+        cursor: pointer;
+    }
+
+    .project-card {
+        background: white;
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-md);
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .project-card:hover {
+        border-color: var(--primary-main);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .clickable-link {
+        color: var(--primary-main);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.2s ease;
+    }
+
+    .clickable-link:hover {
+        color: var(--primary-dark);
+        text-decoration: underline;
+    }
+</style>
+
+<div class="container-fluid px-4">
+    <!-- Back Button -->
+    <div class="mb-3 animate-in">
+        <a asp-action="Index" class="btn btn-secondary btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            Back to Departments
+        </a>
+    </div>
+
+    <!-- Profile Header -->
+    <div class="profile-header animate-in">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <div class="d-flex align-items-center justify-content-center" 
+                     style="width: 80px; height: 80px; background: rgba(255, 255, 255, 0.2); border-radius: var(--radius-md);">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="2"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="2"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1" stroke="white" stroke-width="2"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1" stroke="white" stroke-width="2"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="col">
+                <h1 class="mb-2">@Model.DepartmentName</h1>
+                <p class="mb-0 opacity-75">
+                    <strong>Code:</strong> @Model.DepartmentCode &nbsp;|&nbsp; 
+                    <strong>Established:</strong> @Model.CreatedAt.ToString("MMMM dd, yyyy")
+                </p>
+            </div>
+            <div class="col-auto">
+                <div class="d-flex gap-2">
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-light">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Edit
+                    </a>
+                    <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-light">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Delete
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row g-3 mb-4 animate-in">
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, var(--accent-main) 0%, var(--accent-light) 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2"/>
+                            <circle cx="9" cy="7" r="4" stroke="white" stroke-width="2"/>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold" style="color: var(--accent-main);">@Model.TotalEmployees</h3>
+                        <p class="text-muted mb-0 small">Total Employees</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="white" stroke-width="2"/>
+                            <polyline points="22 4 12 14.01 9 11.01" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold" style="color: var(--success);">@Model.ActiveEmployees</h3>
+                        <p class="text-muted mb-0 small">Active Employees</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke="white" stroke-width="2"/>
+                            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold" style="color: #6366f1;">@Model.TotalProjects</h3>
+                        <p class="text-muted mb-0 small">Total Projects</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-3 col-md-6">
+            <div class="stat-card">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="12" y1="1" x2="12" y2="23" stroke="white" stroke-width="2"/>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="white" stroke-width="2"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="mb-0 fw-bold" style="color: var(--warning);">@Model.AverageSalary.ToString("C0")</h3>
+                        <p class="text-muted mb-0 small">Avg. Salary</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Manager & Projects -->
+        <div class="col-lg-5 animate-in">
+            <!-- Manager Card -->
+            <div class="section-card">
+                <h5 class="section-title">Department Manager</h5>
+                @if (Model.ManagerId.HasValue)
+                {
+                    <div class="manager-card">
+                        <div class="d-flex align-items-center gap-3">
+                            <a asp-controller="Employee" asp-action="Profile" asp-route-id="@Model.ManagerId">
+                                <img src="@Model.ManagerImageUrl" 
+                                     alt="@Model.ManagerName" 
+                                     class="manager-avatar"
+                                     onerror="this.src='/uploads/images/avatar-user.png'" />
+                            </a>
+                            <div>
+                                <h6 class="mb-1">
+                                    <a asp-controller="Employee" asp-action="Profile" asp-route-id="@Model.ManagerId" 
+                                       class="clickable-link">
+                                        @Model.ManagerName
+                                    </a>
+                                </h6>
+                                <p class="text-muted mb-1">@Model.ManagerPosition</p>
+                                <p class="text-muted mb-0 small">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -2px;">
+                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2"/>
+                                        <polyline points="22,6 12,13 2,6" stroke="currentColor" stroke-width="2"/>
+                                    </svg>
+                                    <a href="mailto:@Model.ManagerEmail" class="clickable-link">@Model.ManagerEmail</a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">No manager assigned to this department</p>
+                }
+            </div>
+
+            <!-- Projects Card -->
+            <div class="section-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="section-title mb-0">Projects (@Model.TotalProjects)</h5>
+                    <a asp-action="DepartmentProjects" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+
+                @if (Model.RecentProjects.Any())
+                {
+                    foreach (var project in Model.RecentProjects)
+                    {
+                        var statusStyle = project.Status switch
+                        {
+                            ProjectStatus.Planning => "background-color: #dbeafe; color: #1e40af;",
+                            ProjectStatus.InProgress => "background-color: #fef3c7; color: #92400e;",
+                            ProjectStatus.Completed => "background-color: #dcfce7; color: #166534;",
+                            ProjectStatus.OnHold => "background-color: #fee2e2; color: #991b1b;",
+                            _ => "background-color: #f3f4f6; color: #4b5563;"
+                        };
+
+                        <div class="project-card">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="mb-0">
+                                    <a asp-controller="Project" asp-action="Profile" asp-route-id="@project.Id" 
+                                       class="clickable-link">
+                                        @project.ProjectName
+                                    </a>
+                                </h6>
+                                <span class="badge" style="@statusStyle padding: 0.375rem 0.625rem; font-size: 0.75rem;">@project.Status</span>
+                            </div>
+                            <p class="text-muted mb-1 small">
+                                <span class="table-code">@project.ProjectCode</span> &nbsp;|&nbsp; Budget: <strong>@project.Budget.ToString("C0")</strong>
+                            </p>
+                            @if (project.ManagerId.HasValue)
+                            {
+                                <p class="text-muted mb-0 small">
+                                    Manager: 
+                                    <a asp-controller="Employee" asp-action="Profile" asp-route-id="@project.ManagerId" 
+                                       class="clickable-link">
+                                        @project.ManagerName
+                                    </a>
+                                    &nbsp;|&nbsp; Team: @project.TeamSize members
+                                </p>
+                            }
+                        </div>
+                    }
+
+                    @if (Model.TotalProjects > 5)
+                    {
+                        <div class="text-center mt-2">
+                            <a asp-action="DepartmentProjects" asp-route-id="@Model.Id" class="btn btn-sm btn-link">
+                                View all @Model.TotalProjects projects →
+                            </a>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">No projects in this department</p>
+                }
+            </div>
+        </div>
+
+        <!-- Right Column: Employees -->
+        <div class="col-lg-7 animate-in">
+            <div class="section-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="section-title mb-0">Employees (@Model.TotalEmployees)</h5>
+                    <a asp-action="DepartmentEmployees" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+
+                @if (Model.RecentEmployees.Any())
+                {
+                    foreach (var employee in Model.RecentEmployees)
+                    {
+                        <div class="employee-card">
+                            <div class="d-flex align-items-center gap-3">
+                                <a asp-controller="Employee" asp-action="Profile" asp-route-id="@employee.Id">
+                                    <img src="@employee.ImageUrl" 
+                                         alt="@employee.Name" 
+                                         class="employee-avatar"
+                                         onerror="this.src='/uploads/images/avatar-user.png'" />
+                                </a>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">
+                                        <a asp-controller="Employee" asp-action="Profile" asp-route-id="@employee.Id" 
+                                           class="clickable-link">
+                                            @employee.Name
+                                        </a>
+                                    </h6>
+                                    <p class="text-muted mb-0 small">@employee.Position</p>
+                                </div>
+                                <div class="text-end">
+                                    @if (employee.IsActive)
+                                    {
+                                        <span class="badge" style="background-color: #dcfce7; color: #166534; font-size: 0.75rem;">
+                                            Active
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge" style="background-color: #f3f4f6; color: #4b5563; font-size: 0.75rem;">
+                                            Inactive
+                                        </span>
+                                    }
+                                    @if (employee.ProjectId.HasValue)
+                                    {
+                                        <p class="text-muted mb-0 small mt-1">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -1px;">
+                                                <rect x="2" y="7" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                                            </svg>
+                                            <a asp-controller="Project" asp-action="Profile" asp-route-id="@employee.ProjectId" 
+                                               class="clickable-link" style="font-size: 0.75rem;">
+                                                @employee.ProjectName
+                                            </a>
+                                        </p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    @if (Model.TotalEmployees > 10)
+                    {
+                        <div class="text-center mt-3">
+                            <a asp-action="DepartmentEmployees" asp-route-id="@Model.Id" class="btn btn-sm btn-link">
+                                View all @Model.TotalEmployees employees →
+                            </a>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">No employees in this department</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

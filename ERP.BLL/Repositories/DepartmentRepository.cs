@@ -206,5 +206,25 @@ namespace ERP.BLL.Repositories
                 .AnyAsync(e => e.DepartmentId == departmentId && !e.IsDeleted);
         }
 
+        /// <summary>
+        /// Get department with all related data for profile page
+        /// Includes: Manager, Employees, Projects (with their managers)
+        /// </summary>
+        public async Task<Department?> GetDepartmentProfileAsync(int id)
+        {
+            return await _context.Departments
+                .AsNoTracking()
+                .Include(d => d.Manager) // Department manager
+                    .ThenInclude(m => m!.Department) // Manager's department (if different)
+                .Include(d => d.Employees.Where(e => !e.IsDeleted)) // Active employees
+                    .ThenInclude(e => e.Project) // Each employee's project
+                .Include(d => d.Projects.Where(p => !p.IsDeleted)) // Active projects
+                    .ThenInclude(p => p.ProjectManager) // Each project's manager
+                .Include(d => d.Projects.Where(p => !p.IsDeleted))
+                    .ThenInclude(p => p.Employees.Where(e => !e.IsDeleted)) // Employees in each project
+                .Where(d => d.Id == id && !d.IsDeleted)
+                .FirstOrDefaultAsync();
+        }
+
     }
 }

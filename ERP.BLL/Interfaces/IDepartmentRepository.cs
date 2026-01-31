@@ -37,5 +37,10 @@ namespace ERP.BLL.Interfaces
         /// Get projects by department ID
         /// </summary>
         Task<IEnumerable<Project>> GetProjectsByDepartmentAsync(int departmentId);
+
+        /// <summary>
+        /// Get department with all related data for profile page
+        /// </summary>
+        Task<Department?> GetDepartmentProfileAsync(int id);
     }
 }
