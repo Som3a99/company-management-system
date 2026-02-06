@@ -19,6 +19,18 @@
         table-layout: fixed;
         width: 100%;
     }
+
+    .project-name-link {
+        color: var(--gray-900);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s ease;
+    }
+
+        .project-name-link:hover {
+            color: var(--primary-main);
+            text-decoration: none;
+        }
 </style>
 
 <div class="container-fluid px-4">
@@ -203,7 +215,10 @@
                                 <span class="table-code">@project.ProjectCode</span>
                             </td>
                             <td style="width: 20%;">
-                                <strong style="color: var(--gray-900);">@project.ProjectName</strong>
+                                @* Make project name clickable to Profile page *@
+                                <a asp-action="Profile" asp-route-id="@project.Id" class="project-name-link">
+                                    @project.ProjectName
+                                </a>
                             </td>
                             <td style="width: 15%;">
                                 @if (project.Department != null)

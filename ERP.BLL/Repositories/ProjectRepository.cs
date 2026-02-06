@@ -204,6 +204,23 @@ namespace ERP.BLL.Repositories
         }
 
         /// <summary>
+        /// Get project with all related data for profile page
+        /// Includes: Department, ProjectManager, Employees (with Department)
+        /// </summary>
+        public async Task<Project?> GetProjectProfileAsync(int id)
+        {
+            return await _context.Projects
+                .AsNoTracking()
+                .Include(p => p.Department) // Project's department
+                .Include(p => p.ProjectManager) // Project manager
+                    .ThenInclude(m => m!.Department) // Manager's department
+                .Include(p => p.Employees.Where(e => !e.IsDeleted)) // All team members
+                    .ThenInclude(e => e.Department) // Each employee's department
+                .Where(p => p.Id == id && !p.IsDeleted)
+                .FirstOrDefaultAsync();
+        }
+
+        /// <summary>
         /// Get employees assigned to a specific project as IQueryable
         /// </summary>
         /// <param name="projectId"></param>

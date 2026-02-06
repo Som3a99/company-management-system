@@ -56,5 +56,10 @@ namespace ERP.BLL.Interfaces
         /// <returns></returns>
         Task<IQueryable<Employee>> GetEmployeesByProjectQueryableAsync(int projectId);
 
+        /// <summary>
+        /// Get project with all related data for profile page
+        /// </summary>
+        Task<Project?> GetProjectProfileAsync(int id);
+
     }
 }

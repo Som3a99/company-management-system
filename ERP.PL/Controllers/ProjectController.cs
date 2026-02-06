@@ -475,6 +475,38 @@ namespace ERP.PL.Controllers
         }
         #endregion
 
+        #region Profile
+        /// <summary>
+        /// Display project profile page with comprehensive information
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> Profile(int id)
+        {
+            try
+            {
+                // Get project with all related data
+                var project = await _unitOfWork.ProjectRepository.GetProjectProfileAsync(id);
+
+                if (project == null)
+                {
+                    TempData["ErrorMessage"] = "Project not found.";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                // Map to profile view model
+                var profileViewModel = _mapper.Map<ProjectProfileViewModel>(project);
+
+                return View(profileViewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading project profile for ID {ProjectId}", id);
+                TempData["ErrorMessage"] = "An error occurred while loading the project profile.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+        #endregion
+
         #region Remote Validation
         /// <summary>
         /// Remote validation for project code uniqueness
