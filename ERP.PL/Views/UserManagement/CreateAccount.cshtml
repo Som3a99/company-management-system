@@ -1,0 +1,259 @@
+﻿@model CreateUserAccountViewModel
+
+@{
+    ViewData["Title"] = "Create User Account";
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header animate-in">
+        <div class="container-fluid px-4">
+            <div class="d-flex justify-content-between align-items-end flex-wrap gap-3">
+            <div>
+                <h1>Create User Account</h1>
+                <p>Create a system access account for @Model.EmployeeName</p>
+            </div>
+                <a asp-action="EmployeesWithoutAccounts" class="btn btn-primary btn-primary-lg">
+                <i class="fas fa-arrow-left me-2"></i>Back to List
+            </a>
+        </div>
+    </div>
+</div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card animate-in">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-plus me-2"></i>Account Creation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Security Notice:</strong> A secure password will be generated automatically.
+                        The employee must change it on first login.
+                    </div>
+
+                    <form asp-action="CreateAccount" method="post">
+                        <input type="hidden" name="employeeId" value="@Model.EmployeeId" />
+                        <input type="hidden" name="confirmed" value="true" />
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Employee Name:</strong></label>
+                                    <p class="form-control-plaintext p-2 bg-light rounded">@Model.EmployeeName</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Email / Username:</strong></label>
+                                    <p class="form-control-plaintext p-2 bg-light rounded">
+                                        <i class="fas fa-envelope text-primary me-2"></i>@Model.EmployeeEmail
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Position:</strong></label>
+                                    <p class="form-control-plaintext p-2 bg-light rounded">@Model.Position</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label class="form-label"><strong>Department:</strong></label>
+                                    <p class="form-control-plaintext p-2 bg-light rounded">
+                                        @if (!string.IsNullOrEmpty(Model.DepartmentName))
+                                        {
+                                            <span class="badge bg-primary">@Model.DepartmentName</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Unassigned</span>
+                                        }
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Role Selection Section -->
+                        <h5 class="mb-3"><i class="fas fa-user-tag me-2"></i>Assign System Roles</h5>
+                        <p class="text-muted mb-4">Select the roles to be assigned to this user account. At least one role must be selected.</p>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Select Roles:</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="SelectedRoles" value="Employee" id="roleEmployee" checked>
+                                        <label class="form-check-label" for="roleEmployee">
+                                            <span class="badge bg-secondary">Employee</span>
+                                            <small class="d-block text-muted mt-1">Basic system access and self-service features</small>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="SelectedRoles" value="DepartmentManager" id="roleDeptManager" @(Model.IsDepartmentManager ? "checked" : "")>
+                                        <label class="form-check-label" for="roleDeptManager">
+                                            <span class="badge" style="background-color: #f59e0b; color: white;">Department Manager</span>
+                                            <small class="d-block text-muted mt-1">Manage department employees and resources</small>
+                                        </label>
+                                    </div>
+
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="SelectedRoles" value="ProjectManager" id="roleProjectManager" @(Model.IsProjectManager ? "checked" : "")>
+                                        <label class="form-check-label" for="roleProjectManager">
+                                            <span class="badge" style="background-color: #3b82f6; color: white;">Project Manager</span>
+                                            <small class="d-block text-muted mt-1">Manage projects, tasks, and team assignments</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    @if (User.IsInRole("CEO") || User.IsInRole("ITAdmin"))
+                                    {
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" name="SelectedRoles" value="ITAdmin" id="roleITAdmin">
+                                            <label class="form-check-label" for="roleITAdmin">
+                                                <span class="badge" style="background-color: #8b5cf6; color: white;">IT Admin</span>
+                                                <small class="d-block text-muted mt-1">System administration and user management</small>
+                                            </label>
+                                        </div>
+                                    }
+
+                                    @if (User.IsInRole("CEO"))
+                                    {
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" name="SelectedRoles" value="CEO" id="roleCEO">
+                                            <label class="form-check-label" for="roleCEO">
+                                                <span class="badge" style="background-color: #ef4444; color: white;">CEO</span>
+                                                <small class="d-block text-muted mt-1">Full system access and administrative privileges</small>
+                                            </label>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-key me-2"></i> Password Policy:</h6>
+                            <ul class="mb-0">
+                                <li>A secure 16-character password will be auto-generated</li>
+                                <li>Password contains uppercase, lowercase, numbers, and special characters</li>
+                                <li>User must change password on first login</li>
+                                <li>Account will be immediately active upon creation</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a asp-action="EmployeesWithoutAccounts" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check me-2"></i>Create User Account
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card animate-in">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Account Summary
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="mb-3">Employee Information:</h6>
+                    <ul class="list-unstyled mb-4">
+                        <li class="mb-2">
+                            <i class="fas fa-user text-primary me-2"></i>
+                            <strong>Name:</strong> @Model.EmployeeName
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-envelope text-primary me-2"></i>
+                            <strong>Email:</strong> @Model.EmployeeEmail
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-briefcase text-primary me-2"></i>
+                            <strong>Position:</strong> @Model.Position
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-building text-primary me-2"></i>
+                            <strong>Department:</strong> @(Model.DepartmentName ?? "Unassigned")
+                        </li>
+                    </ul>
+
+                    <h6 class="mb-3">Default Account Settings:</h6>
+                    <div class="d-flex flex-column gap-2">
+                        <span class="badge d-flex align-items-center" style="background-color: #dcfce7; color: #166534; padding: 0.5rem;">
+                            <i class="fas fa-check-circle me-2"></i>Account will be Active
+                        </span>
+                        <span class="badge d-flex align-items-center" style="background-color: #fef3c7; color: #92400e; padding: 0.5rem;">
+                            <i class="fas fa-key me-2"></i>Password Change Required on First Login
+                        </span>
+                        <span class="badge d-flex align-items-center" style="background-color: #dbeafe; color: #1e40af; padding: 0.5rem;">
+                            <i class="fas fa-shield-alt me-2"></i>Secure Password Generated
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card animate-in mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Next Steps
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">System generates secure password</li>
+                        <li class="mb-2">Password shown once for you to copy</li>
+                        <li class="mb-2">Provide password to employee securely</li>
+                        <li class="mb-2">Employee logs in and changes password</li>
+                        <li>Employee gains system access with assigned roles</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ensure at least one role is selected
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function(e) {
+                const checkboxes = document.querySelectorAll('input[name="SelectedRoles"]:checked');
+                if (checkboxes.length === 0) {
+                    e.preventDefault();
+                    alert('Please select at least one role for the user account.');
+                }
+            });
+
+            // Auto-check Employee role if any management role is checked
+            const managementRoles = ['roleDeptManager', 'roleProjectManager', 'roleITAdmin', 'roleCEO'];
+            const employeeCheckbox = document.getElementById('roleEmployee');
+
+            managementRoles.forEach(roleId => {
+                const checkbox = document.getElementById(roleId);
+                if (checkbox) {
+                    checkbox.addEventListener('change', function() {
+                        if (this.checked && !employeeCheckbox.checked) {
+                            employeeCheckbox.checked = true;
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+}
