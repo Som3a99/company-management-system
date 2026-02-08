@@ -2,6 +2,7 @@
 using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
 using System.Linq.Expressions;
@@ -10,17 +11,78 @@ namespace ERP.BLL.Repositories
 {
     public class EmployeeRepository : GenericRepository<Employee>, IEmployeeRepository
     {
-        public EmployeeRepository(ApplicationDbContext context) : base(context)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public EmployeeRepository(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor) : base(context)
         {
+            _httpContextAccessor=httpContextAccessor;
+        }
+
+        private bool IsCEO()
+        {
+            return _httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false;
+        }
+
+        private int? GetManagedDepartmentId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("ManagedDepartmentId");
+            return claim != null ? int.Parse(claim.Value) : null;
+        }
+
+        private int? GetManagedProjectId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("ManagedProjectId");
+            return claim != null ? int.Parse(claim.Value) : null;
+        }
+
+        private int? GetUserDepartmentId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("DepartmentId");
+            return claim != null ? int.Parse(claim.Value) : null;
         }
 
         // Override GetAll to include Department navigation property
         public override async Task<IEnumerable<Employee>> GetAllAsync()
         {
-            return await _context.Employees
+            var query = _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .ToListAsync();
+                .Where(e => !e.IsDeleted);
+
+            // CEO sees all employees
+            if (IsCEO())
+            {
+                return await query.ToListAsync();
+            }
+
+            // Department manager sees employees in own department
+            var managedDeptId = GetManagedDepartmentId();
+            if (managedDeptId.HasValue)
+            {
+                query = query.Where(e => e.DepartmentId == managedDeptId.Value);
+                return await query.ToListAsync();
+            }
+
+            // Project manager sees employees on own project
+            var managedProjectId = GetManagedProjectId();
+            if (managedProjectId.HasValue)
+            {
+                query = query.Where(e => e.ProjectId == managedProjectId.Value);
+                return await query.ToListAsync();
+            }
+
+            // Regular employee sees peers in same department
+            var userDeptId = GetUserDepartmentId();
+            if (userDeptId.HasValue)
+            {
+                query = query.Where(e => e.DepartmentId == userDeptId.Value);
+                return await query.ToListAsync();
+            }
+
+            // No context = no employees
+            return new List<Employee>();
         }
 
         // Override GetById to include Department navigation property

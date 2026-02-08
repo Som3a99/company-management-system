@@ -3,29 +3,38 @@ using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
+using ERP.PL.Services;
 using ERP.PL.ViewModels.Department;
 using ERP.PL.ViewModels.Employee;
 using ERP.PL.ViewModels.Project;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ERP.PL.Controllers
 {
+    [Authorize]
     public class DepartmentController : Controller
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ILogger<DepartmentController> _logger;
-        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork, ILogger<DepartmentController> logger)
+        private readonly IAuditService _auditService;
+        private readonly IRoleManagementService _roleManagementService;
+        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork, ILogger<DepartmentController> logger, IAuditService auditService, IRoleManagementService roleManagementService)
         {
 
             _mapper=mapper;
             _unitOfWork=unitOfWork;
             _logger=logger;
+            _auditService=auditService;
+            _roleManagementService=roleManagementService;
         }
 
         #region Index
+        [Authorize(Policy = "RequireManager")]
         [HttpGet]
         public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
                                                 string? searchTerm = null, string? managerStatus = null)
@@ -81,6 +90,7 @@ namespace ERP.PL.Controllers
 
         #region Create
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Create()
         {
             await LoadManagersAsync();
@@ -88,6 +98,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(DepartmentViewModel department)
         {
@@ -164,6 +175,15 @@ namespace ERP.PL.Controllers
 
                 await transaction.CommitAsync();
 
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_DEPARTMENT_SUCCESS",
+                    "Department",
+                    mappedDepartment.Id,
+                    details: $"Created department: {mappedDepartment.DepartmentCode} - {mappedDepartment.DepartmentName}");
+
                 TempData["SuccessMessage"] =
                     $"Department '{mappedDepartment.DepartmentName}' created successfully!";
 
@@ -173,6 +193,17 @@ namespace ERP.PL.Controllers
                 when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_DEPARTMENT_FAILED",
+                    "Department",
+                    null,
+                    succeeded: false,
+                    errorMessage: "Manager already assigned to another department",
+                    details: $"Department code: {department.DepartmentCode}");
 
                 // Database constraint safety net
                 ModelState.AddModelError(
@@ -186,6 +217,16 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_DEPARTMENT_FAILED",
+                    "Department",
+                    null,
+                    succeeded: false,
+                    errorMessage: ex.InnerException?.Message ?? ex.Message);
 
                 // Handle CHECK constraint or other DB errors
                 var errorMessage = "An error occurred while creating the department.";
@@ -202,9 +243,20 @@ namespace ERP.PL.Controllers
                 await LoadManagersAsync(department.ManagerId);
                 return View(department);
             }
-            catch
+            catch(Exception ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_DEPARTMENT_FAILED",
+                    "Department",
+                    null,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
                 throw;
             }
         }
@@ -212,6 +264,7 @@ namespace ERP.PL.Controllers
 
         #region Edit
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Edit(int id)
         {
             var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
@@ -225,6 +278,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(DepartmentViewModel department)
         {
@@ -289,6 +343,22 @@ namespace ERP.PL.Controllers
                 await _unitOfWork.CompleteAsync();
                 await transaction.CommitAsync();
 
+                // AUTO-ASSIGN ROLE IF MANAGER CHANGED
+                if (existingDepartment.ManagerId.HasValue)
+                {
+                    await _roleManagementService.SyncEmployeeRolesAsync(existingDepartment.ManagerId.Value);
+                }
+
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_DEPARTMENT_SUCCESS",
+                    "Department",
+                    existingDepartment.Id,
+                    details: $"Updated department: {existingDepartment.DepartmentCode} - {existingDepartment.DepartmentName}");
+
+
                 TempData["SuccessMessage"] =
                     $"Department '{existingDepartment.DepartmentName}' updated successfully!";
 
@@ -298,7 +368,19 @@ namespace ERP.PL.Controllers
                 when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
             {
                 await transaction.RollbackAsync();
-                
+
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_DEPARTMENT_FAILED",
+                    "Department",
+                    department.Id,
+                    succeeded: false,
+                    errorMessage: "Manager already assigned to another department");
+
+
                 // DB constraint safety net
                 ModelState.AddModelError(
                     "ManagerId",
@@ -311,6 +393,16 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_DEPARTMENT_FAILED",
+                    "Department",
+                    department.Id,
+                    succeeded: false,
+                    errorMessage: ex.InnerException?.Message ?? ex.Message);
 
                 // Handle CHECK constraint or other DB errors
                 var errorMessage = "An error occurred while saving the department.";
@@ -327,8 +419,19 @@ namespace ERP.PL.Controllers
                 await LoadManagersAsync(department.ManagerId, department.Id);
                 return View(department);
             }
-            catch
+            catch(Exception ex)
             {
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_DEPARTMENT_FAILED",
+                    "Department",
+                    department.Id,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
                 await transaction.RollbackAsync();
                 throw;
             }
@@ -337,6 +440,7 @@ namespace ERP.PL.Controllers
 
         #region Delete
         [HttpGet]
+        [Authorize(Policy = "RequireCEO")]
         public async Task<IActionResult> Delete(int id)
         {
             var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
@@ -348,6 +452,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost, ActionName("Delete")]
+        [Authorize(Policy = "RequireCEO")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
@@ -356,18 +461,58 @@ namespace ERP.PL.Controllers
             if (department == null)
                 return NotFound();
 
+            string departmentName = department.DepartmentName;
+
             // Check if department has employees
             if (await _unitOfWork.DepartmentRepository.HasActiveEmployeesAsync(id))
             {
-                TempData["ErrorMessage"] = $"Cannot delete {department.DepartmentName} because it has active employees.";
+
+                // Audit log failure
+                await _auditService.LogAsync(
+
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_DEPARTMENT_FAILED",
+                    "Department",
+                    id,
+                    succeeded: false,
+                    errorMessage: "Department has active employees",
+                    details: $"Department: {departmentName}");
+                TempData["ErrorMessage"] = $"Cannot delete {departmentName} because it has active employees.";
                 return RedirectToAction(nameof(Index));
             }
+            try
+            {
+                await _unitOfWork.DepartmentRepository.DeleteAsync(id);
+                await _unitOfWork.CompleteAsync();
+                // Audit log success
 
-            await _unitOfWork.DepartmentRepository.DeleteAsync(id);
-            await _unitOfWork.CompleteAsync();
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_DEPARTMENT_SUCCESS",
+                    "Department",
+                    id,
+                    details: $"Deleted department: {departmentName}");
 
-            TempData["SuccessMessage"] = $"Department '{department.DepartmentName}' deleted successfully!";
-            return RedirectToAction(nameof(Index));
+                TempData["SuccessMessage"] = $"Department '{departmentName}' deleted successfully!";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_DEPARTMENT_FAILED",
+                    "Department",
+                    id,
+                    succeeded: false,
+                    errorMessage: ex.Message,
+                    details: $"Department: {departmentName}");
+                TempData["ErrorMessage"] = $"An error occurred while deleting {departmentName}.";
+                return RedirectToAction(nameof(Index));
+            }
         }
         #endregion
 
@@ -377,6 +522,7 @@ namespace ERP.PL.Controllers
         /// </summary>
         // Update the DepartmentEmployees action to include status filtering
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> DepartmentEmployees(int id, int pageNumber = 1, int pageSize = 10,
                                                              string? searchTerm = null, string? status = null)
         {
@@ -438,6 +584,7 @@ namespace ERP.PL.Controllers
         /// View all projects in a specific department with pagination and search
         /// </summary>
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         // localhost:5001/Department/DepartmentProjects/1
         public async Task<IActionResult> DepartmentProjects(int id, int pageNumber = 1, int pageSize = 10,
                                                            string? searchTerm = null, string? status = null)
@@ -508,6 +655,7 @@ namespace ERP.PL.Controllers
         /// Display department profile with comprehensive information
         /// </summary>
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Profile(int id)
         {
             try
@@ -598,4 +746,3 @@ namespace ERP.PL.Controllers
         #endregion
     }
 }
-

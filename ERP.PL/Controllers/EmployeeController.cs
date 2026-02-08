@@ -3,14 +3,18 @@ using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
+using ERP.PL.Services;
 using ERP.PL.ViewModels.Employee;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ERP.PL.Controllers
 {
+    [Authorize]
     public class EmployeeController : Controller
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -18,19 +22,23 @@ namespace ERP.PL.Controllers
         private readonly DocumentSettings _documentSettings;
         private readonly ILogger<EmployeeController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IAuditService _auditService;
+        private readonly IAuthorizationService _authorizationService;
 
-
-        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings, ILogger<EmployeeController> logger, IConfiguration configuration)
+        public EmployeeController(IMapper mapper, IUnitOfWork unitOfWork, DocumentSettings documentSettings, ILogger<EmployeeController> logger, IConfiguration configuration, IAuditService auditService, IAuthorizationService authorizationService)
         {
             _mapper=mapper;
             _unitOfWork=unitOfWork;
             _documentSettings=documentSettings;
             _logger=logger;
             _configuration=configuration;
+            _auditService=auditService;
+            _authorizationService = authorizationService;
         }
 
         #region Index
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
                                                 string? searchTerm = null, string? status = null)
         {
@@ -90,6 +98,7 @@ namespace ERP.PL.Controllers
 
         #region Create
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Create()
         {
             await LoadDepartmentsAsync();
@@ -97,6 +106,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         [RequestSizeLimit(10 * 1024 * 1024)]
         [RequestFormLimits(MultipartBodyLengthLimit = 10 * 1024 * 1024)]
         [ValidateAntiForgeryToken]
@@ -188,6 +198,15 @@ namespace ERP.PL.Controllers
 
                 await transaction.CommitAsync();
 
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_EMPLOYEE_SUCCESS",
+                    "Employee",
+                    employeeMapped.Id,
+                    details: $"Created employee: {employeeMapped.FirstName} {employeeMapped.LastName}");
+
                 TempData["SuccessMessage"] = $"Employee '{employeeMapped.FirstName} {employeeMapped.LastName}' created successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -203,6 +222,18 @@ namespace ERP.PL.Controllers
                     try { _documentSettings.DeleteTempImage(tempImagePath); } catch { }
                 }
 
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_EMPLOYEE_FAILED",
+                    "Employee",
+                    null,
+                    succeeded: false,
+                    errorMessage: "Duplicate email address",
+                    details: $"Attempted to create employee with email: {employee.Email}");
+
+
                 ModelState.AddModelError("Email", "This email address is already registered.");
                 await LoadDepartmentsAsync();
                 return View(employee);
@@ -217,6 +248,18 @@ namespace ERP.PL.Controllers
                     try { _documentSettings.DeleteTempImage(tempImagePath); } catch { }
                 }
 
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_EMPLOYEE_FAILED",
+                    "Employee",
+                    null,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
+
                 _logger.LogError(ex, "Error creating employee");
                 ModelState.AddModelError(string.Empty, "An error occurred while creating the employee.");
                 await LoadDepartmentsAsync();
@@ -227,6 +270,7 @@ namespace ERP.PL.Controllers
 
         #region Edit
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Edit(int id)
         {
             var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
@@ -242,6 +286,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(EmployeeViewModel viewModel)
         {
@@ -285,6 +330,25 @@ namespace ERP.PL.Controllers
             }
             // CRITICAL: Load existing entity from database (TRACKED for update)
             var existingEmployee = await _unitOfWork.EmployeeRepository.GetByIdTrackedAsync(viewModel.Id);
+
+            var authResult = await _authorizationService.AuthorizeAsync(
+                User,
+                existingEmployee, "RequireManager");
+
+            if (!authResult.Succeeded)
+            {
+                // Log unauthorized attempt
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_EMPLOYEE_UNAUTHORIZED",
+                    "Employee",
+                    viewModel.Id,
+                    succeeded: false,
+                    errorMessage: "User not authorized");
+
+                return Forbid();
+            }
 
             if (existingEmployee == null)
                 return NotFound();
@@ -357,6 +421,12 @@ namespace ERP.PL.Controllers
             {
                 _unitOfWork.EmployeeRepository.Update(existingEmployee);
                 await _unitOfWork.CompleteAsync();
+                await _auditService.LogAsync(
+                                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                                    User.Identity!.Name!,
+                                    "EDIT_EMPLOYEE_SUCCESS",
+                                    "Employee",
+                                    existingEmployee.Id, details: $"Updated employee: {existingEmployee.FirstName} {existingEmployee.LastName}");
 
                 TempData["SuccessMessage"] =
                     $"Employee '{existingEmployee.FirstName} {existingEmployee.LastName}' updated successfully!";
@@ -366,6 +436,14 @@ namespace ERP.PL.Controllers
                 ex.InnerException is SqlException sqlEx &&
                 (sqlEx.Number == 2601 || sqlEx.Number == 2627))
             {
+                await _auditService.LogAsync(
+                                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                                    User.Identity!.Name!,
+                                    "EDIT_EMPLOYEE_FAILED",
+                                    "Employee",
+                                    existingEmployee.Id,
+                                    succeeded: false,
+                                    errorMessage: "Duplicate email address");
                 ModelState.AddModelError("Email", "This email address is already registered.");
                 await LoadDepartmentsAsync(viewModel.DepartmentId);
                 await LoadAvailableProjectsAsync(viewModel.ProjectId);
@@ -377,6 +455,7 @@ namespace ERP.PL.Controllers
         #region Delete
 
         [HttpGet]
+        [Authorize(Policy = "RequireCEO")]
         public async Task<IActionResult> Delete(int id)
         {
             var employee = await _unitOfWork.EmployeeRepository.GetByIdAsync(id);
@@ -388,11 +467,13 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost, ActionName("Delete")]
+        [Authorize(Policy = "RequireCEO")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             string? imageUrlToDelete = null;
-            bool isDefaultAvatar = false;
+            bool isDefaultAvatar = false; 
+            string? employeeName = null;
 
             try
             {
@@ -401,11 +482,24 @@ namespace ERP.PL.Controllers
                 if (employee == null)
                     return NotFound();
 
+                employeeName = $"{employee.FirstName} {employee.LastName}";
+
                 // Business rule: cannot delete department manager
                 if (employee.ManagedDepartment != null)
                 {
+                    // Audit log failure
+                    await _auditService.LogAsync(
+                        User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                        User.Identity!.Name!,
+                        "DELETE_EMPLOYEE_FAILED",
+                        "Employee",
+                        id,
+                        succeeded: false,
+                        errorMessage: "Cannot delete department manager",
+                        details: $"Employee {employeeName} is managing department: {employee.ManagedDepartment.DepartmentName}");
+
                     TempData["ErrorMessage"] =
-                        $"Cannot delete '{employee.FirstName} {employee.LastName}' because they are managing " +
+                        $"Cannot delete '{employeeName}' because they are managing " +
                         $"the '{employee.ManagedDepartment.DepartmentName}' department. Assign another manager first.";
 
                     return RedirectToAction(nameof(Index));
@@ -415,9 +509,19 @@ namespace ERP.PL.Controllers
                 imageUrlToDelete = employee.ImageUrl;
                 isDefaultAvatar = _documentSettings.IsDefaultAvatar(imageUrlToDelete);
 
+
                 // Delete employee (soft delete)
                 await _unitOfWork.EmployeeRepository.DeleteAsync(id);
                 await _unitOfWork.CompleteAsync();
+
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_EMPLOYEE_SUCCESS",
+                    "Employee",
+                    id,
+                    details: $"Deleted employee: {employeeName}");
 
                 // DB succeeded → now cleanup file (OUTSIDE transaction)
                 if (!string.IsNullOrWhiteSpace(imageUrlToDelete) && !isDefaultAvatar)
@@ -436,13 +540,23 @@ namespace ERP.PL.Controllers
                 }
 
                 TempData["SuccessMessage"] =
-                    $"Employee '{employee.FirstName} {employee.LastName}' deleted successfully!";
+                    $"Employee '{employeeName}' deleted successfully!";
 
                 return RedirectToAction(nameof(Index));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Critical error deleting employee {EmployeeId}", id);
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_EMPLOYEE_FAILED",
+                    "Employee",
+                    id,
+                    succeeded: false,
+                    errorMessage: ex.Message);
 
                 TempData["ErrorMessage"] =
                     "An unexpected error occurred while deleting the employee.";
@@ -458,6 +572,7 @@ namespace ERP.PL.Controllers
         /// Display employee profile with all related information
         /// </summary>
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Profile(int id)
         {
             try

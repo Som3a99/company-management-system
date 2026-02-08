@@ -2,24 +2,86 @@
 using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 namespace ERP.BLL.Repositories
 {
     public class ProjectRepository : GenericRepository<Project>, IProjectRepository
     {
-        public ProjectRepository(ApplicationDbContext context) : base(context)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public ProjectRepository(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor) : base(context)
         {
+            _httpContextAccessor=httpContextAccessor;
+        }
+
+        private bool IsCEO()
+        {
+            return _httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false;
+        }
+
+        private int? GetManagedDepartmentId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("ManagedDepartmentId");
+            return claim != null ? int.Parse(claim.Value) : null;
+        }
+
+        private int? GetManagedProjectId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("ManagedProjectId");
+            return claim != null ? int.Parse(claim.Value) : null;
+        }
+
+        private int? GetAssignedProjectId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("AssignedProjectId");
+            return claim != null ? int.Parse(claim.Value) : null;
         }
 
         // Override GetAll to include navigation properties
         public override async Task<IEnumerable<Project>> GetAllAsync()
         {
-            return await _context.Projects
+            var query = _context.Projects
                 .AsNoTracking()
                 .Include(p => p.Department)
                 .Include(p => p.ProjectManager)
-                .ToListAsync();
+                .Where(p => !p.IsDeleted);
+
+            // CEO sees all projects
+            if (IsCEO())
+            {
+                return await query.ToListAsync();
+            }
+
+            // Department manager sees projects in own department
+            var managedDeptId = GetManagedDepartmentId();
+            if (managedDeptId.HasValue)
+            {
+                query = query.Where(p => p.DepartmentId == managedDeptId.Value);
+                return await query.ToListAsync();
+            }
+
+            // Project manager sees own project
+            var managedProjectId = GetManagedProjectId();
+            if (managedProjectId.HasValue)
+            {
+                query = query.Where(p => p.Id == managedProjectId.Value);
+                return await query.ToListAsync();
+            }
+
+            // Employee sees assigned project
+            var assignedProjectId = GetAssignedProjectId();
+            if (assignedProjectId.HasValue)
+            {
+                query = query.Where(p => p.Id == assignedProjectId.Value);
+                return await query.ToListAsync();
+            }
+
+            // No context = no projects
+            return new List<Project>();
         }
 
         // Override GetById to include navigation properties

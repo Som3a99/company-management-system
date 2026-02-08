@@ -2,34 +2,46 @@
 using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
 using ERP.PL.Helpers;
+using ERP.PL.Services;
 using ERP.PL.ViewModels.Project;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ERP.PL.Controllers
 {
+    [Authorize]
     public class ProjectController : Controller
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ILogger<ProjectController> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IAuditService _auditService;
+        private readonly IRoleManagementService _roleManagementService;
+
 
         public ProjectController(
             IMapper mapper,
             IUnitOfWork unitOfWork,
             ILogger<ProjectController> logger,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IAuditService auditService,
+            IRoleManagementService roleManagementService)
         {
             _mapper = mapper;
             _unitOfWork = unitOfWork;
             _logger = logger;
             _configuration = configuration;
+            _auditService=auditService;
+            _roleManagementService=roleManagementService;
         }
 
         #region Index
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
                                                 string? searchTerm = null, string? status = null)
         {
@@ -85,6 +97,7 @@ namespace ERP.PL.Controllers
 
         #region Create
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Create()
         {
             await LoadDepartmentsAsync();
@@ -93,6 +106,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProjectViewModel project)
         {
@@ -187,6 +201,15 @@ namespace ERP.PL.Controllers
 
                 await transaction.CommitAsync();
 
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_PROJECT_SUCCESS",
+                    "Project",
+                    mappedProject.Id,
+                    details: $"Created project: {mappedProject.ProjectCode} - {mappedProject.ProjectName}");
+
                 TempData["SuccessMessage"] =
                     $"Project '{mappedProject.ProjectName}' created successfully!";
 
@@ -196,6 +219,18 @@ namespace ERP.PL.Controllers
                 when (ex.InnerException?.Message.Contains("IX_Projects_ProjectManagerId_Unique") == true)
             {
                 await transaction.RollbackAsync();
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_PROJECT_FAILED",
+                    "Project",
+                    null,
+                    succeeded: false,
+                    errorMessage: "Project manager already assigned",
+                    details: $"Project code: {project.ProjectCode}");
+
+
 
                 ModelState.AddModelError(
                     "ProjectManagerId",
@@ -209,6 +244,16 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_PROJECT_FAILED",
+                    "Project",
+                    null,
+                    succeeded: false,
+                    errorMessage: ex.InnerException?.Message ?? ex.Message);
 
                 var errorMessage = "An error occurred while creating the project.";
                 if (ex.InnerException?.Message.Contains("CK_Project_ProjectCode_Format") == true)
@@ -228,6 +273,17 @@ namespace ERP.PL.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CREATE_PROJECT_FAILED",
+                    "Project",
+                    null,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
                 _logger.LogError(ex, "Error creating project");
                 throw;
             }
@@ -236,6 +292,7 @@ namespace ERP.PL.Controllers
 
         #region Edit
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Edit(int id)
         {
             var project = await _unitOfWork.ProjectRepository.GetByIdAsync(id);
@@ -251,6 +308,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
+        [Authorize(Policy = "RequireManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(ProjectViewModel project)
         {
@@ -327,6 +385,22 @@ namespace ERP.PL.Controllers
                 await _unitOfWork.CompleteAsync();
                 await transaction.CommitAsync();
 
+                // AUTO-ASSIGN ROLE IF MANAGER CHANGED
+                if (existingProject.ProjectManagerId.HasValue)
+                {
+                    await _roleManagementService.SyncEmployeeRolesAsync(existingProject.ProjectManagerId.Value);
+                }
+
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_PROJECT_SUCCESS",
+                    "Project",
+                    existingProject.Id,
+                    details: $"Updated project: {existingProject.ProjectCode} - {existingProject.ProjectName}");
+
+
                 TempData["SuccessMessage"] =
                     $"Project '{existingProject.ProjectName}' updated successfully!";
 
@@ -336,6 +410,15 @@ namespace ERP.PL.Controllers
                 when (ex.InnerException?.Message.Contains("IX_Projects_ProjectManagerId_Unique") == true)
             {
                 await transaction.RollbackAsync();
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_PROJECT_FAILED",
+                    "Project",
+                    project.Id,
+                    succeeded: false,
+                    errorMessage: "Project manager already assigned");
 
                 ModelState.AddModelError(
                     "ProjectManagerId",
@@ -349,6 +432,16 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_PROJECT_FAILED",
+                    "Project",
+                    project.Id,
+                    succeeded: false,
+                    errorMessage: ex.InnerException?.Message ?? ex.Message);
 
                 var errorMessage = "An error occurred while saving the project.";
                 if (ex.InnerException?.Message.Contains("CK_Project_ProjectCode_Format") == true)
@@ -368,6 +461,17 @@ namespace ERP.PL.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
+
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "EDIT_PROJECT_FAILED",
+                    "Project",
+                    project.Id,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
                 _logger.LogError(ex, "Error updating project");
                 throw;
             }
@@ -376,6 +480,7 @@ namespace ERP.PL.Controllers
 
         #region Delete
         [HttpGet]
+        [Authorize(Policy = "RequireCEO")]
         public async Task<IActionResult> Delete(int id)
         {
             var project = await _unitOfWork.ProjectRepository.GetByIdAsync(id);
@@ -388,6 +493,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost, ActionName("Delete")]
+        [Authorize(Policy = "RequireCEO")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
@@ -396,11 +502,45 @@ namespace ERP.PL.Controllers
             if (project == null)
                 return NotFound();
 
-            await _unitOfWork.ProjectRepository.DeleteAsync(id);
-            await _unitOfWork.CompleteAsync();
+            string projectName = project.ProjectName;
 
-            TempData["SuccessMessage"] = $"Project '{project.ProjectName}' deleted successfully!";
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                await _unitOfWork.ProjectRepository.DeleteAsync(id);
+                await _unitOfWork.CompleteAsync();
+
+                // Audit log success
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_PROJECT_SUCCESS",
+                    "Project",
+                    id,
+                    details: $"Deleted project: {projectName}");
+
+                TempData["SuccessMessage"] = $"Project '{projectName}' deleted successfully!";
+                return RedirectToAction(nameof(Index));
+
+            }
+
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting project {ProjectId}", id);
+                
+                // Audit log failure
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "DELETE_PROJECT_FAILED",
+                    "Project",
+                    id,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
+                TempData["ErrorMessage"] = "An error occurred while deleting the project.";
+                return RedirectToAction(nameof(Index));
+
+            }
         }
         #endregion
 
@@ -409,6 +549,7 @@ namespace ERP.PL.Controllers
         /// View all employees assigned to a specific project with pagination and search
         /// </summary>
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> ProjectEmployees(int id, int pageNumber = 1, int pageSize = 10,
                                                          string? searchTerm = null, string? status = null)
         {
@@ -480,6 +621,7 @@ namespace ERP.PL.Controllers
         /// Display project profile page with comprehensive information
         /// </summary>
         [HttpGet]
+        [Authorize(Policy = "RequireManager")]
         public async Task<IActionResult> Profile(int id)
         {
             try

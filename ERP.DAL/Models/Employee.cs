@@ -35,6 +35,17 @@
         // Project Assignment (Each employee works on one project)
         public int? ProjectId { get; set; }
         public Project? Project { get; set; }
+
+        /// <summary>
+        /// Foreign key to Identity user account
+        /// Null if employee doesn't have login access yet
+        /// </summary>
+        public string? ApplicationUserId { get; set; }
+
+        /// <summary>
+        /// Navigation property to Identity account
+        /// </summary>
+        public ApplicationUser? ApplicationUser { get; set; }
         #endregion
     }
 }

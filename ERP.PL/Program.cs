@@ -1,24 +1,23 @@
-using AutoMapper;
-using Azure.Core;
 using ERP.BLL.Interfaces;
 using ERP.BLL.Repositories;
 using ERP.DAL.Data.Contexts;
+using ERP.DAL.Models;
+using ERP.PL.Data;
 using ERP.PL.Helpers;
 using ERP.PL.Mapping.Department;
 using ERP.PL.Mapping.Employee;
 using ERP.PL.Mapping.Project;
+using ERP.PL.Security;
+using ERP.PL.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using NuGet.Protocol.Core.Types;
-using System.Runtime.ConstrainedExecution;
-using static System.Formats.Asn1.AsnWriter;
 namespace ERP.PL
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +43,15 @@ namespace ERP.PL
             builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            // Custom Claims Principal Factory to add extra claims for authorization
+            builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>,ApplicationUserClaimsPrincipalFactory>();
+
+            // Role Management Service - Scoped lifetime (depends on DbContext)
+            builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
+
+            // Audit Service - Scoped lifetime (depends on DbContext)
+            builder.Services.AddScoped<IAuditService, AuditService>();
+
             // Auto Mapper Configurations
             builder.Services.AddAutoMapper(cfg => { }, typeof(EmployeeProfile).Assembly);
             builder.Services.AddAutoMapper(cfg => { }, typeof(DepartmentProfile).Assembly);
@@ -60,8 +68,8 @@ namespace ERP.PL
             {
                 options.HeaderName = "X-CSRF-TOKEN";
                 // Use HTTPS only in production; allow HTTP in development
-                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment() 
-                    ? CookieSecurePolicy.SameAsRequest 
+                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                    ? CookieSecurePolicy.SameAsRequest
                     : CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Strict;
             });
@@ -102,6 +110,66 @@ namespace ERP.PL
             {
                 options.MaxRequestBodySize = 10 * 1024 * 1024; // 10 MB
             });
+
+            // Configure authorization policies
+            builder.Services.AddAuthorizationBuilder()
+                            // ROLE-BASED POLICIES (Global)
+                            // CEO has full system access
+                            .AddPolicy("RequireCEO", policy => policy.RequireRole("CEO"))
+                            // IT Admin can manage users, system settings
+                            .AddPolicy("RequireITAdmin", policy => policy.RequireRole("CEO", "ITAdmin"))
+                            // Managers (Department or Project)
+                            .AddPolicy("RequireManager", policy => policy.RequireRole("CEO", "DepartmentManager", "ProjectManager"))
+                            // CLAIM-BASED POLICIES (Context)
+                            // User must be linked to an Employee record
+                            .AddPolicy("RequireEmployee", policy => policy.RequireClaim("EmployeeId"))
+                            // User must manage a department
+                            .AddPolicy("RequireDepartmentManager", policy => policy.RequireClaim("ManagedDepartmentId"))
+                            // User must manage a project
+                            .AddPolicy("RequireProjectManager", policy => policy.RequireClaim("ManagedProjectId"));
+
+            // Configure Identity
+            builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+            {
+                // Password settings (CRITICAL: Balance security vs usability)
+                options.Password.RequiredLength = 12;
+                options.Password.RequireDigit = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequiredUniqueChars = 6;
+
+                // Lockout settings (prevent brute force)
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = true;
+
+                // User settings
+                options.User.RequireUniqueEmail = true;
+
+                // Sign-in settings
+                options.SignIn.RequireConfirmedEmail = false; // MVP: No email confirmation
+                options.SignIn.RequireConfirmedPhoneNumber = false;
+            })
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders(); // For password reset tokens
+
+            // Configure cookie settings (SECURITY CRITICAL)
+            builder.Services.ConfigureApplicationCookie(options =>
+            {
+                options.Cookie.HttpOnly = true; // Prevent XSS access to cookie
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // HTTPS only
+                options.Cookie.SameSite = SameSiteMode.Strict; // Prevent CSRF
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(30); // Session timeout
+                options.SlidingExpiration = true; // Extend on activity
+
+                // Login/logout paths
+                options.LoginPath = "/Account/Login";
+                options.LogoutPath = "/Account/Logout";
+                options.AccessDeniedPath = "/Account/AccessDenied";
+            });
+
+            builder.Services.AddHttpContextAccessor();
             #endregion
 
             var app = builder.Build();
@@ -113,10 +181,37 @@ namespace ERP.PL
                 app.UseExceptionHandler("/Home/Error");
                 // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
+                app.UseStatusCodePagesWithReExecute("/Error/{0}");
             }
 
             app.UseHttpsRedirection();
 
+            app.Use(async (context, next) =>
+            {
+                // Content Security Policy - Prevent XSS
+                context.Response.Headers.Append("Content-Security-Policy",
+                    "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+                    "img-src 'self' data: https:; " +
+                    "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;");
+
+                // X-Content-Type-Options - Prevent MIME sniffing
+                context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+                // X-Frame-Options - Prevent clickjacking
+                context.Response.Headers.Append("X-Frame-Options", "DENY");
+                // X-XSS-Protection - Enable browser XSS protection
+                context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+                // Referrer-Policy - Control referrer information
+                context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+                // HTTP Strict Transport Security (HTTPS only)
+                if (context.Request.IsHttps)
+                {
+                    context.Response.Headers.Append("Strict-Transport-Security",
+                        "max-age=31536000; includeSubDomains");
+                }
+                await next();
+            });
             // PERFORMANCE: Enable response compression
             app.UseResponseCompression();
 
@@ -135,16 +230,34 @@ namespace ERP.PL
                 }
             });
 
-
-
-            // SECURITY: Add authentication/authorization (when implemented)
-            // app.UseAuthentication();
-            // app.UseAuthorization();
-
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
+            #endregion
+
+            #region Seeding Data
+            using (var scope = app.Services.CreateScope())
+            {
+                var services = scope.ServiceProvider;
+                var logger = services.GetRequiredService<ILogger<Program>>();
+
+                try
+                {
+                    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+                    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+
+                    // Seed Identity data
+                    await IdentitySeeder.SeedAsync(userManager, roleManager, logger);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogCritical(ex, "FATAL: Identity seeding failed. Application cannot start.");
+                    throw; // Fail startup if seeding fails
+                }
+            }
             #endregion
 
             app.Run();

@@ -28,7 +28,7 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav ms-4">
+                    <ul class="navbar-nav mx-auto">
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Dashboard</a>
                         </li>
@@ -49,6 +49,80 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
+                            @if (User.Identity?.IsAuthenticated == true)
+                            {
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button"
+                                       data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="fas fa-user-circle me-1"></i>
+                                        @User.Identity.Name
+                                    </a>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
+                                        <li>
+                                            <h6 class="dropdown-header">
+                                                @if (User.IsInRole("CEO"))
+                                                {
+                                                    <span class="badge bg-danger">CEO</span>
+                                                }
+                                                else if (User.IsInRole("ITAdmin"))
+                                                {
+                                                    <span class="badge bg-primary">IT Admin</span>
+                                                }
+                                                else if (User.IsInRole("DepartmentManager"))
+                                                {
+                                                    <span class="badge bg-success">Manager</span>
+                                                }
+                                                else if (User.IsInRole("ProjectManager"))
+                                                {
+                                                    <span class="badge bg-info">PM</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Employee</span>
+                                                }
+                                            </h6>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
+                                                <i class="fas fa-key me-2"></i>Change Password
+                                            </a>
+                                        </li>
+                                        @if (User.IsInRole("CEO") || User.IsInRole("ITAdmin"))
+                                        {
+                                            <li>
+                                                <a class="dropdown-item" asp-controller="Account" asp-action="ResetPasswordByAdmin">
+                                                    <i class="fas fa-user-lock me-2"></i>Reset User Password
+                                                </a>
+                                            </li>
+                                        }
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form asp-controller="Account" asp-action="Logout" method="post" class="dropdown-item p-0">
+                                                <button type="submit" class="btn btn-link dropdown-item text-danger">
+                                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </li>
+                            }
+                            else
+                            {
+                            <li class="nav-item">
+                                <a asp-controller="Account" asp-action="Login" class="nav-link d-flex align-items-center gap-2">
+                                    <div class="brand-icon-sm">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" />
+                                            <rect x="3" y="13" width="7" height="7" rx="1" fill="currentColor" />
+                                            <rect x="13" y="3" width="7" height="7" rx="1" fill="currentColor" />
+                                            <rect x="13" y="13" width="7" height="7" rx="1" fill="currentColor" />
+                                        </svg>
+                                    </div>
+                                    <span>Login</span>
+                                </a>
+                            </li>
+                            }
                     </ul>
                 </div>
             </div>
