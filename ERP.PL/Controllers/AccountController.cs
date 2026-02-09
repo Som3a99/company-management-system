@@ -1,9 +1,11 @@
-﻿using ERP.DAL.Models;
+﻿using ERP.DAL.Data.Contexts;
+using ERP.DAL.Models;
 using ERP.PL.Services;
 using ERP.PL.ViewModels.Account;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERP.PL.Controllers
 {
@@ -13,17 +15,20 @@ namespace ERP.PL.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<AccountController> _logger;
         private readonly IAuditService _auditService;
+        private readonly ApplicationDbContext _context;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             ILogger<AccountController> logger,
-            IAuditService auditService)
+            IAuditService auditService,
+            ApplicationDbContext context)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _logger = logger;
             _auditService=auditService;
+            _context=context;
         }
 
 
@@ -271,13 +276,132 @@ namespace ERP.PL.Controllers
         }
         #endregion
 
+        #region Forgot Password
+
+        /// <summary>
+        /// Display forgot password form
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ForgotPassword()
+        {
+            return View();
+        }
+
+        /// <summary>
+        /// Process forgot password request and create ticket
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+
+            // SECURITY: Don't reveal if email exists or not
+            if (user == null || !user.IsActive)
+            {
+                return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
+                {
+                    Message = "If this email exists in our system, a password reset request has been submitted for IT review."
+                });
+            }
+
+            // Check if there's already a pending request
+            var existingPendingRequest = await _context.PasswordResetRequests
+                .Where(r => r.UserId == user.Id && r.Status == ResetStatus.Pending)
+                .FirstOrDefaultAsync();
+
+            if (existingPendingRequest != null)
+            {
+                return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
+                {
+                    Message = $"A password reset request already exists. Ticket #: {existingPendingRequest.TicketNumber}. " +
+                             "Please try logging in after 30 minutes. If still locked, visit the IT desk.",
+                    TicketNumber = existingPendingRequest.TicketNumber
+                });
+            }
+
+            // Generate unique ticket number
+            string ticketNumber = await GenerateUniqueTicketNumber();
+
+            // Create password reset request
+            var resetRequest = new PasswordResetRequest
+            {
+                UserId = user.Id,
+                UserEmail = user.Email!,
+                TicketNumber = ticketNumber,
+                Status = ResetStatus.Pending,
+                RequestedAt = DateTime.UtcNow,
+                ExpiresAt = DateTime.UtcNow.AddHours(1), // 1 hour expiration
+                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = HttpContext.Request.Headers["User-Agent"].ToString()
+            };
+
+            _context.PasswordResetRequests.Add(resetRequest);
+            await _context.SaveChangesAsync();
+
+            // Audit log
+            await _auditService.LogAsync(
+                user.Id,
+                user.Email!,
+                "PASSWORD_RESET_REQUESTED",
+                "PasswordResetRequest",
+                resetRequest.Id,
+                details: $"Ticket: {ticketNumber}");
+
+            _logger.LogInformation($"Password reset requested for {user.Email}. Ticket: {ticketNumber}");
+
+            return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
+            {
+                Message = $"Your password reset request has been submitted for review by IT Admin. " +
+                         $"Ticket #: {ticketNumber}. " +
+                         "Please try logging in again after 30 minutes. " +
+                         "If access is not restored, please visit the IT desk for further verification.",
+                TicketNumber = ticketNumber
+            });
+        }
+
+        #endregion
+
         #region Access Denied
         [HttpGet]
         public IActionResult AccessDenied(string? returnUrl = null)
         {
             ViewData["ReturnUrl"] = returnUrl;
             return View();
-        } 
+        }
+        #endregion
+
+        #region Helper Methods
+        /// <summary>
+        /// Generate unique ticket number in format RST-YYYY-NNNNNN
+        /// </summary>
+        private async Task<string> GenerateUniqueTicketNumber()
+        {
+            string ticketNumber;
+            bool exists;
+
+            do
+            {
+                // Format: RST-2026-001234
+                string year = DateTime.UtcNow.Year.ToString();
+                string randomPart = Random.Shared.Next(1, 999999).ToString("D6");
+                ticketNumber = $"RST-{year}-{randomPart}";
+
+                // Check if ticket number already exists
+                exists = await _context.PasswordResetRequests
+                    .AnyAsync(r => r.TicketNumber == ticketNumber);
+
+            } while (exists);
+
+            return ticketNumber;
+        }
         #endregion
     }
 }

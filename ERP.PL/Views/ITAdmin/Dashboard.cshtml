@@ -1,0 +1,111 @@
+﻿@{
+    ViewData["Title"] = "IT Admin Dashboard";
+}
+
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-tools"></i> IT Admin Dashboard</h2>
+            <p class="text-muted">System administration and user management</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Pending Password Resets -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-warning shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Pending Resets</h6>
+                            <h2 class="mb-0">@ViewBag.PendingResets</h2>
+                        </div>
+                        <div class="display-4 text-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                    <a asp-action="PasswordResetRequests" asp-route-status="pending"
+                       class="btn btn-sm btn-outline-warning mt-3 w-100">
+                        <i class="fas fa-eye"></i> View Requests
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expired Requests -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-danger shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Expired Requests</h6>
+                            <h2 class="mb-0">@ViewBag.ExpiredResets</h2>
+                        </div>
+                        <div class="display-4 text-danger">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                    </div>
+                    <a asp-action="PasswordResetRequests" asp-route-status="expired"
+                       class="btn btn-sm btn-outline-danger mt-3 w-100">
+                        <i class="fas fa-eye"></i> View Expired
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Locked Accounts -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-info shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Locked Accounts</h6>
+                            <h2 class="mb-0">@ViewBag.LockedAccounts</h2>
+                        </div>
+                        <div class="display-4 text-info">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                    </div>
+                    <a asp-controller="UserManagement" asp-action="Index"
+                       class="btn btn-sm btn-outline-info mt-3 w-100">
+                        <i class="fas fa-users"></i> View Accounts
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tasks"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <a asp-controller="UserManagement"
+                               asp-action="EmployeesWithoutAccounts"
+                               class="btn btn-outline-primary w-100">
+                                <i class="fas fa-user-plus"></i> Create User Accounts
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a asp-action="PasswordResetRequests"
+                               class="btn btn-outline-warning w-100">
+                                <i class="fas fa-key"></i> Password Reset Queue
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a asp-controller="UserManagement"
+                               asp-action="Index"
+                               class="btn btn-outline-info w-100">
+                                <i class="fas fa-users-cog"></i> Manage All Users
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

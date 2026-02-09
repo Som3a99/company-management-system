@@ -16,6 +16,7 @@ namespace ERP.DAL.Data.Contexts
         public DbSet<Employee> Employees { get; set; } = null!;
         public DbSet<Project> Projects { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+        public DbSet<PasswordResetRequest> PasswordResetRequests { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -43,6 +44,17 @@ namespace ERP.DAL.Data.Contexts
                 entity.HasIndex(a => a.Timestamp);
                 entity.HasIndex(a => a.UserId);
                 entity.HasIndex(a => new { a.ResourceType, a.ResourceId });
+            });
+
+            // Configure PasswordResetRequest
+            modelBuilder.Entity<PasswordResetRequest>(entity =>
+            {
+                entity.ToTable("PasswordResetRequests");
+                entity.HasIndex(p => p.TicketNumber)
+                    .IsUnique();
+                entity.HasIndex(p => p.Status);
+                entity.HasIndex(p => new { p.UserId, p.Status });
+                entity.HasIndex(p => p.ExpiresAt);
             });
 
             // Apply existing configurations
