@@ -24,7 +24,7 @@
 
     @if ((Model?.TotalCount ?? 0) == 0)
     {
-        <div class="card animate-in">
+        <div class="card card-soft animate-in">
             <div class="empty-state">
                 <div class="empty-state-icon" style="color: var(--success);">
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -50,10 +50,10 @@
         <!-- Stats Card -->
         <div class="row g-3 mb-4 animate-in">
             <div class="col-lg-12">
-                <div class="card">
+                <div class="card stat-card">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <div class="stat-icon warning">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     <circle cx="9" cy="7" r="4" stroke="white" stroke-width="2" />
@@ -70,11 +70,11 @@
             </div>
         </div>
 
-        <div class="card mb-3 animate-in">
+        <div class="card card-soft mb-3 animate-in">
             <div class="card-body p-3">
                 <div class="row g-3 align-items-center">
                     <div class="col-lg-12">
-                        <div class="alert alert-warning mb-0">
+                        <div class="alert alert-warning alert-soft mb-0">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>Action Required:</strong> @totalEmployees employee(s) need user accounts to access the system.
                         </div>
@@ -141,19 +141,19 @@
                                 <div class="d-flex flex-wrap gap-1">
                                     @if (employee.IsDepartmentManager)
                                     {
-                                        <span class="badge" style="background-color: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+                                        <span class="badge badge-soft-warning">
                                             <i class="fas fa-user-tie me-1"></i>Dept Manager
                                         </span>
                                     }
                                     @if (employee.IsProjectManager)
                                     {
-                                        <span class="badge" style="background-color: #dbeafe; color: #1e40af; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+                                        <span class="badge badge-soft-info">
                                             <i class="fas fa-tasks me-1"></i>Project Manager
                                         </span>
                                     }
                                     @if (!employee.IsDepartmentManager && !employee.IsProjectManager)
                                     {
-                                        <span class="badge" style="background-color: #f3f4f6; color: #4b5563; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+                                        <span class="badge badge-soft-info">
                                             <i class="fas fa-user me-1"></i>Employee
                                         </span>
                                     }

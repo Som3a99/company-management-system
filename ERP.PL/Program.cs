@@ -10,6 +10,7 @@ using ERP.PL.Mapping.Project;
 using ERP.PL.Security;
 using ERP.PL.Services;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
@@ -170,6 +171,14 @@ namespace ERP.PL
             });
 
             builder.Services.AddHttpContextAccessor();
+
+            // Respect reverse proxy headers for scheme and client IP
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
             #endregion
 
             var app = builder.Build();

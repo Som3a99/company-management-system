@@ -34,10 +34,10 @@
     <!-- Stats Cards -->
     <div class="row g-3 mb-4 animate-in">
         <div class="col-lg-3 col-md-6">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent-main) 0%, var(--accent-light) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                        <div class="stat-icon primary">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <circle cx="9" cy="7" r="4" stroke="white" stroke-width="2" />
@@ -53,10 +53,10 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                        <div class="stat-icon success">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <polyline points="22 4 12 14.01 9 11.01" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -71,10 +71,10 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--gray-400) 0%, var(--gray-500) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                        <div class="stat-icon info">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="12" cy="12" r="10" stroke="white" stroke-width="2" />
                                 <line x1="15" y1="9" x2="9" y2="15" stroke="white" stroke-width="2" stroke-linecap="round" />
@@ -90,10 +90,10 @@
             </div>
         </div>
         <div class="col-lg-3 col-md-6">
-            <div class="card">
+            <div class="card stat-card">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                        <div class="stat-icon danger">
                             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect x="5" y="5" width="14" height="14" rx="2" stroke="white" stroke-width="2" stroke-linecap="round" />
                                 <path d="M9 10l6 6M15 10l-6 6" stroke="white" stroke-width="2" stroke-linecap="round" />
@@ -114,7 +114,7 @@
             <div class="row g-3 align-items-center">
                 <div class="col-lg-6">
                     <div class="input-group">
-                        <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                        <span class="input-group-text">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -170,7 +170,7 @@
                                     <br>
                                     @if (user.RequirePasswordChange)
                                     {
-                                        <span class="badge" style="background-color: #fef3c7; color: #92400e; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem;">
+                                        <span class="badge badge-soft-warning">
                                             <i class="fas fa-key me-1"></i>Password Change Required
                                         </span>
                                     }
@@ -203,19 +203,19 @@
                             <td>
                                 @if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now)
                                 {
-                                    <span class="badge" style="background-color: #fee2e2; color: #991b1b; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.8125rem;">
+                                    <span class="badge badge-soft-danger">
                                         <i class="fas fa-lock me-1"></i>Locked Out
                                     </span>
                                 }
                                 else if (user.IsActive)
                                 {
-                                    <span class="badge" style="background-color: #dcfce7; color: #166534; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.8125rem;">
+                                    <span class="badge badge-soft-success">
                                         <i class="fas fa-check-circle me-1"></i>Active
                                     </span>
                                 }
                                 else
                                 {
-                                    <span class="badge" style="background-color: #f3f4f6; color: #4b5563; padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; font-size: 0.8125rem;">
+                                    <span class="badge badge-soft-neutral">
                                         <i class="fas fa-ban me-1"></i>Inactive
                                     </span>
                                 }

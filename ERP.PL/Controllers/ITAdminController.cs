@@ -85,9 +85,7 @@ namespace ERP.PL.Controllers
         {
             ViewData["StatusFilter"] = status ?? "pending";
 
-            var query = _context.PasswordResetRequests
-                .Include(r => r.UserId) // For loading user info
-                .AsQueryable();
+            var query = _context.PasswordResetRequests.AsQueryable();
 
             // Apply status filter
             if (status == "pending")
@@ -116,14 +114,32 @@ namespace ERP.PL.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
+            var userIds = requests.Select(r => r.UserId).Distinct().ToList();
+            var users = await _userManager.Users
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.EmployeeId })
+                .ToListAsync();
+            var userLookup = users.ToDictionary(u => u.Id, u => u.EmployeeId);
+
+            var employeeIds = users
+                .Where(u => u.EmployeeId.HasValue)
+                .Select(u => u.EmployeeId!.Value)
+                .Distinct()
+                .ToList();
+            var employees = await _context.Employees
+                .Where(e => employeeIds.Contains(e.Id))
+                .Select(e => new { e.Id, e.FirstName, e.LastName })
+                .ToListAsync();
+            var employeeLookup = employees.ToDictionary(e => e.Id, e => $"{e.FirstName} {e.LastName}");
+
             // Map to view models
             var viewModels = new List<PasswordResetRequestViewModel>();
 
             foreach (var request in requests)
             {
-                var user = await _userManager.FindByIdAsync(request.UserId);
-                var employee = user?.EmployeeId != null
-                    ? await _unitOfWork.EmployeeRepository.GetByIdAsync(user.EmployeeId.Value)
+                userLookup.TryGetValue(request.UserId, out var employeeId);
+                var employeeName = employeeId.HasValue && employeeLookup.TryGetValue(employeeId.Value, out var name)
+                    ? name
                     : null;
 
                 viewModels.Add(new PasswordResetRequestViewModel
@@ -131,16 +147,14 @@ namespace ERP.PL.Controllers
                     Id = request.Id,
                     TicketNumber = request.TicketNumber,
                     UserEmail = request.UserEmail,
-                    EmployeeName = employee != null
-                        ? $"{employee.FirstName} {employee.LastName}"
-                        : null,
+                    EmployeeName = employeeName,
                     Status = request.Status,
                     RequestedAt = request.RequestedAt,
                     ExpiresAt = request.ExpiresAt,
                     ResolvedAt = request.ResolvedAt,
                     ResolvedBy = request.ResolvedBy,
                     DenialReason = request.DenialReason,
-                    IpAddress = request.IpAddress
+                    IpAddress = FormatIpAddress(request.IpAddress)
                 });
             }
 
@@ -239,6 +253,8 @@ namespace ERP.PL.Controllers
                 _logger.LogWarning($"Password reset approved by {User.Identity.Name} for {user.Email}");
 
                 TempData["SuccessMessage"] = $"Password reset approved for {user.Email}. Ticket: {request.TicketNumber}";
+                TempData["ApprovedTempPassword"] = temporaryPassword;
+                TempData["ApprovedTempPasswordTicket"] = request.TicketNumber;
                 return RedirectToAction(nameof(PasswordResetRequests));
             }
             catch (Exception ex)
@@ -323,5 +339,28 @@ namespace ERP.PL.Controllers
         }
 
         #endregion
+
+        #region Helper Method
+        private static string? FormatIpAddress(string? ipAddress)
+        {
+            if (string.IsNullOrWhiteSpace(ipAddress))
+            {
+                return null;
+            }
+
+            if (ipAddress == "::1")
+            {
+                return "127.0.0.1 (localhost)";
+            }
+
+            if (ipAddress.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase))
+            {
+                return ipAddress.Replace("::ffff:", string.Empty, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return ipAddress;
+        }
+        #endregion
+
     }
 }

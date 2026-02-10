@@ -345,6 +345,11 @@ namespace ERP.PL.Controllers
             if (employee == null)
                 return NotFound();
 
+            var user = await _userManager.FindByEmailAsync(employee.Email);
+            var assignedRoles = user != null
+                ? await _userManager.GetRolesAsync(user)
+                : new List<string>();
+
             // Retrieve one-time password from TempData
             var generatedPassword = TempData["GeneratedPassword"] as string;
 
@@ -362,7 +367,8 @@ namespace ERP.PL.Controllers
                 Position = employee.Position,
                 GeneratedPassword = generatedPassword,
                 IsDepartmentManager = employee.ManagedDepartment != null,
-                IsProjectManager = employee.ManagedProject != null
+                IsProjectManager = employee.ManagedProject != null,
+                AssignedRoles = assignedRoles.ToList()
             };
 
             return View(viewModel);

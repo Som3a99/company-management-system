@@ -42,5 +42,10 @@ namespace ERP.PL.ViewModels.UserManagement
         /// </summary>
         public List<string> SelectedRoles { get; set; } = new List<string>();
         public List<SelectListItem> AvailableRoles { get; set; } = new List<SelectListItem>();
+        
+        /// <summary>
+        /// Roles assigned to the created account (for confirmation view)
+        /// </summary>
+        public List<string> AssignedRoles { get; set; } = new List<string>();
     }
 }

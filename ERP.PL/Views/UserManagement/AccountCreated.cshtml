@@ -21,14 +21,14 @@
 
     <div class="row g-4">
         <div class="col-lg-8">
-            <div class="card animate-in">
-                <div class="card-header" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); color: white;">
+            <div class="card card-soft animate-in">
+                <div class="card-header header-gradient success">
                     <h5 class="mb-0">
                         <i class="fas fa-check-circle me-2"></i> User Account Created Successfully
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-success d-flex align-items-center">
+                    <div class="alert alert-success alert-soft d-flex align-items-center">
                         <i class="fas fa-check-circle me-3" style="font-size: 1.5rem;"></i>
                         <div>
                             <strong>Success!</strong> User account has been created for <strong>@Model.EmployeeName</strong>
@@ -37,8 +37,8 @@
 
                     @if (!string.IsNullOrEmpty(Model.GeneratedPassword))
                     {
-                        <div class="card border-danger mb-4">
-                            <div class="card-header bg-danger text-white">
+                        <div class="card card-soft border-danger mb-4">
+                            <div class="card-header header-gradient danger">
                                 <h6 class="mb-0">
                                     <i class="fas fa-exclamation-triangle me-2"></i>
                                     CRITICAL: Temporary Password
@@ -75,7 +75,7 @@
                                     </label>
                                 </div>
 
-                                <div class="alert alert-warning mb-0">
+                                <div class="alert alert-warning alert-soft mb-0">
                                     <i class="fas fa-shield-alt me-2"></i>
                                     <strong>Security Best Practice:</strong> Send this password through secure channels (encrypted email, password manager, or in-person delivery).
                                 </div>
@@ -84,14 +84,14 @@
                     }
                     else
                     {
-                        <div class="alert alert-warning">
+                        <div class="alert alert-warning alert-soft">
                             <i class="fas fa-info-circle me-2"></i>
                             The temporary password has already been displayed and cannot be shown again for security reasons.
                         </div>
                     }
 
                     <h5 class="mb-3"><i class="fas fa-id-card me-2"></i>Account Details:</h5>
-                    <div class="table-responsive">
+                    <div class="table-responsive table-container table-soft">
                         <table class="table table-bordered">
                             <tbody>
                                 <tr>
@@ -125,14 +125,14 @@
                                     <th style="background-color: var(--gray-50);">Assigned Roles:</th>
                                     <td>
                                         <div class="d-flex flex-wrap gap-1">
-                                            <span class="badge bg-secondary">Employee</span>
+                                            <span class="badge badge-soft-neutral">Employee</span>
                                             @if (Model.IsDepartmentManager)
                                             {
-                                                <span class="badge" style="background-color: #f59e0b; color: white;">Department Manager</span>
+                                                <span class="badge badge-soft-warning">Department Manager</span>
                                             }
                                             @if (Model.IsProjectManager)
                                             {
-                                                <span class="badge" style="background-color: #3b82f6; color: white;">Project Manager</span>
+                                                <span class="badge badge-soft-info">Project Manager</span>
                                             }
                                             <!-- Add other roles if they were selected -->
                                         </div>
@@ -142,7 +142,7 @@
                         </table>
                     </div>
 
-                    <div class="alert alert-info mt-4">
+                    <div class="alert alert-info alert-soft mt-4">
                         <h6><i class="fas fa-key me-2"></i> Next Steps for Employee:</h6>
                         <ol class="mb-0">
                             <li>Provide the temporary password to <strong>@Model.EmployeeName</strong> through secure channels</li>
@@ -153,7 +153,7 @@
                         </ol>
                     </div>
                 </div>
-                <div class="card-footer">
+                <div class="card-footer bg-transparent">
                     <div class="d-flex justify-content-between">
                         <a asp-action="EmployeesWithoutAccounts"
                            class="btn btn-primary"
@@ -170,7 +170,7 @@
         </div>
 
         <div class="col-lg-4">
-            <div class="card animate-in">
+            <div class="card card-soft animate-in">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-clipboard-check me-2"></i>Account Status
@@ -211,7 +211,7 @@
                 </div>
             </div>
 
-            <div class="card animate-in mt-4">
+            <div class="card card-soft animate-in mt-4">
                 <div class="card-header">
                     <h5 class="mb-0">
                         <i class="fas fa-phone-alt me-2"></i>Support Information

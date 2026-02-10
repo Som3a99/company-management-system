@@ -339,7 +339,7 @@ namespace ERP.PL.Controllers
                 Status = ResetStatus.Pending,
                 RequestedAt = DateTime.UtcNow,
                 ExpiresAt = DateTime.UtcNow.AddHours(1), // 1 hour expiration
-                IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                IpAddress = GetClientIpAddress(),
                 UserAgent = HttpContext.Request.Headers["User-Agent"].ToString()
             };
 
@@ -401,6 +401,28 @@ namespace ERP.PL.Controllers
             } while (exists);
 
             return ticketNumber;
+        }
+
+        private string? GetClientIpAddress()
+        {
+            var forwardedFor = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(forwardedFor))
+            {
+                return forwardedFor.Split(',')[0].Trim();
+            }
+
+            var remoteIp = HttpContext.Connection.RemoteIpAddress;
+            if (remoteIp == null)
+            {
+                return null;
+            }
+
+            if (remoteIp.IsIPv4MappedToIPv6)
+            {
+                remoteIp = remoteIp.MapToIPv4();
+            }
+
+            return remoteIp.ToString();
         }
         #endregion
     }

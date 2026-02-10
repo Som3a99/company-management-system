@@ -219,6 +219,68 @@ body {
     margin-bottom: 0.75rem;
 }
 
+/* === App-Specific Card Enhancements === */
+.card-soft {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 10px 20px -12px rgba(15, 23, 42, 0.2);
+}
+
+.card-glass {
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(226, 232, 240, 0.6);
+    backdrop-filter: blur(8px);
+}
+
+.stat-card {
+    border: 1px solid var(--gray-200);
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.85), rgba(255, 255, 255, 0.95));
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    flex-shrink: 0;
+}
+
+    .stat-icon.primary {
+        background: linear-gradient(135deg, var(--accent-main), var(--accent-light));
+    }
+
+    .stat-icon.success {
+        background: linear-gradient(135deg, var(--success), #34d399);
+    }
+
+    .stat-icon.warning {
+        background: linear-gradient(135deg, var(--warning), #fbbf24);
+    }
+
+    .stat-icon.danger {
+        background: linear-gradient(135deg, var(--danger), #f87171);
+    }
+
+    .stat-icon.info {
+        background: linear-gradient(135deg, #38bdf8, #60a5fa);
+    }
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.section-subtitle {
+    color: var(--gray-500);
+    margin: 0;
+}
+
 .card-text {
     color: var(--gray-600);
     font-size: 0.9375rem;
@@ -338,6 +400,11 @@ body {
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow-sm);
+}
+
+.table-container.table-soft {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid var(--gray-200);
 }
 
 .table {
@@ -475,6 +542,11 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.input-group-text {
+    background-color: var(--gray-50);
+    border: 1.5px solid var(--gray-300);
+}
+
 /* === Utilities === */
 .text-primary-custom {
     color: var(--accent-main);
@@ -493,6 +565,32 @@ body {
     font-weight: 500;
     font-size: 0.875rem;
 }
+
+.badge-soft-success {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #047857;
+}
+
+.badge-soft-warning {
+    background-color: rgba(245, 158, 11, 0.18);
+    color: #92400e;
+}
+
+.badge-soft-danger {
+    background-color: rgba(239, 68, 68, 0.18);
+    color: #991b1b;
+}
+
+.badge-soft-info {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: #1e40af;
+}
+
+.badge-soft-neutral {
+    background-color: rgba(107, 114, 128, 0.18);
+    color: #374151;
+}
+
 
 /* === Responsive Design === */
 @media (max-width: 768px) {
@@ -626,18 +724,68 @@ body {
     text-align: center;
 }
 
-    .public-hero h1 {
-        font-size: 2.5rem;
-        font-weight: 700;
-        margin-bottom: 1rem;
+/* === Auth & Admin Screens === */
+.auth-card {
+    border: 1px solid var(--gray-200);
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: var(--shadow-lg);
+}
+
+    .auth-card .card-header {
+        border-bottom: 1px solid var(--gray-200);
     }
 
-    .public-hero p {
-        font-size: 1.125rem;
-        opacity: 0.9;
-        max-width: 600px;
-        margin: 0 auto 2rem;
+.header-gradient {
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary-medium));
+    color: white;
+}
+
+    .header-gradient.success {
+        background: linear-gradient(135deg, var(--success), #34d399);
     }
+
+    .header-gradient.warning {
+        background: linear-gradient(135deg, var(--warning), #fbbf24);
+        color: #1f2937;
+    }
+
+    .header-gradient.danger {
+        background: linear-gradient(135deg, var(--danger), #f87171);
+    }
+
+.nav-tabs.nav-tabs-soft .nav-link {
+    border: none;
+    color: var(--gray-600);
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-md);
+    background: var(--gray-50);
+    margin-right: 0.5rem;
+}
+
+    .nav-tabs.nav-tabs-soft .nav-link.active {
+        color: white;
+        background: linear-gradient(135deg, var(--accent-main), var(--accent-light));
+        box-shadow: var(--shadow-sm);
+    }
+
+.alert-soft {
+    border: 1px solid var(--gray-200);
+    background: rgba(255, 255, 255, 0.85);
+}
+
+.public-hero h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.public-hero p {
+    font-size: 1.125rem;
+    opacity: 0.9;
+    max-width: 600px;
+    margin: 0 auto 2rem;
+}
 
 .feature-card {
     border: 1px solid var(--gray-200);
