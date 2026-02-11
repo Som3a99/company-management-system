@@ -33,8 +33,11 @@
         public int? ProjectManagerId { get; set; }
         public Employee? ProjectManager { get; set; }
 
-        // Project Employees relationship (One-to-Many)
+        // Project Employees relationship (legacy direct relation)
         public ICollection<Employee> Employees { get; set; } = new HashSet<Employee>();
+
+        // Project Employees relationship (many-to-many junction)
+        public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new HashSet<ProjectEmployee>();
         #endregion
     }
 }

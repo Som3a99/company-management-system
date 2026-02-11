@@ -228,7 +228,7 @@ namespace ERP.BLL.Repositories
             return await _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .Where(e => e.ProjectId == projectId && !e.IsDeleted)
+                .Where(e => _context.ProjectEmployees.Any(pe => pe.ProjectId == projectId && pe.EmployeeId == e.Id) && !e.IsDeleted)
                 .OrderBy(e => e.LastName)
                 .ThenBy(e => e.FirstName)
                 .ToListAsync();
@@ -239,13 +239,13 @@ namespace ERP.BLL.Repositories
         /// </summary>
         public async Task<bool> IsEmployeeAssignedToProjectAsync(int employeeId, int? excludeProjectId = null)
         {
-            var query = _context.Employees
+            var query = _context.ProjectEmployees
                 .AsNoTracking()
-                .Where(e => e.Id == employeeId && e.ProjectId.HasValue && !e.IsDeleted);
+                .Where(pe => pe.EmployeeId == employeeId);
 
             if (excludeProjectId.HasValue)
             {
-                query = query.Where(e => e.ProjectId != excludeProjectId.Value);
+                query = query.Where(pe => pe.ProjectId != excludeProjectId.Value);
             }
 
             return await query.AnyAsync();
@@ -261,7 +261,7 @@ namespace ERP.BLL.Repositories
                 .Include(p => p.Department)
                 .Include(p => p.ProjectManager)
                 .Include(p => p.Department)
-                    .ThenInclude(d => d.Employees.Where(e => e.ProjectId == projectId && !e.IsDeleted))
+                .ThenInclude(d => d.Employees.Where(e => _context.ProjectEmployees.Any(pe => pe.ProjectId == projectId && pe.EmployeeId == e.Id) && !e.IsDeleted))
                 .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
         }
 
@@ -276,8 +276,11 @@ namespace ERP.BLL.Repositories
                 .Include(p => p.Department) // Project's department
                 .Include(p => p.ProjectManager) // Project manager
                     .ThenInclude(m => m!.Department) // Manager's department
-                .Include(p => p.Employees.Where(e => !e.IsDeleted)) // All team members
-                    .ThenInclude(e => e.Department) // Each employee's department
+                                .Include(p => p.Employees.Where(e => !e.IsDeleted))
+                    .ThenInclude(e => e.Department)
+                .Include(p => p.ProjectEmployees)
+                    .ThenInclude(pe => pe.Employee)
+                        .ThenInclude(e => e.Department)
                 .Where(p => p.Id == id && !p.IsDeleted)
                 .FirstOrDefaultAsync();
         }
@@ -290,7 +293,7 @@ namespace ERP.BLL.Repositories
         public async Task<IQueryable<Employee>> GetEmployeesByProjectQueryableAsync(int projectId)
         {
             return await Task.FromResult(_context.Employees
-                .Where(e => e.ProjectId == projectId && !e.IsDeleted)
+                 .Where(e => _context.ProjectEmployees.Any(pe => pe.ProjectId == projectId && pe.EmployeeId == e.Id) && !e.IsDeleted)
                 .Include(e => e.Department)
                 .AsQueryable());
         }

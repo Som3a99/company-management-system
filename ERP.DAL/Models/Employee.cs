@@ -37,9 +37,12 @@ namespace ERP.DAL.Models
         // Managed Project Inverse Property (One-to-One)
         public Project? ManagedProject { get; set; }
 
-        // Project Assignment (Each employee works on one project)
+        // Project Assignment (legacy: each employee works on one project)
         public int? ProjectId { get; set; }
         public Project? Project { get; set; }
+
+        // Project assignments through junction table
+        public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new HashSet<ProjectEmployee>();
 
         /// <summary>
         /// Foreign key to Identity user account

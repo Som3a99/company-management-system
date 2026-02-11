@@ -75,6 +75,26 @@
         </div>
     </div>
 
+
+    <div class="card mb-4 animate-in">
+        <div class="card-body">
+            <h5 class="card-title mb-3">Assign Employee to Project</h5>
+            <form asp-action="AssignEmployee" method="post" class="row g-2 align-items-end">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="projectId" value="@projectId" />
+                <div class="col-md-8">
+                    <label class="form-label">Employee</label>
+                    <select name="employeeId" class="form-select" asp-items="ViewBag.EligibleEmployees">
+                        <option value="">-- Select employee --</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary">Assign</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Stats Cards -->
     <div class="row g-3 mb-4 animate-in">
         <div class="col-md-4">
@@ -257,13 +277,14 @@
                                 }
                             </td>
                             <td class="text-center">
-                                <a asp-controller="Employee" asp-action="Edit" asp-route-id="@employee.Id" class="btn btn-sm btn-outline-secondary" title="Edit Employee">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                                    </svg>
-                                    Edit
-                                </a>
+                                <form asp-action="RemoveEmployee" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="projectId" value="@projectId" />
+                                    <input type="hidden" name="employeeId" value="@employee.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove from Project" onclick="return confirm('Remove this employee from project?');">
+                                        Remove
+                                    </button>
+                                </form>
                             </td>
                         </tr>
                     }

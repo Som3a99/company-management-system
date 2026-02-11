@@ -21,6 +21,7 @@ namespace ERP.PL.Controllers
         private readonly IConfiguration _configuration;
         private readonly IAuditService _auditService;
         private readonly IRoleManagementService _roleManagementService;
+        private readonly IProjectTeamService _projectTeamService;
 
 
         public ProjectController(
@@ -29,7 +30,8 @@ namespace ERP.PL.Controllers
             ILogger<ProjectController> logger,
             IConfiguration configuration,
             IAuditService auditService,
-            IRoleManagementService roleManagementService)
+            IRoleManagementService roleManagementService,
+            IProjectTeamService projectTeamService)
         {
             _mapper = mapper;
             _unitOfWork = unitOfWork;
@@ -37,6 +39,7 @@ namespace ERP.PL.Controllers
             _configuration = configuration;
             _auditService=auditService;
             _roleManagementService=roleManagementService;
+            _projectTeamService=projectTeamService;
         }
 
         #region Index
@@ -97,7 +100,7 @@ namespace ERP.PL.Controllers
 
         #region Create
         [HttpGet]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Policy = "RequireCEO")]
         public async Task<IActionResult> Create()
         {
             await LoadDepartmentsAsync();
@@ -106,7 +109,7 @@ namespace ERP.PL.Controllers
         }
 
         [HttpPost]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Policy = "RequireCEO")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ProjectViewModel project)
         {
@@ -292,7 +295,7 @@ namespace ERP.PL.Controllers
 
         #region Edit
         [HttpGet]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Roles = "CEO,ProjectManager")]
         public async Task<IActionResult> Edit(int id)
         {
             var project = await _unitOfWork.ProjectRepository.GetByIdAsync(id);
@@ -301,14 +304,18 @@ namespace ERP.PL.Controllers
                 return NotFound();
             }
 
+            if (!await CanAccessProjectAsync(project))
+            {
+                return Forbid();
+            }
+
             var projectViewModel = _mapper.Map<ProjectViewModel>(project);
             await LoadDepartmentsAsync(projectViewModel.DepartmentId);
             await LoadAvailableProjectManagersAsync(projectViewModel.ProjectManagerId, id);
             return View(projectViewModel);
         }
 
-        [HttpPost]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Roles = "CEO,ProjectManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(ProjectViewModel project)
         {
@@ -376,6 +383,17 @@ namespace ERP.PL.Controllers
 
                 if (existingProject == null)
                     return NotFound();
+
+
+                if (!await CanAccessProjectAsync(existingProject))
+                {
+                    return Forbid();
+                }
+
+                if (User.IsInRole("ProjectManager") && !User.IsInRole("CEO"))
+                {
+                    project.ProjectManagerId = existingProject.ProjectManagerId;
+                }
 
                 // Apply allowed updates
                 _mapper.Map(project, existingProject);
@@ -549,7 +567,7 @@ namespace ERP.PL.Controllers
         /// View all employees assigned to a specific project with pagination and search
         /// </summary>
         [HttpGet]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Roles = "CEO,ProjectManager")]
         public async Task<IActionResult> ProjectEmployees(int id, int pageNumber = 1, int pageSize = 10,
                                                          string? searchTerm = null, string? status = null)
         {
@@ -557,6 +575,11 @@ namespace ERP.PL.Controllers
 
             if (project == null)
                 return NotFound();
+
+            if (!await CanAccessProjectAsync(project))
+            {
+                return Forbid();
+            }
 
             // Store search parameters for view
             ViewData["SearchTerm"] = searchTerm;
@@ -612,7 +635,106 @@ namespace ERP.PL.Controllers
             projectViewModel.AssignedEmployees = filteredEmployees;
             ViewBag.PagedEmployees = pagedResult;
 
+            var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
+            if (int.TryParse(currentEmployeeIdClaim, out var currentEmployeeId))
+            {
+                var eligibleEmployees = await _projectTeamService.GetEligibleEmployeesAsync(id, currentEmployeeId, User.IsInRole("CEO"));
+                ViewBag.EligibleEmployees = new SelectList(
+                    eligibleEmployees.Select(e => new { e.Id, Display = $"{e.FirstName} {e.LastName} - {e.Position}" }),
+                    "Id",
+                    "Display");
+            }
+            else
+            {
+                ViewBag.EligibleEmployees = new SelectList(Enumerable.Empty<object>());
+            }
+
             return View(projectViewModel);
+        }
+        #endregion
+
+        #region Manage Team
+        [HttpGet]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> ManageTeam(int id)
+        {
+            var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
+            if (!int.TryParse(currentEmployeeIdClaim, out var currentEmployeeId))
+            {
+                return Forbid();
+            }
+
+            var isCeo = User.IsInRole("CEO");
+            var eligibleEmployees = await _projectTeamService.GetEligibleEmployeesAsync(id, currentEmployeeId, isCeo);
+
+            ViewBag.ProjectId = id;
+            ViewBag.EligibleEmployees = new SelectList(
+                eligibleEmployees.Select(e => new { e.Id, Display = $"{e.FirstName} {e.LastName} - {e.Position}" }),
+                "Id",
+                "Display");
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> AssignEmployee(int projectId, int employeeId)
+        {
+            var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
+            if (!int.TryParse(currentEmployeeIdClaim, out var currentEmployeeId))
+            {
+                return Forbid();
+            }
+
+            var result = await _projectTeamService.AssignEmployeeAsync(
+                projectId,
+                employeeId,
+                currentEmployeeId,
+                User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                User.Identity?.Name ?? "Unknown",
+                User.IsInRole("CEO"));
+
+            if (!result.Succeeded)
+            {
+                TempData["ErrorMessage"] = result.Message;
+            }
+            else
+            {
+                TempData["SuccessMessage"] = result.Message;
+            }
+
+            return RedirectToAction(nameof(ProjectEmployees), new { id = projectId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> RemoveEmployee(int projectId, int employeeId)
+        {
+            var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
+            if (!int.TryParse(currentEmployeeIdClaim, out var currentEmployeeId))
+            {
+                return Forbid();
+            }
+
+            var result = await _projectTeamService.RemoveEmployeeAsync(
+                projectId,
+                employeeId,
+                currentEmployeeId,
+                User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                User.Identity?.Name ?? "Unknown",
+                User.IsInRole("CEO"));
+
+            if (!result.Succeeded)
+            {
+                TempData["ErrorMessage"] = result.Message;
+            }
+            else
+            {
+                TempData["SuccessMessage"] = result.Message;
+            }
+
+            return RedirectToAction(nameof(ProjectEmployees), new { id = projectId });
         }
         #endregion
 
@@ -621,7 +743,7 @@ namespace ERP.PL.Controllers
         /// Display project profile page with comprehensive information
         /// </summary>
         [HttpGet]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Roles = "CEO,ProjectManager,Employee")]
         public async Task<IActionResult> Profile(int id)
         {
             try
@@ -633,6 +755,11 @@ namespace ERP.PL.Controllers
                 {
                     TempData["ErrorMessage"] = "Project not found.";
                     return RedirectToAction(nameof(Index));
+                }
+
+                if (!await CanAccessProjectAsync(project))
+                {
+                    return Forbid();
                 }
 
                 // Map to profile view model
@@ -716,6 +843,34 @@ namespace ERP.PL.Controllers
                 currentManagerId
             );
         }
+
+        private async Task<bool> CanAccessProjectAsync(ERP.DAL.Models.Project project)
+        {
+            if (User.IsInRole("CEO"))
+            {
+                return true;
+            }
+
+            var employeeIdClaim = User.FindFirst("EmployeeId")?.Value;
+            if (!int.TryParse(employeeIdClaim, out var employeeId))
+            {
+                return false;
+            }
+
+            if (User.IsInRole("ProjectManager"))
+            {
+                return project.ProjectManagerId == employeeId;
+            }
+
+            if (User.IsInRole("Employee"))
+            {
+                var assignedEmployees = await _unitOfWork.ProjectRepository.GetEmployeesByProjectQueryableAsync(project.Id);
+                return assignedEmployees.Any(e => e.Id == employeeId);
+            }
+
+            return false;
+        }
+
         #endregion
     }
 }

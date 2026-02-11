@@ -17,6 +17,7 @@ namespace ERP.DAL.Data.Contexts
         public DbSet<Project> Projects { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<PasswordResetRequest> PasswordResetRequests { get; set; } = null!;
+        public DbSet<ProjectEmployee> ProjectEmployees { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
