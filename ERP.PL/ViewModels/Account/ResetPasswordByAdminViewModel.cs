@@ -32,5 +32,10 @@ namespace ERP.PL.ViewModels.Account
         [Display(Name = "Verification Notes")]
         [MaxLength(500)]
         public string? VerificationNotes { get; set; }
+
+        [Required(ErrorMessage = "Your current password is required")]
+        [DataType(DataType.Password)]
+        [Display(Name = "Your Current Password")]
+        public string AdminCurrentPassword { get; set; } = null!;
     }
 }

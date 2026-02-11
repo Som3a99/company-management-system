@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace ERP.PL.Controllers
 {
@@ -16,6 +18,8 @@ namespace ERP.PL.Controllers
         private readonly ILogger<AccountController> _logger;
         private readonly IAuditService _auditService;
         private readonly ApplicationDbContext _context;
+        private static readonly ConcurrentDictionary<string, List<DateTime>> _adminResetAttempts = new();
+        private const int AdminResetLimitPerMinute = 5;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
@@ -225,8 +229,42 @@ namespace ERP.PL.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResetPasswordByAdmin(ResetPasswordByAdminViewModel model)
         {
+            var admin = await _userManager.GetUserAsync(User);
+            if (admin == null)
+            {
+                return Forbid();
+            }
+
             if (!ModelState.IsValid)
             {
+                return View(model);
+            }
+
+            if (!await VerifyAdminStepUpAuthenticationAsync(admin, model.AdminCurrentPassword))
+            {
+                await _auditService.LogAsync(
+                    admin.Id,
+                    admin.Email ?? "UNKNOWN",
+                    "ADMIN_PASSWORD_RESET_STEPUP_FAILED",
+                    resourceType: "Account",
+                    succeeded: false,
+                    errorMessage: "Admin current password validation failed");
+
+                ModelState.AddModelError(string.Empty, "Could not complete password reset request.");
+                return View(model);
+            }
+
+            if (IsRateLimited(admin.Id))
+            {
+                await _auditService.LogAsync(
+                    admin.Id,
+                    admin.Email ?? "UNKNOWN",
+                    "ADMIN_PASSWORD_RESET_RATE_LIMITED",
+                    resourceType: "Account",
+                    succeeded: false,
+                    errorMessage: "Rate limit exceeded");
+
+                ModelState.AddModelError(string.Empty, "Too many reset attempts. Please wait a minute and try again.");
                 return View(model);
             }
 
@@ -235,26 +273,54 @@ namespace ERP.PL.Controllers
 
             if (user == null)
             {
-                ModelState.AddModelError(string.Empty, $"No user found with email: {model.EmployeeEmail}");
+                await _auditService.LogAsync(
+                    admin.Id,
+                    admin.Email ?? "UNKNOWN",
+                    "ADMIN_PASSWORD_RESET_UNKNOWN_TARGET",
+                    resourceType: "Account",
+                    succeeded: false,
+                    errorMessage: "Target account not found",
+                    details: JsonSerializer.Serialize(new { model.EmployeeEmail }));
+
+                ModelState.AddModelError(string.Empty, "Could not complete password reset request.");
                 return View(model);
             }
 
             // Remove old password
-            var removeResult = await _userManager.RemovePasswordAsync(user);
-            if (!removeResult.Succeeded)
+            if (!await CanResetTargetUserAsync(admin, user))
             {
-                ModelState.AddModelError(string.Empty, "Failed to reset password.");
+                await _auditService.LogAsync(
+                    admin.Id,
+                    admin.Email ?? "UNKNOWN",
+                    "ADMIN_PASSWORD_RESET_FORBIDDEN_TARGET",
+                    resourceType: "Account",
+                    succeeded: false,
+                    errorMessage: "Insufficient privileges for target account",
+                    details: JsonSerializer.Serialize(new { targetUserId = user.Id, targetEmail = user.Email }));
+
+                ModelState.AddModelError(string.Empty, "You are not allowed to reset this account password.");
                 return View(model);
             }
 
             // Add new password
-            var addResult = await _userManager.AddPasswordAsync(user, model.TemporaryPassword);
-            if (!addResult.Succeeded)
+            // Atomic reset pattern: token-based reset instead of remove/add
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetResult = await _userManager.ResetPasswordAsync(user, resetToken, model.TemporaryPassword);
+            if (!resetResult.Succeeded)
             {
-                foreach (var error in addResult.Errors)
+                foreach (var error in resetResult.Errors)
                 {
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
+
+                await _auditService.LogAsync(
+                        admin.Id,
+                        admin.Email ?? "UNKNOWN",
+                        "ADMIN_PASSWORD_RESET_FAILED",
+                        resourceType: "Account",
+                        succeeded: false,
+                        errorMessage: string.Join("; ", resetResult.Errors.Select(e => e.Code)),
+                        details: JsonSerializer.Serialize(new { targetUserId = user.Id, targetEmail = user.Email }));
                 return View(model);
             }
 
@@ -263,14 +329,26 @@ namespace ERP.PL.Controllers
             await _userManager.UpdateAsync(user);
 
             // Log the action
-            var admin = await _userManager.GetUserAsync(User);
+            await _auditService.LogAsync(
+                    admin.Id,
+                    admin.Email ?? "UNKNOWN",
+                    "ADMIN_PASSWORD_RESET_SUCCESS",
+                    resourceType: "Account",
+                    succeeded: true,
+                    details: JsonSerializer.Serialize(new
+                    {
+                        targetUserId = user.Id,
+                        targetEmail = user.Email,
+                        verificationNotesProvided = !string.IsNullOrWhiteSpace(model.VerificationNotes)
+                    }));
             _logger.LogWarning(
-                $"Password reset by admin {admin?.Email} for user {user.Email}. " +
-                $"Verification: {model.VerificationNotes ?? "None provided"}");
+                "Admin password reset completed by {AdminEmail} for target account {TargetEmail}.",
+                admin.Email,
+                user.Email);
 
             TempData["SuccessMessage"] =
                 $"Password reset successfully for {user.Email}. " +
-                $"User must change password on next login.";
+                "User must change password on next login.";
 
             return RedirectToAction(nameof(ResetPasswordByAdmin));
         }
@@ -423,6 +501,57 @@ namespace ERP.PL.Controllers
             }
 
             return remoteIp.ToString();
+        }
+
+        private async Task<bool> VerifyAdminStepUpAuthenticationAsync(ApplicationUser admin, string currentPassword)
+        {
+            return await _userManager.CheckPasswordAsync(admin, currentPassword);
+        }
+
+        private bool IsRateLimited(string adminUserId)
+        {
+            var now = DateTime.UtcNow;
+            var attempts = _adminResetAttempts.GetOrAdd(adminUserId, _ => new List<DateTime>());
+
+            lock (attempts)
+            {
+                attempts.RemoveAll(timestamp => timestamp <= now.AddMinutes(-1));
+
+                if (attempts.Count >= AdminResetLimitPerMinute)
+                {
+                    return true;
+                }
+
+                attempts.Add(now);
+                return false;
+            }
+        }
+
+        private async Task<bool> CanResetTargetUserAsync(ApplicationUser admin, ApplicationUser target)
+        {
+            var adminIsCeo = User.IsInRole("CEO");
+            var adminIsItAdmin = User.IsInRole("ITAdmin");
+
+            if (target.Id == admin.Id)
+            {
+                return false;
+            }
+
+            if (adminIsCeo)
+            {
+                return true;
+            }
+
+            if (!adminIsItAdmin)
+            {
+                return false;
+            }
+
+            var targetIsCeo = await _userManager.IsInRoleAsync(target, "CEO");
+            var targetIsItAdmin = await _userManager.IsInRoleAsync(target, "ITAdmin");
+
+            // ITAdmin cannot reset CEO or ITAdmin accounts
+            return !targetIsCeo && !targetIsItAdmin;
         }
         #endregion
     }

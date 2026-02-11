@@ -1,6 +1,11 @@
+using ERP.DAL.Data.Contexts;
+using ERP.DAL.Models;
 using ERP.PL.ViewModels;
+using ERP.PL.ViewModels.Home;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
 
 namespace ERP.PL.Controllers
@@ -8,10 +13,14 @@ namespace ERP.PL.Controllers
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;
+        private readonly ApplicationDbContext _context;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public HomeController(ILogger<HomeController> logger)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
             _logger = logger;
+            _context=context;
+            _userManager=userManager;
         }
 
         // Public homepage - accessible to anyone
@@ -29,9 +38,32 @@ namespace ERP.PL.Controllers
 
         // Internal dashboard - requires authentication
         [Authorize]
-        public IActionResult Dashboard()
+        public async Task<IActionResult> Dashboard()
         {
-            return View(); // Your existing internal dashboard
+            var activeDepartments = await _context.Departments.CountAsync();
+            var totalEmployees = await _context.Employees.CountAsync();
+            var activeProjects = await _context.Projects
+                .Where(p => p.Status != ProjectStatus.Completed && p.Status != ProjectStatus.Cancelled)
+                .CountAsync();
+
+            var totalUserAccounts = await _userManager.Users.CountAsync();
+            var activeHealthyAccounts = await _userManager.Users
+                .Where(u => u.IsActive && (u.LockoutEnd == null || u.LockoutEnd <= DateTimeOffset.UtcNow))
+                .CountAsync();
+
+            var systemHealth = totalUserAccounts == 0
+                ? 100
+                : (int)Math.Round((activeHealthyAccounts / (double)totalUserAccounts) * 100, MidpointRounding.AwayFromZero);
+
+            var viewModel = new HomeDashboardViewModel
+            {
+                ActiveDepartments = activeDepartments,
+                TotalEmployees = totalEmployees,
+                ActiveProjects = activeProjects,
+                SystemHealthPercentage = Math.Clamp(systemHealth, 0, 100)
+            };
+
+            return View(viewModel);
         }
 
         [AllowAnonymous]

@@ -1,4 +1,5 @@
-﻿@{
+﻿@model HomeDashboardViewModel
+@{
     ViewData["Title"] = "Dashboard";
 }
 
@@ -82,19 +83,19 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-md-3">
-                            <h3 class="text-primary-custom mb-1">0</h3>
+                            <h3 class="text-primary-custom mb-1">@Model.ActiveDepartments</h3>
                             <p class="text-muted mb-0">Active Departments</p>
                         </div>
                         <div class="col-md-3">
-                            <h3 class="text-primary-custom mb-1">0</h3>
+                            <h3 class="text-primary-custom mb-1">@Model.TotalEmployees</h3>
                             <p class="text-muted mb-0">Total Employees</p>
                         </div>
                         <div class="col-md-3">
-                            <h3 class="text-primary-custom mb-1">0</h3>
+                            <h3 class="text-primary-custom mb-1">@Model.ActiveProjects</h3>
                             <p class="text-muted mb-0">Active Projects</p>
                         </div>
                         <div class="col-md-3">
-                            <h3 class="text-primary-custom mb-1">100%</h3>
+                            <h3 class="text-primary-custom mb-1">@Model.SystemHealthPercentage%</h3>
                             <p class="text-muted mb-0">System Health</p>
                         </div>
                     </div>
