@@ -1,5 +1,6 @@
 ﻿using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
+using ERP.PL.Helpers;
 using ERP.PL.Services;
 using ERP.PL.ViewModels.Account;
 using Microsoft.AspNetCore.Authorization;
@@ -7,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace ERP.PL.Controllers
@@ -20,19 +22,22 @@ namespace ERP.PL.Controllers
         private readonly ApplicationDbContext _context;
         private static readonly ConcurrentDictionary<string, List<DateTime>> _adminResetAttempts = new();
         private const int AdminResetLimitPerMinute = 5;
+        private readonly DocumentSettings _documentSettings;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             ILogger<AccountController> logger,
             IAuditService auditService,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            DocumentSettings documentSettings)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _logger = logger;
             _auditService=auditService;
             _context=context;
+            _documentSettings=documentSettings;
         }
 
 
@@ -145,6 +150,102 @@ namespace ERP.PL.Controllers
             // Generic failure message (don't reveal if email exists)
             ModelState.AddModelError(string.Empty, "Invalid email or password.");
             return View(model); 
+        }
+        #endregion
+
+        #region Profile
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> Profile()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return RedirectToAction(nameof(Login));
+            }
+
+            var viewModel = await BuildUserProfileViewModelAsync(user);
+            return View(viewModel);
+        }
+
+        [HttpPost]
+        [Authorize]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Profile(UserProfileViewModel model)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return RedirectToAction(nameof(Login));
+            }
+
+            if (model.ProfileImage == null)
+            {
+                TempData["ErrorMessage"] = "Please select an image to upload.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            if (!user.EmployeeId.HasValue)
+            {
+                TempData["ErrorMessage"] = "This account is not linked to an employee record. Contact IT Admin to update your profile picture.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var employee = await _context.Employees
+                .FirstOrDefaultAsync(e => e.Id == user.EmployeeId.Value && !e.IsDeleted);
+
+            if (employee == null)
+            {
+                TempData["ErrorMessage"] = "Employee profile not found.";
+                return RedirectToAction(nameof(Profile));
+            }
+
+            var oldImageUrl = employee.ImageUrl;
+
+            try
+            {
+                var uploadedImageUrl = await _documentSettings.UploadImagePath(model.ProfileImage, "images");
+                employee.ImageUrl = uploadedImageUrl;
+
+                await _context.SaveChangesAsync();
+
+                if (!string.IsNullOrWhiteSpace(oldImageUrl) && !_documentSettings.IsDefaultAvatar(oldImageUrl))
+                {
+                    _documentSettings.DeleteImage(oldImageUrl, "images");
+                }
+
+                await _auditService.LogAsync(
+                    user.Id,
+                    user.Email ?? "UNKNOWN",
+                    "PROFILE_PICTURE_UPDATED",
+                    "Employee",
+                    employee.Id,
+                    details: "User updated own profile picture");
+
+                TempData["SuccessMessage"] = "Profile picture updated successfully.";
+                return RedirectToAction(nameof(Profile));
+            }
+            catch (ArgumentException ex)
+            {
+                TempData["ErrorMessage"] = ex.Message;
+                return RedirectToAction(nameof(Profile));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update profile picture for user {UserId}", user.Id);
+
+                await _auditService.LogAsync(
+                    user.Id,
+                    user.Email ?? "UNKNOWN",
+                    "PROFILE_PICTURE_UPDATE_FAILED",
+                    "Employee",
+                    employee.Id,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
+                TempData["ErrorMessage"] = "An unexpected error occurred while updating your profile picture.";
+                return RedirectToAction(nameof(Profile));
+            }
         }
         #endregion
 
@@ -552,6 +653,39 @@ namespace ERP.PL.Controllers
 
             // ITAdmin cannot reset CEO or ITAdmin accounts
             return !targetIsCeo && !targetIsItAdmin;
+        }
+
+        private async Task<UserProfileViewModel> BuildUserProfileViewModelAsync(ApplicationUser user)
+        {
+            var userRoles = await _userManager.GetRolesAsync(user);
+            var employee = user.EmployeeId.HasValue
+                ? await _context.Employees
+                    .AsNoTracking()
+                    .Include(e => e.Department)
+                    .FirstOrDefaultAsync(e => e.Id == user.EmployeeId.Value && !e.IsDeleted)
+                : null;
+
+            var employeeRoleFromClaim = User.FindFirstValue(ClaimTypes.Role);
+
+            return new UserProfileViewModel
+            {
+                UserId = user.Id,
+                Username = user.UserName ?? user.Email ?? "N/A",
+                Email = user.Email ?? "N/A",
+                PhoneNumber = employee?.PhoneNumber ?? user.PhoneNumber,
+                AccountCreatedAt = user.CreatedAt,
+                AccountStatus = user.IsActive ? "Active" : "Disabled",
+                Roles = userRoles.ToList(),
+                PrimaryRole = userRoles.FirstOrDefault() ?? employeeRoleFromClaim ?? "Employee",
+                EmployeeId = employee?.Id,
+                FirstName = employee?.FirstName,
+                LastName = employee?.LastName,
+                Position = employee?.Position,
+                DepartmentName = employee?.Department?.DepartmentName,
+                DepartmentCode = employee?.Department?.DepartmentCode,
+                HireDate = employee?.HireDate,
+                ImageUrl = employee?.ImageUrl ?? "/uploads/images/avatar-user.png"
+            };
         }
         #endregion
     }
