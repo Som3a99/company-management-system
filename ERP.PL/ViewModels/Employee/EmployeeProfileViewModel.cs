@@ -20,7 +20,7 @@ namespace ERP.PL.ViewModels.Employee
         public DateTime CreatedAt { get; set; }
 
         // Department Information
-        public int DepartmentId { get; set; }
+        public int? DepartmentId { get; set; }
         public string? DepartmentName { get; set; }
         public string? DepartmentCode { get; set; }
 

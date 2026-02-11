@@ -526,6 +526,15 @@ namespace ERP.PL.Controllers
         public async Task<IActionResult> DepartmentEmployees(int id, int pageNumber = 1, int pageSize = 10,
                                                              string? searchTerm = null, string? status = null)
         {
+            if (User.IsInRole("DepartmentManager"))
+            {
+                var managedDepartmentClaim = User.FindFirstValue("ManagedDepartmentId");
+                if (!int.TryParse(managedDepartmentClaim, out var managedDepartmentId) || managedDepartmentId != id)
+                {
+                    return Unauthorized();
+                }
+            }
+
             var department = await _unitOfWork.DepartmentRepository.GetByIdAsync(id);
 
             if (department == null)

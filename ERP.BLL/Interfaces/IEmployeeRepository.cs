@@ -31,5 +31,10 @@ namespace ERP.BLL.Interfaces
         /// Get employee with all related data for profile page
         /// </summary>
         Task<Employee?> GetEmployeeProfileAsync(int id);
+
+        /// <summary>
+        /// Get employees not assigned to any department.
+        /// </summary>
+        Task<IEnumerable<Employee>> GetEmployeesWithoutDepartmentAsync();
     }
 }

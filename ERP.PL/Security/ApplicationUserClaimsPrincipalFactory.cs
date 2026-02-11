@@ -52,9 +52,9 @@ namespace ERP.PL.Security
                     identity.AddClaim(new Claim("EmployeeId", employee.Id.ToString()));
 
                     // Add department claim
-                    if (employee.DepartmentId > 0)
+                    if (employee.DepartmentId.HasValue)
                     {
-                        identity.AddClaim(new Claim("DepartmentId", employee.DepartmentId.ToString()));
+                        identity.AddClaim(new Claim("DepartmentId", employee.DepartmentId.Value.ToString()));
                     }
 
                     // Add managed department claim (if manager)

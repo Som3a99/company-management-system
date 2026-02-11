@@ -17,6 +17,26 @@ namespace ERP.BLL.Repositories
             _httpContextAccessor=httpContextAccessor;
         }
 
+        private IQueryable<Employee> ApplyScopeFilter(IQueryable<Employee> query)
+        {
+            if (IsCEO())
+                return query;
+
+            var managedDeptId = GetManagedDepartmentId();
+            if (managedDeptId.HasValue)
+                return query.Where(e => e.DepartmentId == managedDeptId.Value);
+
+            var managedProjectId = GetManagedProjectId();
+            if (managedProjectId.HasValue)
+                return query.Where(e => e.ProjectId == managedProjectId.Value);
+
+            var userDeptId = GetUserDepartmentId();
+            if (userDeptId.HasValue)
+                return query.Where(e => e.DepartmentId == userDeptId.Value);
+
+            return query.Where(_ => false);
+        }
+
         private bool IsCEO()
         {
             return _httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false;
@@ -88,9 +108,9 @@ namespace ERP.BLL.Repositories
         // Override GetById to include Department navigation property
         public override async Task<Employee?> GetByIdAsync(int id)
         {
-            return await _context.Employees
+            return await ApplyScopeFilter(_context.Employees
                 .AsNoTracking()
-                .Include(e => e.Department)
+                .Include(e => e.Department))
                 .FirstOrDefaultAsync(e => e.Id == id);
         }
 
@@ -104,6 +124,17 @@ namespace ERP.BLL.Repositories
                 .Include(e => e.Department)
                 .Include(e => e.ManagedDepartment)
                 .FirstOrDefaultAsync(e => e.Id == id);
+        }
+
+        public async Task<IEnumerable<Employee>> GetEmployeesWithoutDepartmentAsync()
+        {
+            return await _context.Employees
+                .AsNoTracking()
+                .Include(e => e.Department)
+                .Where(e => !e.DepartmentId.HasValue && e.IsActive && !e.IsDeleted)
+                .OrderBy(e => e.LastName)
+                .ThenBy(e => e.FirstName)
+                .ToListAsync();
         }
 
         /// <summary>
@@ -193,7 +224,7 @@ namespace ERP.BLL.Repositories
             return await _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                    .ThenInclude(d => d.Manager) // Department's manager
+                    .ThenInclude(d => d!.Manager) // Department's manager
                 .Include(e => e.ManagedDepartment) // If this employee manages a department
                     .ThenInclude(d => d!.Employees.Where(emp => !emp.IsDeleted)) // Employees in managed dept
                 .Include(e => e.ManagedProject) // If this employee manages a project
@@ -219,10 +250,10 @@ namespace ERP.BLL.Repositories
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 100) pageSize = 100;
 
-            IQueryable<Employee> query = _context.Employees
+            IQueryable<Employee> query = ApplyScopeFilter(_context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .Where(e => !e.IsDeleted);
+                .Where(e => !e.IsDeleted));
 
             if (filter != null)
             {

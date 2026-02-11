@@ -67,9 +67,10 @@ namespace ERP.PL.ViewModels.Employee
         [Required(ErrorMessage = "Gender is required")]
         public Gender Gender { get; set; }
 
-        [Required(ErrorMessage = "Department is required")]
         [Display(Name = "Department")]
-        public int DepartmentId { get; set; }
+        public int? DepartmentId { get; set; }
+
+        public byte[]? RowVersion { get; set; }
 
         public DAL.Models.Department? Department { get; set; }
 

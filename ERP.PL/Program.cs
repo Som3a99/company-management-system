@@ -53,6 +53,9 @@ namespace ERP.PL
             // Audit Service - Scoped lifetime (depends on DbContext)
             builder.Services.AddScoped<IAuditService, AuditService>();
 
+            // Department Manager HR Service - Scoped lifetime (depends on DbContext and Identity)
+            builder.Services.AddScoped<IDepartmentManagerHrService, DepartmentManagerHrService>();
+
             // Auto Mapper Configurations
             builder.Services.AddAutoMapper(cfg => { }, typeof(EmployeeProfile).Assembly);
             builder.Services.AddAutoMapper(cfg => { }, typeof(DepartmentProfile).Assembly);

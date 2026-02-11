@@ -1,4 +1,6 @@
-﻿namespace ERP.DAL.Models
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace ERP.DAL.Models
 {
     public enum Gender
     {
@@ -23,8 +25,11 @@
         #endregion
 
         #region Navigational Property
-        public int DepartmentId { get; set; }
-        public Department Department { get; set; } = null!;
+        public int? DepartmentId { get; set; }
+        public Department? Department { get; set; }
+
+        [Timestamp]
+        public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
         // Managed Department Inverse Property
         public Department? ManagedDepartment { get; set; }

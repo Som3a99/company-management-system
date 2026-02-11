@@ -106,6 +106,14 @@
                                                 </a>
                                             </li>
                                         }
+                                        @if (User.IsInRole("DepartmentManager"))
+                                        {
+                                            <li>
+                                            <a class="dropdown-item" asp-controller="DepartmentManagerHr" asp-action="Index">
+                                                <i class="fas fa-cogs me-2"></i>Manage Department Employees
+                                                </a>
+                                            </li>
+                                        }
                                         <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <form asp-controller="Account" asp-action="Logout" method="post" class="dropdown-item p-0">
