@@ -18,6 +18,8 @@ namespace ERP.DAL.Data.Contexts
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<PasswordResetRequest> PasswordResetRequests { get; set; } = null!;
         public DbSet<ProjectEmployee> ProjectEmployees { get; set; } = null!;
+        public DbSet<TaskItem> TaskItems { get; set; } = null!;
+        public DbSet<TaskComment> TaskComments { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +67,7 @@ namespace ERP.DAL.Data.Contexts
             modelBuilder.Entity<Employee>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<Department>().HasQueryFilter(d => !d.IsDeleted);
             modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted);
+            modelBuilder.Entity<ProjectEmployee>().HasQueryFilter(pe => !pe.Employee.IsDeleted && !pe.Project.IsDeleted);
         }
     }
 }

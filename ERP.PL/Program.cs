@@ -1,5 +1,6 @@
 using ERP.BLL.Interfaces;
 using ERP.BLL.Repositories;
+using ERP.BLL.Services;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using ERP.PL.Data;
@@ -33,7 +34,6 @@ namespace ERP.PL
                 // Enable sensitive data logging in development only
                 if (builder.Environment.IsDevelopment())
                 {
-                    options.EnableSensitiveDataLogging();
                     options.EnableDetailedErrors();
                 }
             });
@@ -43,6 +43,8 @@ namespace ERP.PL
             builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
             builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+            builder.Services.AddScoped<ITaskRepository, TaskRepository>();
+            builder.Services.AddScoped<ITaskService, TaskService>();
 
             // Custom Claims Principal Factory to add extra claims for authorization
             builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>,ApplicationUserClaimsPrincipalFactory>();

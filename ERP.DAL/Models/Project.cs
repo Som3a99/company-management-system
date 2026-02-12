@@ -38,6 +38,9 @@
 
         // Project Employees relationship (many-to-many junction)
         public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new HashSet<ProjectEmployee>();
+
+        // Project Tasks relationship (One-to-Many)
+        public ICollection<TaskItem> Tasks { get; set; } = new HashSet<TaskItem>();
         #endregion
     }
 }

@@ -36,5 +36,8 @@ namespace ERP.DAL.Models
         /// Used for IT Admin password resets
         /// </summary>
         public bool RequirePasswordChange { get; set; } = false;
+
+        public ICollection<TaskItem> CreatedTasks { get; set; } = new HashSet<TaskItem>();
+        public ICollection<TaskComment> TaskComments { get; set; } = new HashSet<TaskComment>();
     }
 }

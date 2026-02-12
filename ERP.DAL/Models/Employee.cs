@@ -44,6 +44,9 @@ namespace ERP.DAL.Models
         // Project assignments through junction table
         public ICollection<ProjectEmployee> ProjectEmployees { get; set; } = new HashSet<ProjectEmployee>();
 
+        // Tasks assigned to employee
+        public ICollection<TaskItem> AssignedTasks { get; set; } = new HashSet<TaskItem>();
+
         /// <summary>
         /// Foreign key to Identity user account
         /// Null if employee doesn't have login access yet

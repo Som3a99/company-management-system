@@ -10,20 +10,23 @@ namespace ERP.BLL.Repositories
         private readonly IDepartmentRepository _departmentRepository;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IProjectRepository _projectRepository;
+        private readonly ITaskRepository _taskRepository;
         private bool _disposed = false;
 
-        public UnitOfWork(ApplicationDbContext context, IDepartmentRepository departmentRepository, IEmployeeRepository employeeRepository, IProjectRepository projectRepository)
+        public UnitOfWork(ApplicationDbContext context, IDepartmentRepository departmentRepository, IEmployeeRepository employeeRepository, IProjectRepository projectRepository, ITaskRepository taskRepository)
         {
             _context=context;
             _departmentRepository=departmentRepository;
             _employeeRepository=employeeRepository;
             _projectRepository=projectRepository;
+            _taskRepository=taskRepository;
         }
 
         public IDepartmentRepository DepartmentRepository => _departmentRepository;
 
         public IEmployeeRepository EmployeeRepository => _employeeRepository;
         public IProjectRepository ProjectRepository => _projectRepository;
+        public ITaskRepository TaskRepository => _taskRepository;
 
         public async Task<int> CompleteAsync()
         {
