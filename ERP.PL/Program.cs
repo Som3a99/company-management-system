@@ -19,7 +19,7 @@ namespace ERP.PL
 {
     public class Program
     {
-        public static async Task Main(string[] args)
+        public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -256,25 +256,26 @@ namespace ERP.PL
             #endregion
 
             #region Seeding Data
-            using (var scope = app.Services.CreateScope())
-            {
-                var services = scope.ServiceProvider;
-                var logger = services.GetRequiredService<ILogger<Program>>();
+            //using (var scope = app.Services.CreateScope())
+            //{
+            //    var services = scope.ServiceProvider;
+            //    var logger = services.GetRequiredService<ILogger<Program>>();
 
-                try
-                {
-                    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-                    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+            //    try
+            //    {
+            //        var dbContext = services.GetRequiredService<ApplicationDbContext>();
+            //        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            //        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
 
-                    // Seed Identity data
-                    await IdentitySeeder.SeedAsync(userManager, roleManager, logger);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogCritical(ex, "FATAL: Identity seeding failed. Application cannot start.");
-                    throw; // Fail startup if seeding fails
-                }
-            }
+            //        // Full system reset + seeding for end-to-end manual testing
+            //        await SystemDataSeeder.SeedAsync(dbContext, userManager, roleManager, logger);
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        logger.LogCritical(ex, "FATAL: System seeding failed. Application cannot start.");
+            //        throw; // Fail startup if seeding fails
+            //    }
+            //}
             #endregion
 
             app.Run();
