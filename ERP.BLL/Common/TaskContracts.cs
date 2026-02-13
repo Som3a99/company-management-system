@@ -26,8 +26,7 @@ namespace ERP.BLL.Common
     public record UpdateTaskStatusRequest(int TaskId, TaskStatus NewStatus, byte[]? RowVersion = null);
     public record ReassignTaskRequest(int TaskId, int AssignedToEmployeeId, byte[]? RowVersion = null);
     public record UnassignTaskRequest(int TaskId, byte[]? RowVersion = null);
-    public record AddTaskCommentRequest(int TaskId, string Content);
-
+    public record AddTaskCommentRequest(int TaskId, string Content, IReadOnlyCollection<int>? MentionedEmployeeIds = null);
     public record TaskQueryRequest(
     int PageNumber = 1,
     int PageSize = 10,

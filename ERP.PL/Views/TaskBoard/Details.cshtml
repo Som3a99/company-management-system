@@ -2,6 +2,7 @@
 @model TaskDetailsViewModel
 @{
     ViewData["Title"] = $"Task #{Model.Task.Id}";
+    var isTaskLocked = Model.Task.Status == TaskStatus.Completed || Model.Task.Status == TaskStatus.Cancelled;
 }
 
 <div class="container-fluid px-4 py-3">
@@ -9,7 +10,7 @@
         <h3 class="mb-0">Task #@Model.Task.Id - @Model.Task.Title</h3>
         <div>
             <a asp-action="Index" class="btn btn-outline-secondary">Back to Tasks</a>
-            @if (User.IsInRole("CEO") || User.IsInRole("ProjectManager"))
+            @if ((User.IsInRole("CEO") || User.IsInRole("ProjectManager")) && !isTaskLocked)
             {
                 <a asp-action="Edit" asp-route-id="@Model.Task.Id" class="btn btn-outline-primary">Edit</a>
                 <a asp-action="Delete" asp-route-id="@Model.Task.Id" class="btn btn-outline-danger">Delete</a>
@@ -34,6 +35,12 @@
             <div class="card mb-3">
                 <div class="card-header">Update Status</div>
                 <div class="card-body">
+                    @if (isTaskLocked)
+                    {
+                        <p class="text-muted mb-0">Completed/closed tasks are read-only.</p>
+                    }
+                    else
+                    {
                     <form asp-action="UpdateStatus" method="post">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.Task.Id" />
@@ -43,10 +50,11 @@
                         </div>
                         <button type="submit" class="btn btn-primary">Save Status</button>
                     </form>
+                    }
                 </div>
             </div>
 
-            @if (User.IsInRole("CEO") || User.IsInRole("ProjectManager"))
+            @if ((User.IsInRole("CEO") || User.IsInRole("ProjectManager")) && !isTaskLocked)
             {
                 <div class="card">
                     <div class="card-header">Assignment</div>
@@ -78,13 +86,21 @@
             <div class="card h-100">
                 <div class="card-header">Comments</div>
                 <div class="card-body">
+                    @if (isTaskLocked)
+                    {
+                        <p class="text-muted">Comments are disabled because this task is completed/closed.</p>
+                    }
+                    else
+                    {
                     <form asp-action="AddComment" method="post" class="mb-3">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.Task.Id" />
                         <textarea name="content" class="form-control mb-2" rows="3" placeholder="Write a comment..."></textarea>
+                            <label class="form-label">Mention teammates (same project/task scope)</label>
+                            <select name="mentionedEmployeeIds" class="form-select mb-2" multiple asp-items="Model.AssignableEmployees"></select>
                         <button type="submit" class="btn btn-outline-primary">Add Comment</button>
                     </form>
-
+                    }
                     <hr />
 
                     @if (!Model.Task.Comments.Any())
@@ -96,7 +112,13 @@
                         foreach (var c in Model.Task.Comments.OrderByDescending(x => x.CreatedAt))
                         {
                             <div class="border rounded p-2 mb-2">
-                                <div><small class="text-muted">@c.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small></div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                    <img src="@(c.User?.Employee?.ImageUrl ?? "/uploads/images/avatar-user.png")" alt="comment user" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" />
+                                    <div>
+                                        <div class="fw-semibold">@(c.User?.Employee != null ? $"{c.User.Employee.FirstName} {c.User.Employee.LastName}" : c.User?.UserName ?? "Unknown User")</div>
+                                        <small class="text-muted">@c.CreatedAt.ToString("yyyy-MM-dd HH:mm")</small>
+                                    </div>
+                                </div>
                                 <div>@c.Content</div>
                             </div>
                         }

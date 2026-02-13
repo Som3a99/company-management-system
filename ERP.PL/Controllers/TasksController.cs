@@ -132,12 +132,12 @@ namespace ERP.PL.Controllers
             if (userId == null)
                 return Unauthorized();
 
-            var request = new AddTaskCommentRequest(id, dto.Content);
+            var request = new AddTaskCommentRequest(id, dto.Content, dto.MentionedEmployeeIds);
             var result = await _taskService.AddCommentAsync(request, userId);
             if (!result.Succeeded)
                 return MapError(result.Error);
 
-            return Ok(new { result.Data!.Id, result.Data.Content, result.Data.CreatedAt });
+            return Ok(new { result.Data!.Id, result.Data.Content, result.Data.CreatedAt, result.Data.UserId });
         }
 
         [HttpGet]
@@ -204,7 +204,7 @@ namespace ERP.PL.Controllers
             t.CreatedAt,
             t.UpdatedAt,
             RowVersion = Convert.ToBase64String(t.RowVersion),
-            Comments = t.Comments.Select(c => new { c.Id, c.UserId, c.Content, c.CreatedAt })
+            Comments = t.Comments.Select(c => new { c.Id, c.UserId, c.Content, c.CreatedAt, UserName = c.User != null ? (c.User.Employee != null ? $"{c.User.Employee.FirstName} {c.User.Employee.LastName}" : c.User.UserName) : null, UserImage = c.User != null && c.User.Employee != null ? c.User.Employee.ImageUrl : null })
         };
 
         public record CreateTaskDto(
@@ -220,7 +220,7 @@ namespace ERP.PL.Controllers
         public record UpdateTaskDto(string Title, string? Description, TaskPriority Priority, DateTime? DueDate, DateTime? StartDate, decimal? EstimatedHours, string? RowVersion);
         public record UpdateTaskStatusDto(TaskStatus NewStatus, string? RowVersion);
         public record ReassignTaskDto(int AssignedToEmployeeId, string? RowVersion);
-        public record AddTaskCommentDto(string Content);
+        public record AddTaskCommentDto(string Content, IReadOnlyCollection<int>? MentionedEmployeeIds = null);
         public record RowVersionDto(string? RowVersion);
         public record TaskQueryDto(
             int PageNumber = 1,

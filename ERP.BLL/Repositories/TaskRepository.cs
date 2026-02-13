@@ -37,6 +37,7 @@ namespace ERP.BLL.Repositories
                 .ThenInclude(e => e.ApplicationUser)
                 .Include(t => t.Comments.OrderByDescending(c => c.CreatedAt))
                 .ThenInclude(c => c.User)
+                .ThenInclude(u => u.Employee)
                 .FirstOrDefaultAsync(t => t.Id == taskId);
         }
 

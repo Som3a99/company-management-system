@@ -23,15 +23,16 @@ namespace ERP.PL.Controllers
             _context = context;
         }
 
+        #region Index
         [HttpGet]
         public async Task<IActionResult> Index(
-            int pageNumber = 1,
-            int pageSize = 10,
-            int? projectId = null,
-            TaskStatus? status = null,
-            int? assigneeEmployeeId = null,
-            string? sortBy = "duedate",
-            bool descending = false)
+                        int pageNumber = 1,
+                        int pageSize = 10,
+                        int? projectId = null,
+                        TaskStatus? status = null,
+                        int? assigneeEmployeeId = null,
+                        string? sortBy = "duedate",
+                        bool descending = false)
         {
             var userId = GetCurrentUserId();
             if (userId == null)
@@ -64,7 +65,9 @@ namespace ERP.PL.Controllers
 
             return View(vm);
         }
+        #endregion
 
+        #region Create
         [HttpGet]
         [Authorize(Roles = "CEO,ProjectManager")]
         public async Task<IActionResult> Create(int? projectId = null)
@@ -110,7 +113,9 @@ namespace ERP.PL.Controllers
             TempData["SuccessMessage"] = "Task created successfully.";
             return RedirectToAction(nameof(Details), new { id = result.Data!.Id });
         }
+        #endregion
 
+        #region Edit
         [HttpGet]
         [Authorize(Roles = "CEO,ProjectManager")]
         public async Task<IActionResult> Edit(int id)
@@ -122,6 +127,12 @@ namespace ERP.PL.Controllers
             var task = await _taskService.GetTaskByIdAsync(id, userId);
             if (task == null)
                 return NotFound();
+
+            if (task.Status == TaskStatus.Completed || task.Status == TaskStatus.Cancelled)
+            {
+                TempData["ErrorMessage"] = "Completed or closed tasks cannot be edited.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
 
             var vm = new TaskUpsertViewModel
             {
@@ -194,7 +205,9 @@ namespace ERP.PL.Controllers
             TempData["SuccessMessage"] = "Task updated successfully.";
             return RedirectToAction(nameof(Details), new { id = vm.Id.Value });
         }
+        #endregion
 
+        #region Delete
         [HttpGet]
         [Authorize(Roles = "CEO,ProjectManager")]
         public async Task<IActionResult> Delete(int id)
@@ -229,7 +242,9 @@ namespace ERP.PL.Controllers
             TempData["SuccessMessage"] = "Task deleted successfully.";
             return RedirectToAction(nameof(Index));
         }
+        #endregion
 
+        #region Details
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
@@ -251,7 +266,9 @@ namespace ERP.PL.Controllers
             model.AssignableEmployees = await GetAssignableEmployeeOptionsAsync(task.ProjectId);
             return View(model);
         }
+        #endregion
 
+        #region Assign & Unassign
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "CEO,ProjectManager")]
@@ -279,7 +296,9 @@ namespace ERP.PL.Controllers
             TempData[result.Succeeded ? "SuccessMessage" : "ErrorMessage"] = result.Succeeded ? "Task unassigned." : result.Error;
             return RedirectToAction(nameof(Details), new { id });
         }
+        #endregion
 
+        #region UpdateStatus
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateStatus(int id, TaskStatus newStatus, string? rowVersion)
@@ -301,16 +320,18 @@ namespace ERP.PL.Controllers
             TempData["SuccessMessage"] = "Task status updated successfully.";
             return RedirectToAction(nameof(Details), new { id });
         }
+        #endregion
 
+        #region AddComment
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddComment(int id, string content)
+        public async Task<IActionResult> AddComment(int id, string content, List<int>? mentionedEmployeeIds)
         {
             var userId = GetCurrentUserId();
             if (userId == null)
                 return Challenge();
 
-            var result = await _taskService.AddCommentAsync(new AddTaskCommentRequest(id, content), userId);
+            var result = await _taskService.AddCommentAsync(new AddTaskCommentRequest(id, content, mentionedEmployeeIds), userId);
             if (!result.Succeeded)
             {
                 TempData["ErrorMessage"] = result.Error ?? "Unable to add comment.";
@@ -320,7 +341,9 @@ namespace ERP.PL.Controllers
             TempData["SuccessMessage"] = "Comment added successfully.";
             return RedirectToAction(nameof(Details), new { id });
         }
+        #endregion
 
+        #region Helper Methods
         private async Task PopulateOptionsAsync(TaskUpsertViewModel vm, int? projectId)
         {
             vm.ProjectOptions = await GetManageableProjectOptionsAsync();
@@ -387,6 +410,7 @@ namespace ERP.PL.Controllers
             {
                 return null;
             }
-        }
+        } 
+        #endregion
     }
 }

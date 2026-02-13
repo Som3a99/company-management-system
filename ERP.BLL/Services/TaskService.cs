@@ -121,6 +121,9 @@ namespace ERP.BLL.Services
             if (!CanManageProject(task.Project) && !(_httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false))
                 return TaskOperationResult.Forbidden();
 
+            if (IsTaskLocked(task))
+                return TaskOperationResult.Invalid("Completed or closed tasks cannot be edited.");
+
             if (request.RowVersion != null)
                 _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = request.RowVersion;
 
@@ -153,6 +156,9 @@ namespace ERP.BLL.Services
 
             if (!CanUpdateTaskStatus(task, currentUserId))
                 return TaskOperationResult.Forbidden();
+
+            if (IsTaskLocked(task))
+                return TaskOperationResult.Invalid("Completed or closed tasks cannot be edited.");
 
             if (!IsValidTransition(task.Status, request.NewStatus))
                 return TaskOperationResult.Invalid("Invalid status transition.");
@@ -190,6 +196,9 @@ namespace ERP.BLL.Services
             if (!CanManageProject(task.Project))
                 return TaskOperationResult.Forbidden();
 
+            if (IsTaskLocked(task))
+                return TaskOperationResult.Invalid("Completed or closed tasks cannot be edited.");
+
             if (task.ProjectId == null)
                 return TaskOperationResult.Invalid("Task is not associated with a project.");
 
@@ -224,6 +233,11 @@ namespace ERP.BLL.Services
 
             if (!CanManageProject(task.Project) && !(_httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false))
                 return TaskOperationResult.Forbidden();
+
+
+            if (IsTaskLocked(task))
+                return TaskOperationResult.Invalid("Completed or closed tasks cannot be edited.");
+
             if (request.RowVersion != null)
                 _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = request.RowVersion;
 
@@ -281,6 +295,22 @@ namespace ERP.BLL.Services
 
             if (!CanViewTask(task, currentUserId))
                 return TaskOperationResult<TaskComment>.Forbidden();
+
+            if (IsTaskLocked(task))
+                return TaskOperationResult<TaskComment>.Invalid("Completed or closed tasks cannot be edited.");
+
+            if (request.MentionedEmployeeIds != null && request.MentionedEmployeeIds.Count > 0)
+            {
+                if (!task.ProjectId.HasValue)
+                    return TaskOperationResult<TaskComment>.Invalid("Mentions require a task project.");
+
+                var mentionedIds = request.MentionedEmployeeIds.Where(id => id > 0).Distinct().ToList();
+                foreach (var mentionedId in mentionedIds)
+                {
+                    if (!await _taskRepository.IsEmployeeAssignedToProjectAsync(mentionedId, task.ProjectId.Value))
+                        return TaskOperationResult<TaskComment>.Invalid("Mentioned users must belong to the same project and task scope.");
+                }
+            }
 
             var comment = new TaskComment
             {
@@ -371,6 +401,11 @@ namespace ERP.BLL.Services
                 return true;
 
             return task.AssignedToEmployee?.ApplicationUserId == currentUserId;
+        }
+
+        private static bool IsTaskLocked(TaskItem task)
+        {
+            return task.Status == TaskStatus.Completed || task.Status == TaskStatus.Cancelled;
         }
 
         private async Task WriteAuditLogAsync(string userId, string action, int taskId, object details, bool succeeded = true, string? errorMessage = null)
