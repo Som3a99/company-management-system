@@ -1,8 +1,10 @@
 ﻿using ERP.BLL.Common;
 using ERP.BLL.Interfaces;
+using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
 
 namespace ERP.BLL.Services
@@ -14,12 +16,14 @@ namespace ERP.BLL.Services
         private readonly IEmployeeRepository _employeeRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ApplicationDbContext _dbContext;
 
         private static readonly Dictionary<TaskStatus, HashSet<TaskStatus>> AllowedTransitions = new()
         {
             [TaskStatus.New] = new HashSet<TaskStatus> { TaskStatus.InProgress, TaskStatus.Cancelled },
-            [TaskStatus.InProgress] = new HashSet<TaskStatus> { TaskStatus.Blocked, TaskStatus.Completed, TaskStatus.Cancelled },
             [TaskStatus.Blocked] = new HashSet<TaskStatus> { TaskStatus.InProgress, TaskStatus.Cancelled },
+            [TaskStatus.InProgress] = new HashSet<TaskStatus> { TaskStatus.Blocked, TaskStatus.Completed },
+            [TaskStatus.Blocked] = new HashSet<TaskStatus> { TaskStatus.InProgress },
             [TaskStatus.Completed] = new HashSet<TaskStatus>(),
             [TaskStatus.Cancelled] = new HashSet<TaskStatus>()
         };
@@ -29,17 +33,22 @@ namespace ERP.BLL.Services
             IProjectRepository projectRepository,
             IEmployeeRepository employeeRepository,
             IUnitOfWork unitOfWork,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            ApplicationDbContext dbContext)
         {
             _taskRepository = taskRepository;
             _projectRepository = projectRepository;
             _employeeRepository = employeeRepository;
             _unitOfWork = unitOfWork;
             _httpContextAccessor = httpContextAccessor;
+            _dbContext = dbContext;
         }
 
         public async Task<TaskOperationResult<TaskItem>> CreateTaskAsync(CreateTaskRequest request, string currentUserId)
         {
+            if (string.IsNullOrWhiteSpace(request.Title))
+                return TaskOperationResult<TaskItem>.Invalid("Task title is required.");
+
             if (request.DueDate.HasValue && request.StartDate.HasValue && request.DueDate.Value < request.StartDate.Value)
                 return TaskOperationResult<TaskItem>.Invalid("Due date cannot be before start date.");
 
@@ -79,8 +88,18 @@ namespace ERP.BLL.Services
 
             await _taskRepository.AddAsync(entity);
             await _unitOfWork.CompleteAsync();
+            await WriteAuditLogAsync(currentUserId, "TASK_CREATE", entity.Id, new { entity.ProjectId, entity.AssignedToEmployeeId, entity.Priority });
 
             return TaskOperationResult<TaskItem>.Success(entity);
+        }
+
+        public async Task<TaskItem?> GetTaskByIdAsync(int taskId, string currentUserId)
+        {
+            var task = await _taskRepository.GetTaskByIdWithDetailsAsync(taskId);
+            if (task == null)
+                return null;
+
+            return CanViewTask(task, currentUserId) ? task : null;
         }
 
         public async Task<TaskOperationResult> UpdateTaskStatusAsync(UpdateTaskStatusRequest request, string currentUserId)
@@ -95,6 +114,12 @@ namespace ERP.BLL.Services
             if (!IsValidTransition(task.Status, request.NewStatus))
                 return TaskOperationResult.Invalid("Invalid status transition.");
 
+
+            if (request.RowVersion != null)
+                _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = request.RowVersion;
+
+            var oldStatus = task.Status;
+
             task.Status = request.NewStatus;
             task.UpdatedAt = DateTime.UtcNow;
             task.CompletedAt = request.NewStatus == TaskStatus.Completed ? DateTime.UtcNow : null;
@@ -102,9 +127,11 @@ namespace ERP.BLL.Services
             try
             {
                 await _unitOfWork.CompleteAsync();
+                await WriteAuditLogAsync(currentUserId, "TASK_STATUS_UPDATE", task.Id, new { OldStatus = oldStatus.ToString(), NewStatus = request.NewStatus.ToString() });
             }
             catch (DbUpdateConcurrencyException)
             {
+                await WriteAuditLogAsync(currentUserId, "TASK_STATUS_UPDATE_DENIED", task.Id, new { Reason = "ConcurrencyConflict" }, false, "Task was modified by another user.");
                 return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
             }
 
@@ -126,39 +153,17 @@ namespace ERP.BLL.Services
             if (!await _taskRepository.IsEmployeeAssignedToProjectAsync(request.AssignedToEmployeeId, task.ProjectId.Value))
                 return TaskOperationResult.Invalid("Employee must be assigned to the same project.");
 
+            if (request.RowVersion != null)
+                _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = request.RowVersion;
+
+            var previousAssignee = task.AssignedToEmployeeId;
             task.AssignedToEmployeeId = request.AssignedToEmployeeId;
             task.UpdatedAt = DateTime.UtcNow;
 
             try
             {
                 await _unitOfWork.CompleteAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
-            }
-
-            return TaskOperationResult.Success();
-        }
-
-        public async Task<TaskOperationResult> LogActualHoursAsync(LogTaskHoursRequest request, string currentUserId)
-        {
-            if (request.AdditionalHours <= 0)
-                return TaskOperationResult.Invalid("Hours must be greater than zero.");
-
-            var task = await _taskRepository.GetTaskWithScopeDataAsync(request.TaskId);
-            if (task == null)
-                return TaskOperationResult.NotFound();
-
-            if (!CanUpdateOwnTask(task, currentUserId) && !CanManageProject(task.Project))
-                return TaskOperationResult.Forbidden();
-
-            task.ActualHours += request.AdditionalHours;
-            task.UpdatedAt = DateTime.UtcNow;
-
-            try
-            {
-                await _unitOfWork.CompleteAsync();
+                await WriteAuditLogAsync(currentUserId, "TASK_REASSIGN", task.Id, new { OldAssigneeEmployeeId = previousAssignee, NewAssigneeEmployeeId = request.AssignedToEmployeeId });
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -177,7 +182,7 @@ namespace ERP.BLL.Services
             if (task == null)
                 return TaskOperationResult<TaskComment>.NotFound();
 
-            if (!CanUpdateOwnTask(task, currentUserId) && !CanManageProject(task.Project) && !(_httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false))
+            if (!CanViewTask(task, currentUserId))
                 return TaskOperationResult<TaskComment>.Forbidden();
 
             var comment = new TaskComment
@@ -192,13 +197,26 @@ namespace ERP.BLL.Services
             task.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.CompleteAsync();
-
+            await WriteAuditLogAsync(currentUserId, "TASK_COMMENT_ADD", task.Id, new { CommentId = comment.Id });
             return TaskOperationResult<TaskComment>.Success(comment);
         }
 
-        public async Task<IEnumerable<TaskItem>> GetVisibleTasksAsync(string currentUserId)
+        public Task<PagedResult<TaskItem>> GetTasksForUserAsync(TaskQueryRequest request, string currentUserId)
         {
-            return await _taskRepository.GetVisibleTasksAsync(currentUserId);
+            return _taskRepository.GetTasksPagedAsync(
+                request.PageNumber,
+                request.PageSize,
+                request.ProjectId,
+                request.Status,
+                request.AssigneeEmployeeId,
+                request.SortBy,
+                request.Descending,
+                currentUserId);
+        }
+
+        public Task<PagedResult<TaskItem>> GetTasksForProjectManagerAsync(TaskQueryRequest request, string currentUserId)
+        {
+            return GetTasksForUserAsync(request, currentUserId);
         }
 
         public bool IsValidTransition(TaskStatus oldStatus, TaskStatus newStatus)
@@ -218,6 +236,9 @@ namespace ERP.BLL.Services
             if (user.IsInRole("CEO"))
                 return true;
 
+            if (!user.IsInRole("ProjectManager"))
+                return false;
+
             var managerEmployeeIdClaim = user.FindFirst("EmployeeId")?.Value;
             if (int.TryParse(managerEmployeeIdClaim, out var managerEmployeeId))
                 return project.ProjectManagerId == managerEmployeeId;
@@ -225,9 +246,23 @@ namespace ERP.BLL.Services
             return false;
         }
 
-        private bool CanUpdateOwnTask(TaskItem task, string currentUserId)
+        private bool CanViewTask(TaskItem task, string currentUserId)
         {
-            return task.AssignedToEmployee.ApplicationUserId == currentUserId;
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null)
+                return false;
+
+            if (user.IsInRole("CEO"))
+                return true;
+
+            if (CanManageProject(task.Project))
+                return true;
+
+            var managedDepartmentIdClaim = user.FindFirst("ManagedDepartmentId")?.Value;
+            if (int.TryParse(managedDepartmentIdClaim, out var managedDepartmentId) && task.AssignedToEmployee?.DepartmentId == managedDepartmentId)
+                return true;
+
+            return task.AssignedToEmployee?.ApplicationUserId == currentUserId;
         }
 
         private bool CanUpdateTaskStatus(TaskItem task, string currentUserId)
@@ -238,7 +273,30 @@ namespace ERP.BLL.Services
             if (CanManageProject(task.Project))
                 return true;
 
-            return CanUpdateOwnTask(task, currentUserId);
+            return task.AssignedToEmployee?.ApplicationUserId == currentUserId;
+        }
+
+        private async Task WriteAuditLogAsync(string userId, string action, int taskId, object details, bool succeeded = true, string? errorMessage = null)
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var audit = new AuditLog
+            {
+                UserId = userId,
+                UserEmail = user?.Identity?.Name ?? "unknown",
+                Action = action,
+                ResourceType = "Task",
+                ResourceId = taskId,
+                Details = JsonSerializer.Serialize(details),
+                Succeeded = succeeded,
+                ErrorMessage = errorMessage,
+                Timestamp = DateTime.UtcNow,
+                IpAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString(),
+                UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
+            };
+
+            _dbContext.AuditLogs.Add(audit);
+            await _dbContext.SaveChangesAsync();
+
         }
     }
 }

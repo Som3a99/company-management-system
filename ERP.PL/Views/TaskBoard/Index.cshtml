@@ -1,0 +1,91 @@
+﻿@using TaskStatus = ERP.DAL.Models.TaskStatus;
+@model TaskBoardIndexViewModel
+@{
+    ViewData["Title"] = "Tasks Dashboard";
+}
+
+<div class="container-fluid px-4 py-3">
+    <h2 class="mb-3">Tasks Dashboard</h2>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card"><div class="card-body"><small>New</small><h4>@Model.NewCount</h4></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><small>In Progress</small><h4>@Model.InProgressCount</h4></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><small>Blocked</small><h4>@Model.BlockedCount</h4></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><small>Completed</small><h4>@Model.CompletedCount</h4></div></div></div>
+    </div>
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2">
+            <input type="number" class="form-control" name="projectId" value="@Model.ProjectId" placeholder="Project Id" />
+        </div>
+        <div class="col-md-2">
+            <input type="number" class="form-control" name="assigneeEmployeeId" value="@Model.AssigneeEmployeeId" placeholder="Assignee Id" />
+        </div>
+        <div class="col-md-2">
+            <select name="status" class="form-select">
+                <option value="">All statuses</option>
+                @foreach (var st in Enum.GetValues<TaskStatus>())
+                {
+                    if (st == TaskStatus.None) { continue; }
+                    <option value="@st" selected="@(Model.Status == st)">@st</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="sortBy" class="form-select">
+                <option value="duedate" selected="@(Model.SortBy == "duedate")">Due Date</option>
+                <option value="priority" selected="@(Model.SortBy == "priority")">Priority</option>
+                <option value="status" selected="@(Model.SortBy == "status")">Status</option>
+                <option value="createdat" selected="@(Model.SortBy == "createdat")">Created At</option>
+            </select>
+        </div>
+        <div class="col-md-2 form-check d-flex align-items-center ms-2">
+            <input class="form-check-input" type="checkbox" name="descending" value="true" checked="@Model.Descending" id="descending" />
+            <label class="form-check-label ms-2" for="descending">Descending</label>
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100">Filter</button>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Title</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Assignee</th>
+                        <th>Due Date</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Tasks.Any())
+                    {
+                        <tr><td colspan="7" class="text-center py-3">No tasks found.</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var task in Model.Tasks)
+                        {
+                            <tr>
+                                <td>@task.Id</td>
+                                <td>@task.Title</td>
+                                <td>@task.Status</td>
+                                <td>@task.Priority</td>
+                                <td>@task.AssignedToEmployeeId</td>
+                                <td>@task.DueDate?.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@task.Id" class="btn btn-sm btn-outline-primary">Open</a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

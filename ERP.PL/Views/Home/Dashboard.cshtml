@@ -58,6 +58,75 @@
         </div>
 
         <div class="col-lg-4 col-md-6">
+            <div class="card card-featured h-100" data-badge="Project portfolio">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h5 class="card-title">Project Management</h5>
+                    <p class="card-text">Oversee project portfolios, manage budgets and timelines, track progress, and coordinate team assignments across all initiatives.</p>
+                    <a asp-controller="Project" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                        <span>Access Projects</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card card-featured h-100" data-badge="Operational productivity">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                            <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                            <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                            <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                    </div>
+                    <h5 class="card-title">Tasks Overview</h5>
+                    <p class="card-text">Track and manage your assigned tasks, monitor progress, and collaborate with your team on active assignments.</p>
+                    <div class="mb-3">
+                        <p class="mb-1"><strong>Visible tasks:</strong> @Model.VisibleTasks</p>
+                        <p class="mb-0"><strong>In progress:</strong> @Model.MyOpenTasks</p>
+                    </div>
+                    <a asp-controller="TaskBoard" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                        <span>Open Tasks Dashboard</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="col-lg-4 col-md-6">
+            <div class="card card-featured h-100" data-badge="Security & access">
+                <div class="card-body">
+                    <div class="card-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </div>
+                    <h5 class="card-title">User Account Management</h5>
+                    <p class="card-text">Create and manage system user accounts, assign roles and permissions, monitor security, and control access across the platform.</p>
+                    <a asp-controller="UserManagement" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                        <span>Access User Accounts</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4 col-md-6">
             <div class="card h-100">
                 <div class="card-body">
                     <div class="card-icon">

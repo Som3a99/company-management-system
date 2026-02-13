@@ -22,6 +22,11 @@ namespace ERP.DAL.Data.Configurations
             builder.Property(c => c.CreatedAt)
                 .HasDefaultValueSql("GETUTCDATE()");
 
+            builder.HasOne(c => c.Task)
+                   .WithMany(t => t.Comments)
+                   .HasForeignKey(c => c.TaskId)
+                   .OnDelete(DeleteBehavior.Cascade);
+
             builder.HasOne(c => c.User)
                 .WithMany(u => u.TaskComments)
                 .HasForeignKey(c => c.UserId)

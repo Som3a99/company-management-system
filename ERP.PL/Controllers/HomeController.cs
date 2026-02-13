@@ -1,3 +1,5 @@
+using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using ERP.PL.ViewModels;
@@ -15,12 +17,14 @@ namespace ERP.PL.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ITaskService _taskService;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager, ITaskService taskService)
         {
             _logger = logger;
-            _context=context;
-            _userManager=userManager;
+            _context = context;
+            _userManager = userManager;
+            _taskService = taskService;
         }
 
         // Public homepage - accessible to anyone
@@ -55,12 +59,26 @@ namespace ERP.PL.Controllers
                 ? 100
                 : (int)Math.Round((activeHealthyAccounts / (double)totalUserAccounts) * 100, MidpointRounding.AwayFromZero);
 
+            var currentUserId = _userManager.GetUserId(User);
+            var visibleTasks = 0;
+            var myOpenTasks = 0;
+
+            if (!string.IsNullOrWhiteSpace(currentUserId))
+            {
+                var visible = await _taskService.GetTasksForUserAsync(new TaskQueryRequest(PageNumber: 1, PageSize: 1), currentUserId);
+                var open = await _taskService.GetTasksForUserAsync(new TaskQueryRequest(PageNumber: 1, PageSize: 1, Status: ERP.DAL.Models.TaskStatus.InProgress), currentUserId);
+                visibleTasks = visible.TotalCount;
+                myOpenTasks = open.TotalCount;
+            }
+
             var viewModel = new HomeDashboardViewModel
             {
                 ActiveDepartments = activeDepartments,
                 TotalEmployees = totalEmployees,
                 ActiveProjects = activeProjects,
-                SystemHealthPercentage = Math.Clamp(systemHealth, 0, 100)
+                SystemHealthPercentage = Math.Clamp(systemHealth, 0, 100),
+                VisibleTasks = visibleTasks,
+                MyOpenTasks = myOpenTasks
             };
 
             return View(viewModel);
