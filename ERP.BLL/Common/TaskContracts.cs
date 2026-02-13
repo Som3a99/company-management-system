@@ -12,8 +12,20 @@ namespace ERP.BLL.Common
         DateTime? StartDate,
         decimal? EstimatedHours);
 
+
+    public record UpdateTaskRequest(
+    int TaskId,
+    string Title,
+    string? Description,
+    TaskPriority Priority,
+    DateTime? DueDate,
+    DateTime? StartDate,
+    decimal? EstimatedHours,
+    byte[]? RowVersion = null);
+
     public record UpdateTaskStatusRequest(int TaskId, TaskStatus NewStatus, byte[]? RowVersion = null);
     public record ReassignTaskRequest(int TaskId, int AssignedToEmployeeId, byte[]? RowVersion = null);
+    public record UnassignTaskRequest(int TaskId, byte[]? RowVersion = null);
     public record AddTaskCommentRequest(int TaskId, string Content);
 
     public record TaskQueryRequest(

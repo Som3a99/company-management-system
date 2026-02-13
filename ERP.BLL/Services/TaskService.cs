@@ -5,6 +5,7 @@ using ERP.DAL.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Threading.Tasks;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
 
 namespace ERP.BLL.Services
@@ -102,6 +103,48 @@ namespace ERP.BLL.Services
             return CanViewTask(task, currentUserId) ? task : null;
         }
 
+        public async Task<TaskOperationResult> UpdateTaskAsync(UpdateTaskRequest request, string currentUserId)
+        {
+            if (string.IsNullOrWhiteSpace(request.Title))
+                return TaskOperationResult.Invalid("Task title is required.");
+
+            if (request.DueDate.HasValue && request.StartDate.HasValue && request.DueDate.Value < request.StartDate.Value)
+                return TaskOperationResult.Invalid("Due date cannot be before start date.");
+
+            if (request.EstimatedHours.HasValue && request.EstimatedHours.Value < 0)
+                return TaskOperationResult.Invalid("Estimated hours cannot be negative.");
+
+            var task = await _taskRepository.GetTaskWithScopeDataAsync(request.TaskId);
+            if (task == null)
+                return TaskOperationResult.NotFound();
+
+            if (!CanManageProject(task.Project) && !(_httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false))
+                return TaskOperationResult.Forbidden();
+
+            if (request.RowVersion != null)
+                _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = request.RowVersion;
+
+            task.Title = request.Title.Trim();
+            task.Description = request.Description?.Trim();
+            task.Priority = request.Priority;
+            task.StartDate = request.StartDate;
+            task.DueDate = request.DueDate;
+            task.EstimatedHours = request.EstimatedHours;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _unitOfWork.CompleteAsync();
+                await WriteAuditLogAsync(currentUserId, "TASK_UPDATE", task.Id, new { task.Title, task.Priority, task.DueDate, task.StartDate });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
+            }
+
+            return TaskOperationResult.Success();
+        }
+
         public async Task<TaskOperationResult> UpdateTaskStatusAsync(UpdateTaskStatusRequest request, string currentUserId)
         {
             var task = await _taskRepository.GetTaskWithScopeDataAsync(request.TaskId);
@@ -164,6 +207,60 @@ namespace ERP.BLL.Services
             {
                 await _unitOfWork.CompleteAsync();
                 await WriteAuditLogAsync(currentUserId, "TASK_REASSIGN", task.Id, new { OldAssigneeEmployeeId = previousAssignee, NewAssigneeEmployeeId = request.AssignedToEmployeeId });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
+            }
+
+            return TaskOperationResult.Success();
+        }
+
+        public async Task<TaskOperationResult> UnassignTaskAsync(UnassignTaskRequest request, string currentUserId)
+        {
+            var task = await _taskRepository.GetTaskWithScopeDataAsync(request.TaskId);
+            if (task == null)
+                return TaskOperationResult.NotFound();
+
+            if (!CanManageProject(task.Project) && !(_httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false))
+                return TaskOperationResult.Forbidden();
+            if (request.RowVersion != null)
+                _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = request.RowVersion;
+
+            task.AssignedToEmployeeId = null;
+            task.UpdatedAt = DateTime.UtcNow;
+
+            try
+            {
+                await _unitOfWork.CompleteAsync();
+                await WriteAuditLogAsync(currentUserId, "TASK_UNASSIGN", task.Id, new { });
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
+            }
+
+            return TaskOperationResult.Success();
+        }
+
+        public async Task<TaskOperationResult> DeleteTaskAsync(int taskId, byte[]? rowVersion, string currentUserId)
+        {
+            var task = await _taskRepository.GetTaskWithScopeDataAsync(taskId);
+            if (task == null)
+                return TaskOperationResult.NotFound();
+
+            if (!CanManageProject(task.Project) && !(_httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false))
+                return TaskOperationResult.Forbidden();
+
+            if (rowVersion != null)
+                _dbContext.Entry(task).Property(t => t.RowVersion).OriginalValue = rowVersion;
+
+            _dbContext.TaskItems.Remove(task);
+
+            try
+            {
+                await _unitOfWork.CompleteAsync();
+                await WriteAuditLogAsync(currentUserId, "TASK_DELETE", taskId, new { });
             }
             catch (DbUpdateConcurrencyException)
             {

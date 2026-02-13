@@ -1,0 +1,47 @@
+﻿@model TaskUpsertViewModel
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="ProjectId" class="form-label">Project</label>
+        @if (Model.Id.HasValue)
+        {
+            <select asp-for="ProjectId" asp-items="Model.ProjectOptions" class="form-select" disabled></select>
+            <input type="hidden" asp-for="ProjectId" />
+        }
+        else
+        {
+            <select asp-for="ProjectId" asp-items="Model.ProjectOptions" class="form-select"></select>
+        }
+    </div>
+    <div class="col-md-3">
+        <label asp-for="AssignedToEmployeeId" class="form-label">Assignee</label>
+        <select asp-for="AssignedToEmployeeId" asp-items="Model.AssigneeOptions" class="form-select">
+            <option value="">-- Unassigned --</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Priority" class="form-label"></label>
+        <select asp-for="Priority" class="form-select" asp-items="Html.GetEnumSelectList<ERP.DAL.Models.TaskPriority>()"></select>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="StartDate" class="form-label"></label>
+        <input asp-for="StartDate" type="date" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label asp-for="DueDate" class="form-label"></label>
+        <input asp-for="DueDate" type="date" class="form-control" />
+    </div>
+    <div class="col-md-3">
+        <label asp-for="EstimatedHours" class="form-label"></label>
+        <input asp-for="EstimatedHours" class="form-control" />
+    </div>
+    <div class="col-12">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+    </div>
+</div>

@@ -58,6 +58,20 @@ namespace ERP.PL.Controllers
             return Ok(ToResponse(task));
         }
 
+
+        [HttpPut("{id:int}")]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> UpdateTask(int id, [FromBody] UpdateTaskDto dto)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var request = new UpdateTaskRequest(id, dto.Title, dto.Description, dto.Priority, dto.DueDate, dto.StartDate, dto.EstimatedHours, ParseRowVersion(dto.RowVersion));
+            var result = await _taskService.UpdateTaskAsync(request, userId);
+            return result.Succeeded ? NoContent() : MapError(result.Error);
+        }
+
         [HttpPut("{id:int}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateTaskStatusDto dto)
         {
@@ -82,6 +96,32 @@ namespace ERP.PL.Controllers
             var request = new ReassignTaskRequest(id, dto.AssignedToEmployeeId, ParseRowVersion(dto.RowVersion));
             var result = await _taskService.ReassignTaskAsync(request, userId);
 
+            return result.Succeeded ? NoContent() : MapError(result.Error);
+        }
+
+
+        [HttpPut("{id:int}/unassign")]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> Unassign(int id, [FromBody] RowVersionDto dto)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var request = new UnassignTaskRequest(id, ParseRowVersion(dto.RowVersion));
+            var result = await _taskService.UnassignTaskAsync(request, userId);
+            return result.Succeeded ? NoContent() : MapError(result.Error);
+        }
+
+        [HttpDelete("{id:int}")]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> DeleteTask(int id, [FromBody] RowVersionDto dto)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized();
+
+            var result = await _taskService.DeleteTaskAsync(id, ParseRowVersion(dto.RowVersion), userId);
             return result.Succeeded ? NoContent() : MapError(result.Error);
         }
 
@@ -177,9 +217,11 @@ namespace ERP.PL.Controllers
             DateTime? StartDate,
             decimal? EstimatedHours);
 
+        public record UpdateTaskDto(string Title, string? Description, TaskPriority Priority, DateTime? DueDate, DateTime? StartDate, decimal? EstimatedHours, string? RowVersion);
         public record UpdateTaskStatusDto(TaskStatus NewStatus, string? RowVersion);
         public record ReassignTaskDto(int AssignedToEmployeeId, string? RowVersion);
         public record AddTaskCommentDto(string Content);
+        public record RowVersionDto(string? RowVersion);
         public record TaskQueryDto(
             int PageNumber = 1,
             int PageSize = 10,

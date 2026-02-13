@@ -1,4 +1,5 @@
 ﻿using ERP.DAL.Models;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
 
 namespace ERP.PL.ViewModels.Tasks
@@ -12,5 +13,6 @@ namespace ERP.PL.ViewModels.Tasks
         public TaskStatus NewStatus { get; set; }
         public string? RowVersionBase64 { get; set; }
         public string? CommentContent { get; set; }
+        public List<SelectListItem> AssignableEmployees { get; set; } = new();
     }
 }
