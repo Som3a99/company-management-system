@@ -1,0 +1,18 @@
+﻿@model ReportingIndexViewModel
+@{
+    ViewData["Title"] = "Audit Reports";
+}
+<div class="container-fluid px-4 py-4">
+    <h2>Reports - Phase 2 (Audit, CEO only)</h2>
+    <div class="table-responsive">
+        <table class="table table-striped table-sm">
+            <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Resource</th><th>Succeeded</th><th>Error</th></tr></thead>
+            <tbody>
+                @foreach (var row in Model.AuditRows)
+                {
+                    <tr><td>@row.TimestampUtc.ToString("u")</td><td>@row.UserEmail</td><td>@row.Action</td><td>@row.ResourceType:@row.ResourceId</td><td>@row.Succeeded</td><td>@row.ErrorMessage</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

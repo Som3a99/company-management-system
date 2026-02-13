@@ -1,4 +1,6 @@
 using ERP.BLL.Interfaces;
+using ERP.BLL.Reporting.Interfaces;
+using ERP.BLL.Reporting.Services;
 using ERP.BLL.Repositories;
 using ERP.BLL.Services;
 using ERP.DAL.Data.Contexts;
@@ -45,6 +47,7 @@ namespace ERP.PL
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<ITaskRepository, TaskRepository>();
             builder.Services.AddScoped<ITaskService, TaskService>();
+            builder.Services.AddScoped<IReportingService, ReportingService>();
 
             // Custom Claims Principal Factory to add extra claims for authorization
             builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>,ApplicationUserClaimsPrincipalFactory>();
