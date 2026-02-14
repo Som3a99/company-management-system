@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,6 +31,11 @@
                     <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
                             <a class="nav-link" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                        </li>
+                        <li class="nav-item d-flex align-items-center">
+                            <button type="button" class="nav-link theme-toggle-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+                                <i class="fas fa-moon" data-theme-icon></i>
+                            </button>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link btn btn-outline-primary ms-2" asp-controller="Account" asp-action="Login">
