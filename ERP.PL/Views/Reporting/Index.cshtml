@@ -1,81 +1,104 @@
 ﻿@model ReportingIndexViewModel
 @{
-    ViewData["Title"] = "Task & Project Reports";
+    ViewData["Title"] = "Operational Reports";
 }
 
 <div class="container-fluid px-4 py-4">
-    <h2>Reports - Phase 1</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Operational Reports</h2>
+        <a class="btn btn-outline-dark" asp-action="Jobs">Async Jobs & Presets</a>
+    </div>
 
-    <form method="get" class="row g-3 mb-3">
-        <div class="col-md-2">
-            <label class="form-label">Start Date (UTC)</label>
-            <input asp-for="Filters.StartDateUtc" type="date" class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">End Date (UTC)</label>
-            <input asp-for="Filters.EndDateUtc" type="date" class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Department Id</label>
-            <input asp-for="Filters.DepartmentId" class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Project Id</label>
-            <input asp-for="Filters.ProjectId" class="form-control" />
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Export</label>
-            <select asp-for="Filters.Export" class="form-select" asp-items="Html.GetEnumSelectList<ERP.PL.ViewModels.Reporting.ReportExportFormat>()"></select>
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button class="btn btn-primary w-100" type="submit">Apply</button>
+    <form method="get" class="card card-body mb-4">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">Start Date (UTC)</label>
+                <input asp-for="Filters.StartDateUtc" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">End Date (UTC)</label>
+                <input asp-for="Filters.EndDateUtc" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Department Id</label>
+                <input asp-for="Filters.DepartmentId" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Project Id</label>
+                <input asp-for="Filters.ProjectId" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Export Format</label>
+                <select asp-for="Filters.Export" class="form-select" asp-items="Html.GetEnumSelectList<ERP.PL.ViewModels.Reporting.ReportExportFormat>()"></select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100" type="submit">Apply Filters</button>
+            </div>
         </div>
     </form>
 
-    <div class="d-flex gap-2 mb-3">
-        <a class="btn btn-outline-secondary" asp-action="ExportTasks" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Tasks</a>
-        <a class="btn btn-outline-secondary" asp-action="ExportProjects" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Projects</a>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Total Tasks</small><h4>@Model.Widget.TotalTasks</h4></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Overdue Tasks</small><h4 class="text-danger">@Model.Widget.OverdueTasks</h4></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Total Projects</small><h4>@Model.Widget.TotalProjects</h4></div></div></div>
+        <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Active Projects</small><h4 class="text-success">@Model.Widget.ActiveProjects</h4></div></div></div>
     </div>
 
-    <h4>Tasks</h4>
-    <div class="table-responsive mb-4">
-        <table class="table table-striped table-sm">
-            <thead><tr><th>Id</th><th>Title</th><th>Status</th><th>Priority</th><th>Project</th><th>Assignee</th><th>Due</th></tr></thead>
-            <tbody>
-                @foreach (var row in Model.TaskRows)
-                {
-                    <tr>
-                        <td>@row.TaskId</td>
-                        <td>@row.Title</td>
-                        <td>@row.Status</td>
-                        <td>@row.Priority</td>
-                        <td>@row.Project</td>
-                        <td>@row.Assignee</td>
-                        <td>@row.DueDateUtc?.ToString("u")</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="d-flex gap-2 mb-2">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="ExportTasks" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Tasks</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="ExportProjects" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Projects</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Department">Department Reports</a>
+        @if (User.IsInRole("CEO"))
+        {
+            <a class="btn btn-outline-secondary btn-sm" asp-action="Audit">Audit Reports</a>
+        }
     </div>
 
-    <h4>Projects</h4>
-    <div class="table-responsive">
-        <table class="table table-striped table-sm">
-            <thead><tr><th>Id</th><th>Code</th><th>Name</th><th>Department</th><th>Status</th><th>Budget</th><th>Completed/Total Tasks</th></tr></thead>
-            <tbody>
-                @foreach (var row in Model.ProjectRows)
-                {
-                    <tr>
-                        <td>@row.ProjectId</td>
-                        <td>@row.ProjectCode</td>
-                        <td>@row.ProjectName</td>
-                        <td>@row.DepartmentName</td>
-                        <td>@row.Status</td>
-                        <td>@row.Budget</td>
-                        <td>@row.CompletedTasks/@row.TotalTasks</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    <div class="card mb-4">
+        <div class="card-header fw-bold">Task Report</div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover table-sm mb-0">
+                <thead class="table-light"><tr><th>Id</th><th>Title</th><th>Status</th><th>Priority</th><th>Project</th><th>Assignee</th><th>Due (UTC)</th><th>Hours (Est/Actual)</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.TaskRows)
+                    {
+                        <tr>
+                            <td>@row.TaskId</td>
+                            <td>@row.Title</td>
+                            <td>@row.Status</td>
+                            <td>@row.Priority</td>
+                            <td>@row.Project</td>
+                            <td>@row.Assignee</td>
+                            <td>@row.DueDateUtc?.ToString("u")</td>
+                            <td>@row.EstimatedHours / @row.ActualHours</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header fw-bold">Project Report</div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover table-sm mb-0">
+                <thead class="table-light"><tr><th>Id</th><th>Code</th><th>Name</th><th>Department</th><th>Status</th><th>Budget</th><th>Task Completion</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.ProjectRows)
+                    {
+                        var percent = row.TotalTasks == 0 ? 0 : (int)Math.Round((double)row.CompletedTasks * 100 / row.TotalTasks);
+                        <tr>
+                            <td>@row.ProjectId</td>
+                            <td>@row.ProjectCode</td>
+                            <td>@row.ProjectName</td>
+                            <td>@row.DepartmentName</td>
+                            <td>@row.Status</td>
+                            <td>@row.Budget</td>
+                            <td>@row.CompletedTasks/@row.TotalTasks (@percent%)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>

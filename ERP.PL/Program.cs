@@ -48,6 +48,10 @@ namespace ERP.PL
             builder.Services.AddScoped<ITaskRepository, TaskRepository>();
             builder.Services.AddScoped<ITaskService, TaskService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
+            builder.Services.AddScoped<ITaskService, TaskService>();
+            builder.Services.AddScoped<IReportingService, ReportingService>();
+            builder.Services.AddScoped<IReportJobService, ReportJobService>();
+            builder.Services.AddHostedService<ReportJobWorkerService>();
 
             // Custom Claims Principal Factory to add extra claims for authorization
             builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>,ApplicationUserClaimsPrincipalFactory>();

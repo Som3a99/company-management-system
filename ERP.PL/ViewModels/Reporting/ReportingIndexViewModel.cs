@@ -9,5 +9,6 @@ namespace ERP.PL.ViewModels.Reporting
         public IReadOnlyList<ProjectReportRowDto> ProjectRows { get; set; } = [];
         public IReadOnlyList<DepartmentReportRowDto> DepartmentRows { get; set; } = [];
         public IReadOnlyList<AuditReportRowDto> AuditRows { get; set; } = [];
+        public ReportWidgetViewModel Widget { get; set; } = new();
     }
 }

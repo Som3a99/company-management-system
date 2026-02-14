@@ -20,6 +20,8 @@ namespace ERP.DAL.Data.Contexts
         public DbSet<ProjectEmployee> ProjectEmployees { get; set; } = null!;
         public DbSet<TaskItem> TaskItems { get; set; } = null!;
         public DbSet<TaskComment> TaskComments { get; set; } = null!;
+        public DbSet<ReportJob> ReportJobs { get; set; } = null!;
+        public DbSet<ReportPreset> ReportPresets { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -58,6 +60,20 @@ namespace ERP.DAL.Data.Contexts
                 entity.HasIndex(p => p.Status);
                 entity.HasIndex(p => new { p.UserId, p.Status });
                 entity.HasIndex(p => p.ExpiresAt);
+            });
+
+            modelBuilder.Entity<ReportJob>(entity =>
+            {
+                entity.ToTable("ReportJobs");
+                entity.HasIndex(r => new { r.Status, r.RequestedAtUtc });
+                entity.HasIndex(r => r.RequestedByUserId);
+            });
+
+            modelBuilder.Entity<ReportPreset>(entity =>
+            {
+                entity.ToTable("ReportPresets");
+                entity.Property(r => r.Name).HasMaxLength(120).IsRequired();
+                entity.HasIndex(r => new { r.UserId, r.ReportType, r.Name }).IsUnique();
             });
 
             // Apply existing configurations

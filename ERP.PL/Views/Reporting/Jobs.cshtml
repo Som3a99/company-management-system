@@ -1,0 +1,108 @@
+﻿@model ReportJobsViewModel
+
+@{
+    ViewData["Title"] = "Report Jobs & Presets";
+}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Async Report Jobs & Saved Presets</h2>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary" asp-action="Jobs">Refresh</a>
+            <a class="btn btn-outline-dark" asp-action="Index">Back to Reports</a>
+        </div>
+    </div>
+
+    <p class="text-muted">Use this screen to queue long-running exports, monitor status, and reuse saved report filters.</p>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header fw-bold">Queue New Report Job</div>
+                <div class="card-body">
+                    <form asp-action="QueueJob" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-2"><label class="form-label">Report Type</label><select class="form-select" name="ReportType" asp-items="Html.GetEnumSelectList<ReportType>()"></select></div>
+                        <div class="mb-2"><label class="form-label">File Format</label><select class="form-select" name="Format" asp-items="Html.GetEnumSelectList<ReportFileFormat>()"></select></div>
+                        <div class="row g-2">
+                            <div class="col-md-6"><label class="form-label">Start Date (UTC)</label><input type="date" name="Filters.StartDateUtc" class="form-control" /></div>
+                            <div class="col-md-6"><label class="form-label">End Date (UTC)</label><input type="date" name="Filters.EndDateUtc" class="form-control" /></div>
+                            <div class="col-md-6"><label class="form-label">Department Id</label><input type="number" name="Filters.DepartmentId" class="form-control" /></div>
+                            <div class="col-md-6"><label class="form-label">Project Id</label><input type="number" name="Filters.ProjectId" class="form-control" /></div>
+                        </div>
+                        <button class="btn btn-primary mt-3" type="submit">Queue Job</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header fw-bold">Save Filter Preset</div>
+                <div class="card-body">
+                    <form asp-action="SavePreset" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-2"><label class="form-label">Preset Name</label><input name="Name" class="form-control" required maxlength="120" /></div>
+                        <div class="mb-2"><label class="form-label">Report Type</label><select class="form-select" name="ReportType" asp-items="Html.GetEnumSelectList<ReportType>()"></select></div>
+                        <div class="row g-2">
+                            <div class="col-md-6"><label class="form-label">Start Date (UTC)</label><input type="date" name="Filters.StartDateUtc" class="form-control" /></div>
+                            <div class="col-md-6"><label class="form-label">End Date (UTC)</label><input type="date" name="Filters.EndDateUtc" class="form-control" /></div>
+                            <div class="col-md-6"><label class="form-label">Department Id</label><input type="number" name="Filters.DepartmentId" class="form-control" /></div>
+                            <div class="col-md-6"><label class="form-label">Project Id</label><input type="number" name="Filters.ProjectId" class="form-control" /></div>
+                        </div>
+                        <button class="btn btn-success mt-3" type="submit">Save Preset</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header fw-bold">My Jobs</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle">
+                <thead class="table-light"><tr><th>Id</th><th>Report</th><th>Format</th><th>Status</th><th>Requested</th><th>Completed</th><th>Output</th><th>Failure</th></tr></thead>
+                <tbody>
+                    @foreach (var job in Model.Jobs)
+                    {
+                        var badgeClass = job.Status switch
+                        {
+                            ReportJobStatus.Completed => "bg-success",
+                            ReportJobStatus.Processing => "bg-warning text-dark",
+                            ReportJobStatus.Failed => "bg-danger",
+                            _ => "bg-secondary"
+                        };
+
+                        <tr>
+                            <td>@job.Id</td>
+                            <td>@job.ReportType</td>
+                            <td>@job.Format</td>
+                            <td><span class="badge @badgeClass">@job.Status</span></td>
+                            <td>@job.RequestedAtUtc.ToString("u")</td>
+                            <td>@job.CompletedAtUtc?.ToString("u")</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(job.OutputPath))
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" href="@job.OutputPath">Download</a>
+                                }
+                            </td>
+                            <td class="text-danger">@job.FailureReason</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header fw-bold">My Presets</div>
+        <ul class="list-group list-group-flush">
+            @foreach (var preset in Model.Presets)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span><strong>@preset.Name</strong> - @preset.ReportType</span>
+                    <a class="btn btn-sm btn-outline-primary" asp-action="LoadPreset" asp-route-id="@preset.Id">Load</a>
+                </li>
+            }
+        </ul>
+    </div>
+</div>
