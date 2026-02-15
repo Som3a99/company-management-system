@@ -10,29 +10,43 @@ using ERP.PL.Helpers;
 using ERP.PL.Mapping.Department;
 using ERP.PL.Mapping.Employee;
 using ERP.PL.Mapping.Project;
+using ERP.PL.Middleware;
 using ERP.PL.Security;
 using ERP.PL.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using System.IO.Compression;
 namespace ERP.PL
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
             #region Configure Services
             // Add services to the container.
             builder.Services.AddControllersWithViews();
+            builder.Services.AddHealthChecks();
 
             // Database Context - Scoped lifetime
             builder.Services.AddDbContext<ApplicationDbContext>(options =>
             {
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+                options.UseSqlServer(
+                builder.Configuration.GetConnectionString("DefaultConnection"),
+                sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                });
+
                 // Enable sensitive data logging in development only
                 if (builder.Environment.IsDevelopment())
                 {
@@ -41,13 +55,20 @@ namespace ERP.PL
             });
 
             // Repository Pattern -Scoped lifetime(one per request)
+            var keysPath = builder.Configuration["DataProtection:KeysPath"];
+            var dataProtectionPath = !string.IsNullOrWhiteSpace(keysPath)
+                ? keysPath
+                : Path.Combine(builder.Environment.ContentRootPath, "App_Data", "DataProtectionKeys");
+
+            builder.Services.AddDataProtection()
+                    .SetApplicationName("ERP-CompanyManagement")
+                    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionPath));
+
             builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
             builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
             builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<ITaskRepository, TaskRepository>();
-            builder.Services.AddScoped<ITaskService, TaskService>();
-            builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<ITaskService, TaskService>();
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IReportJobService, ReportJobService>();
@@ -84,9 +105,8 @@ namespace ERP.PL
             {
                 options.HeaderName = "X-CSRF-TOKEN";
                 // Use HTTPS only in production; allow HTTP in development
-                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-                    ? CookieSecurePolicy.SameAsRequest
-                    : CookieSecurePolicy.Always;
+                options.Cookie.HttpOnly = true;
+                options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
                 options.Cookie.SameSite = SameSiteMode.Strict;
             });
 
@@ -94,21 +114,25 @@ namespace ERP.PL
             builder.Services.AddResponseCompression(options =>
             {
                 options.EnableForHttps = true;
+                options.Providers.Add<GzipCompressionProvider>();
+                options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json" });
             });
+            builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+            {
+                options.Level = CompressionLevel.Fastest;
+            });
+
+            builder.Services.AddMemoryCache();
+            builder.Services.AddResponseCaching();
+
 
             // LOGGING: Configure logging
             builder.Logging.ClearProviders();
             builder.Logging.AddConsole();
-            builder.Logging.AddDebug();
+            builder.Logging.AddEventSourceLogger();
 
             if (builder.Environment.IsDevelopment())
-            {
-                builder.Logging.SetMinimumLevel(LogLevel.Information);
-            }
-            else
-            {
-                builder.Logging.SetMinimumLevel(LogLevel.Warning);
-            }
+                builder.Logging.AddDebug();
 
             builder.Services.Configure<FormOptions>(options =>
             {
@@ -200,15 +224,18 @@ namespace ERP.PL
 
             #region Configure Kestral Middelware
             // Configure the HTTP request pipeline.
-            if (!app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment())
             {
-                app.UseExceptionHandler("/Home/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+                app.UseDeveloperExceptionPage();
+            }
+            else
+            {
                 app.UseHsts();
-                app.UseStatusCodePagesWithReExecute("/Error/{0}");
             }
 
+            app.UseForwardedHeaders();
             app.UseHttpsRedirection();
+            app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
             app.Use(async (context, next) =>
             {
@@ -231,13 +258,14 @@ namespace ERP.PL
                 // HTTP Strict Transport Security (HTTPS only)
                 if (context.Request.IsHttps)
                 {
-                    context.Response.Headers.Append("Strict-Transport-Security",
-                        "max-age=31536000; includeSubDomains");
+                    context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
                 }
                 await next();
             });
+
             // PERFORMANCE: Enable response compression
             app.UseResponseCompression();
+            app.UseResponseCaching();
 
             app.UseStaticFiles();
 
@@ -248,44 +276,71 @@ namespace ERP.PL
                 if (context.HttpContext.Response.StatusCode == StatusCodes.Status413PayloadTooLarge)
                 {
                     context.HttpContext.Response.ContentType = "application/json";
-                    await context.HttpContext.Response.WriteAsync(
-                        "{\"error\":\"File size exceeds the 10MB limit.\"}"
-                    );
+                    await context.HttpContext.Response.WriteAsync("{\"error\":\"File size exceeds the 10MB limit.\"}");
                 }
             });
 
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.MapHealthChecks("/health");
+
             app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
             #endregion
 
-            #region Seeding Data
-            //using (var scope = app.Services.CreateScope())
-            //{
-            //    var services = scope.ServiceProvider;
-            //    var logger = services.GetRequiredService<ILogger<Program>>();
-
-            //    try
-            //    {
-            //        var dbContext = services.GetRequiredService<ApplicationDbContext>();
-            //        var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
-            //        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-
-            //        // Full system reset + seeding for end-to-end manual testing
-            //        await SystemDataSeeder.SeedAsync(dbContext, userManager, roleManager, logger);
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        logger.LogCritical(ex, "FATAL: System seeding failed. Application cannot start.");
-            //        throw; // Fail startup if seeding fails
-            //    }
-            //}
-            #endregion
-
+            await ApplyDatabaseMigrationsAndSeedAsync(app);
             app.Run();
         }
+
+        #region Helper Method
+        private static async Task ApplyDatabaseMigrationsAndSeedAsync(WebApplication app)
+        {
+            using var scope = app.Services.CreateScope();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+            try
+            {
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+                var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+
+                var shouldApplyMigrations = app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
+                if (shouldApplyMigrations)
+                {
+                    await dbContext.Database.MigrateAsync();
+                    logger.LogInformation("Database migrations applied successfully during startup.");
+                }
+
+                var seedMode = app.Configuration["Seed:Mode"]?.Trim();
+                if (string.IsNullOrWhiteSpace(seedMode) || seedMode.Equals("None", StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogInformation("Seed:Mode is None. Skipping data seeding.");
+                    return;
+                }
+
+                if (seedMode.Equals("Development", StringComparison.OrdinalIgnoreCase))
+                {
+                    var resetDatabase = app.Configuration.GetValue<bool>("Seed:ResetDatabase");
+                    await SystemDataSeeder.SeedAsync(dbContext, userManager, roleManager, logger, "Development", resetDatabase);
+                    return;
+                }
+
+                if (seedMode.Equals("Production", StringComparison.OrdinalIgnoreCase))
+                {
+                    await SystemDataSeeder.SeedProductionAsync(dbContext, userManager, roleManager, app.Configuration, logger);
+                    return;
+                }
+
+                logger.LogWarning("Unsupported Seed:Mode value '{SeedMode}'. Supported values: None, Development, Production.", seedMode);
+            }
+            catch (Exception ex)
+            {
+                logger.LogCritical(ex, "Database migration/seed failed during startup.");
+                throw;
+            }
+        }
+        #endregion
     }
 }

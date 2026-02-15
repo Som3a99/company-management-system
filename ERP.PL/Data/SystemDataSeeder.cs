@@ -12,42 +12,172 @@ namespace ERP.PL.Data
     public static class SystemDataSeeder
     {
         private const string DefaultPassword = "Test@12345Ab";
+        private const string SeedVersion = "1.0.0";
+
+        public static Task SeedDevelopmentAsync(
+                                                ApplicationDbContext context,
+                                                UserManager<ApplicationUser> userManager,
+                                                RoleManager<IdentityRole> roleManager,
+                                                ILogger logger,
+                                                bool resetDatabase = false)
+        {
+            return SeedAsync(context, userManager, roleManager, logger, "Development", resetDatabase);
+        }
+
+        public static async Task SeedProductionAsync(
+                                                    ApplicationDbContext context,
+                                                    UserManager<ApplicationUser> userManager,
+                                                    RoleManager<IdentityRole> roleManager,
+                                                    IConfiguration configuration,
+                                                    ILogger logger)
+        {
+            logger.LogInformation("Starting production baseline seed operation.");
+
+            await context.Database.MigrateAsync();
+
+            // Check if already seeded
+            if (await IsSeedCompletedAsync(context, "Production", SeedVersion))
+            {
+                logger.LogInformation("Production seed version {Version} already completed. Skipping.", SeedVersion);
+                return;
+            }
+
+            await SeedRolesAsync(roleManager);
+
+            var adminEmail = configuration["Seed:ProductionAdminEmail"];
+            var adminPassword = configuration["Seed:ProductionAdminPassword"];
+
+            if (string.IsNullOrWhiteSpace(adminEmail) || string.IsNullOrWhiteSpace(adminPassword))
+            {
+                logger.LogWarning("Production baseline seeding skipped admin user creation. Set Seed:ProductionAdminEmail and Seed:ProductionAdminPassword to enable.");
+                return;
+            }
+
+            var user = await userManager.FindByEmailAsync(adminEmail);
+            if (user is null)
+            {
+                user = new ApplicationUser
+                {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    EmailConfirmed = true,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    RequirePasswordChange = true
+                };
+
+                var createResult = await userManager.CreateAsync(user, adminPassword);
+                if (!createResult.Succeeded)
+                {
+                    throw new InvalidOperationException($"Failed creating production admin user {adminEmail}: {string.Join(", ", createResult.Errors.Select(e => e.Description))}");
+                }
+            }
+
+            await EnsureUserInRolesAsync(userManager, user, "CEO", "ITAdmin");
+
+            // Mark seed as completed
+            await MarkSeedCompletedAsync(context, "Production", SeedVersion, $"Production admin created: {adminEmail}");
+
+
+            logger.LogInformation("Production baseline seeding completed for {Email}.", adminEmail);
+        }
 
         public static async Task SeedAsync(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            ILogger logger)
+            ILogger logger, string environment, bool resetDatabase = false)
         {
             try
             {
-                logger.LogInformation("Starting full system database reset and seed...");
+                logger.LogInformation("Starting system seed operation. Environment: {Environment}, Reset enabled: {ResetDatabase}", environment, resetDatabase);
 
-                await context.Database.EnsureDeletedAsync();
+
+                if (resetDatabase)
+                {
+                    await context.Database.EnsureDeletedAsync();
+                    logger.LogWarning("Database deleted for reset.");
+                }
+
                 await context.Database.MigrateAsync();
+                // Check if seeding already completed for this version
+                if (!resetDatabase && await IsSeedCompletedAsync(context, environment, SeedVersion))
+                {
+                    logger.LogInformation("Seed version {Version} for {Environment} already completed. Skipping full seed.", SeedVersion, environment);
+                    return;
+                }
 
                 await SeedRolesAsync(roleManager);
 
                 var now = DateTime.UtcNow;
 
-                var employees = await SeedEmployeesAsync(context, now);
-                var departments = await SeedDepartmentsAsync(context, employees, now);
-                await AssignEmployeesToDepartmentsAsync(context, employees, departments);
-                var projects = await SeedProjectsAsync(context, employees, departments, now);
-                await SeedProjectAssignmentsAsync(context, projects, employees);
+                var employees = await SeedEmployeesAsync(context, now, logger);
+                var departments = await SeedDepartmentsAsync(context, employees, now, logger);
+                await AssignEmployeesToDepartmentsAsync(context, employees, departments, logger);
+                var projects = await SeedProjectsAsync(context, employees, departments, now, logger);
+                await SeedProjectAssignmentsAsync(context, projects, employees, logger);
 
-                var users = await SeedUsersAsync(userManager, context, employees, now);
-                await SeedTasksAndCommentsAsync(context, projects, employees, users, now);
-                await SeedAuditAndResetDataAsync(context, users, now);
+                var users = await SeedUsersAsync(userManager, context, employees, now, logger);
+                await SeedTasksAndCommentsAsync(context, projects, employees, users, now, logger);
+                await SeedAuditAndResetDataAsync(context, users, now, logger);
+                // Mark seed as completed
+                await MarkSeedCompletedAsync(context, environment, SeedVersion, "Full system data seeded successfully");
+
 
                 logger.LogWarning("System data seeding completed. Default password for seeded users: {Password}", DefaultPassword);
             }
             catch (Exception ex)
             {
-                logger.LogCritical(ex, "Full system seeding failed.");
+
+                // Mark seed as failed
+                await MarkSeedFailedAsync(context, environment, SeedVersion, ex.Message);
                 throw;
             }
         }
+
+        private static async Task<bool> IsSeedCompletedAsync(ApplicationDbContext context, string environment, string version)
+        {
+            return await context.SeedHistories
+                .AnyAsync(s => s.SeedVersion == version
+                            && s.Environment == environment
+                            && s.IsSuccessful);
+        }
+
+        private static async Task MarkSeedCompletedAsync(ApplicationDbContext context, string environment, string version, string notes)
+        {
+            context.SeedHistories.Add(new SeedHistory
+            {
+                SeedVersion = version,
+                Environment = environment,
+                SeededAt = DateTime.UtcNow,
+                IsSuccessful = true,
+                Notes = notes
+            });
+
+            await context.SaveChangesAsync();
+        }
+
+        private static async Task MarkSeedFailedAsync(ApplicationDbContext context, string environment, string version, string errorMessage)
+        {
+            try
+            {
+                context.SeedHistories.Add(new SeedHistory
+                {
+                    SeedVersion = version,
+                    Environment = environment,
+                    SeededAt = DateTime.UtcNow,
+                    IsSuccessful = false,
+                    Notes = $"Failed: {errorMessage}"
+                });
+
+                await context.SaveChangesAsync();
+            }
+            catch
+            {
+                // Ignore if we can't save the failure record
+            }
+        }
+
 
         private static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
         {
@@ -66,8 +196,20 @@ namespace ERP.PL.Data
             }
         }
 
-        private static async Task<Dictionary<string, Employee>> SeedEmployeesAsync(ApplicationDbContext context, DateTime now)
+        private static async Task<Dictionary<string, Employee>> SeedEmployeesAsync(ApplicationDbContext context, DateTime now, ILogger logger)
         {
+            // Check if employees already exist
+            if (await context.Employees.AnyAsync())
+            {
+                logger.LogInformation("Employees already exist. Loading existing data.");
+                var existingEmployees = await context.Employees
+                    .Where(e => !e.IsDeleted)
+                    .ToListAsync();
+                return existingEmployees.ToDictionary(e => e.Email, StringComparer.OrdinalIgnoreCase);
+            }
+
+            logger.LogInformation("Seeding employees...");
+
             var employees = new List<Employee>
             {
                 new() { FirstName = "Sarah", LastName = "Ahmed", Email = "sarah.ahmed@company.com", PhoneNumber = "201000000001", Position = "HR Director", HireDate = now.AddYears(-6), Salary = 210000, IsActive = true, IsDeleted = false, CreatedAt = now, ImageUrl = "/uploads/images/avatar-female.png", Gender = Gender.Female },
@@ -92,8 +234,21 @@ namespace ERP.PL.Data
             return employees.ToDictionary(e => e.Email, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static async Task<Dictionary<string, Department>> SeedDepartmentsAsync(ApplicationDbContext context, Dictionary<string, Employee> employees, DateTime now)
+        private static async Task<Dictionary<string, Department>> SeedDepartmentsAsync(ApplicationDbContext context, Dictionary<string, Employee> employees, DateTime now, ILogger logger)
         {
+            // Check if departments already exist
+            if (await context.Departments.AnyAsync())
+            {
+                logger.LogInformation("Departments already exist. Loading existing data.");
+                var existingDepartments = await context.Departments
+                    .Where(d => !d.IsDeleted)
+                    .ToListAsync();
+                return existingDepartments.ToDictionary(d => d.DepartmentCode, StringComparer.OrdinalIgnoreCase);
+            }
+
+            logger.LogInformation("Seeding departments...");
+
+
             var departments = new List<Department>
             {
                 new() { DepartmentCode = "HRD_101", DepartmentName = "Human Resources", ManagerId = employees["sarah.ahmed@company.com"].Id, CreatedAt = now, IsDeleted = false },
@@ -104,12 +259,25 @@ namespace ERP.PL.Data
 
             context.Departments.AddRange(departments);
             await context.SaveChangesAsync();
+            logger.LogInformation("Seeded {Count} employees.", employees.Count);
+            logger.LogInformation("Seeded {Count} departments.", departments.Count);
+
 
             return departments.ToDictionary(d => d.DepartmentCode, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static async Task AssignEmployeesToDepartmentsAsync(ApplicationDbContext context, Dictionary<string, Employee> employees, Dictionary<string, Department> departments)
+        private static async Task AssignEmployeesToDepartmentsAsync(ApplicationDbContext context, Dictionary<string, Employee> employees, Dictionary<string, Department> departments, ILogger logger)
         {
+            // Check if assignments already exist
+            if (employees.Values.Any(e => e.DepartmentId != null))
+            {
+                logger.LogInformation("Employee department assignments already exist. Skipping.");
+                return;
+            }
+
+            logger.LogInformation("Assigning employees to departments...");
+
+
             employees["sarah.ahmed@company.com"].DepartmentId = departments["HRD_101"].Id;
             employees["dina.adel@company.com"].DepartmentId = departments["HRD_101"].Id;
 
@@ -127,10 +295,25 @@ namespace ERP.PL.Data
             employees["kareem.youssef@company.com"].DepartmentId = departments["OPS_104"].Id;
 
             await context.SaveChangesAsync();
+            logger.LogInformation("Department assignments completed.");
+
         }
 
-        private static async Task<Dictionary<string, Project>> SeedProjectsAsync(ApplicationDbContext context, Dictionary<string, Employee> employees, Dictionary<string, Department> departments, DateTime now)
+        private static async Task<Dictionary<string, Project>> SeedProjectsAsync(ApplicationDbContext context, Dictionary<string, Employee> employees, Dictionary<string, Department> departments, DateTime now, ILogger logger)
         {
+            // Check if projects already exist
+            if (await context.Projects.AnyAsync())
+            {
+                logger.LogInformation("Projects already exist. Loading existing data.");
+                var existingProjects = await context.Projects
+                    .Where(p => !p.IsDeleted)
+                    .ToListAsync();
+                return existingProjects.ToDictionary(p => p.ProjectCode, StringComparer.OrdinalIgnoreCase);
+            }
+
+            logger.LogInformation("Seeding projects...");
+
+
             var projects = new List<Project>
             {
                 new()
@@ -178,12 +361,22 @@ namespace ERP.PL.Data
 
             context.Projects.AddRange(projects);
             await context.SaveChangesAsync();
-
+            logger.LogInformation("Seeded {Count} projects.", projects.Count);
             return projects.ToDictionary(p => p.ProjectCode, StringComparer.OrdinalIgnoreCase);
         }
 
-        private static async Task SeedProjectAssignmentsAsync(ApplicationDbContext context, Dictionary<string, Project> projects, Dictionary<string, Employee> employees)
+        private static async Task SeedProjectAssignmentsAsync(ApplicationDbContext context, Dictionary<string, Project> projects, Dictionary<string, Employee> employees, ILogger logger)
         {
+            // Check if project assignments already exist
+            if (await context.ProjectEmployees.AnyAsync())
+            {
+                logger.LogInformation("Project assignments already exist. Skipping.");
+                return;
+            }
+
+            logger.LogInformation("Seeding project assignments...");
+
+
             var alpha = projects["PRJ-2026-001"];
             var beta = projects["PRJ-2026-002"];
 
@@ -215,14 +408,19 @@ namespace ERP.PL.Data
             }
 
             await context.SaveChangesAsync();
+            logger.LogInformation("Project assignments completed.");
+
         }
 
         private static async Task<Dictionary<string, ApplicationUser>> SeedUsersAsync(
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext context,
             Dictionary<string, Employee> employees,
-            DateTime now)
+            DateTime now,
+            ILogger logger)
         {
+            logger.LogInformation("Seeding users and roles...");
+
             var users = new Dictionary<string, ApplicationUser>(StringComparer.OrdinalIgnoreCase);
 
             var ceo = await CreateUserWithRolesAsync(userManager, "ceo@company.com", null, now, "CEO");
@@ -257,6 +455,8 @@ namespace ERP.PL.Data
             }
 
             await context.SaveChangesAsync();
+            logger.LogInformation("Seeded {Count} users.", users.Count);
+
 
             return users;
         }
@@ -268,6 +468,14 @@ namespace ERP.PL.Data
             DateTime now,
             params string[] roles)
         {
+            // Check if user already exists
+            var existingUser = await userManager.FindByEmailAsync(email);
+            if (existingUser != null)
+            {
+                return existingUser;
+            }
+
+
             var user = new ApplicationUser
             {
                 UserName = email,
@@ -302,8 +510,17 @@ namespace ERP.PL.Data
             Dictionary<string, Project> projects,
             Dictionary<string, Employee> employees,
             Dictionary<string, ApplicationUser> users,
-            DateTime now)
+            DateTime now, ILogger logger)
         {
+            // Check if tasks already exist
+            if (await context.TaskItems.AnyAsync())
+            {
+                logger.LogInformation("Tasks already exist. Skipping.");
+                return;
+            }
+
+            logger.LogInformation("Seeding tasks and comments...");
+
             var tasks = new List<TaskItem>
             {
                 new()
@@ -415,10 +632,23 @@ namespace ERP.PL.Data
 
             context.TaskComments.AddRange(comments);
             await context.SaveChangesAsync();
+
+            logger.LogInformation("Seeded {TaskCount} tasks and {CommentCount} comments.", tasks.Count, comments.Count);
+
         }
 
-        private static async Task SeedAuditAndResetDataAsync(ApplicationDbContext context, Dictionary<string, ApplicationUser> users, DateTime now)
+        private static async Task SeedAuditAndResetDataAsync(ApplicationDbContext context, Dictionary<string, ApplicationUser> users, DateTime now, ILogger logger)
         {
+            // Check if audit logs already exist
+            if (await context.AuditLogs.AnyAsync())
+            {
+                logger.LogInformation("Audit and reset data already exist. Skipping.");
+                return;
+            }
+
+            logger.LogInformation("Seeding audit and reset data...");
+
+
             context.PasswordResetRequests.AddRange(
                 new PasswordResetRequest
                 {
@@ -474,6 +704,23 @@ namespace ERP.PL.Data
                 });
 
             await context.SaveChangesAsync();
+
+            logger.LogInformation("Audit and reset data seeded.");
+
+        }
+        private static async Task EnsureUserInRolesAsync(UserManager<ApplicationUser> userManager, ApplicationUser user, params string[] roles)
+        {
+            foreach (var role in roles)
+            {
+                if (!await userManager.IsInRoleAsync(user, role))
+                {
+                    var roleResult = await userManager.AddToRoleAsync(user, role);
+                    if (!roleResult.Succeeded)
+                    {
+                        throw new InvalidOperationException($"Failed assigning role {role} to {user.Email}: {string.Join(", ", roleResult.Errors.Select(e => e.Description))}");
+                    }
+                }
+            }
         }
     }
 }
