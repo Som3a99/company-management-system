@@ -1,33 +1,51 @@
 ﻿@{
-    ViewData["Title"] = "CompanyFlow | Business Management SaaS";
+    ViewData["Title"] = "CompanyFlow | Business Management Platform";
     Layout = "~/Views/Shared/_PublicLayout.cshtml";
 }
 
 <div class="container-fluid px-4 public-landing">
+    <!-- Hero Section -->
     <section class="landing-hero animate-in" aria-label="CompanyFlow SaaS hero">
         <div class="row align-items-center g-4">
             <div class="col-lg-7">
-                <span class="hero-badge">Cloud SaaS Platform</span>
-                <h1>Smart Business Management in One Platform.</h1>
+                <span class="hero-badge">
+                    <i class="fas fa-bolt me-1" style="font-size: 0.75rem;"></i>
+                    Cloud SaaS Platform
+                </span>
+                <h1 class="hero-title mb-3">Smart Business Management<br/>in One Platform.</h1>
                 <p class="hero-subtitle">
                     CompanyFlow helps organizations manage employees, departments, projects, and daily workflows from one secure dashboard.
                     Deploy quickly, scale by team, and keep leadership informed with real-time visibility.
                 </p>
                 <div class="d-flex flex-wrap gap-3 mt-4">
                     <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-primary-lg public-login-btn">
-                        <i class="fas fa-sign-in-alt me-2"></i> Login
+                        Get Started <i class="fas fa-arrow-right ms-1"></i>
                     </a>
-                    <a href="#saas-features" class="btn btn-outline-primary btn-primary-lg">Explore Features</a>
+                    <a href="#saas-features" class="btn btn-outline-primary btn-primary-lg" style="border-color: rgba(255,255,255,0.3); color: var(--header-foreground);">
+                        <i class="fas fa-play-circle me-1"></i> Explore Features
+                    </a>
                 </div>
             </div>
             <div class="col-lg-5">
                 <div class="hero-metrics-card card card-soft">
                     <div class="card-body">
-                        <h5 class="mb-3">Why growing companies choose CompanyFlow</h5>
+                        <h5 class="mb-3">
+                            <i class="fas fa-chart-line me-2" style="color: var(--accent-main);"></i>
+                            Why growing companies choose CompanyFlow
+                        </h5>
                         <ul class="hero-metrics-list">
-                            <li><strong>1 Platform</strong><span>for projects, teams, and operations</span></li>
-                            <li><strong>Role-Based Access</strong><span>for secure, controlled workflows</span></li>
-                            <li><strong>Live Tracking</strong><span>for accountability and productivity</span></li>
+                            <li>
+                                <strong><i class="fas fa-th-large me-2" style="color: var(--accent-main); font-size: 0.8rem;"></i>1 Platform</strong>
+                                <span>for projects, teams, and operations</span>
+                            </li>
+                            <li>
+                                <strong><i class="fas fa-shield-alt me-2" style="color: var(--success); font-size: 0.8rem;"></i>Role-Based Access</strong>
+                                <span>for secure, controlled workflows</span>
+                            </li>
+                            <li>
+                                <strong><i class="fas fa-tachometer-alt me-2" style="color: var(--info); font-size: 0.8rem;"></i>Live Tracking</strong>
+                                <span>for accountability and productivity</span>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -35,6 +53,7 @@
         </div>
     </section>
 
+    <!-- Arabic Section -->
     <section class="arabic-pitch card card-glass mt-4 animate-in" dir="rtl" lang="ar">
         <div class="card-body p-4 p-md-5">
             <h2 class="mb-3">منصة ذكية لإدارة أعمال شركتك</h2>
@@ -47,32 +66,40 @@
         </div>
     </section>
 
+    <!-- Features Section -->
     <section id="saas-features" class="row g-4 mt-4 animate-in">
-        <div class="col-12 text-center mb-2">
+        <div class="col-12 text-center mb-3">
+            <span class="text-label d-block mb-2">Features</span>
             <h2>Built for modern operations teams</h2>
+            <p class="mx-auto" style="max-width: 480px; color: var(--text-muted);">
+                Everything your team needs to stay organized, productive, and aligned.
+            </p>
         </div>
         <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5>Centralized Workflows</h5>
-                    <p>Replace scattered spreadsheets and chat threads with a structured operational workflow system.</p>
+            <div class="card feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-sitemap" style="font-size: 1.25rem;"></i>
                 </div>
+                <h5 class="feature-title">Centralized Workflows</h5>
+                <p class="feature-description">Replace scattered spreadsheets and chat threads with a structured operational workflow system.</p>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5>Modular ERP Foundation</h5>
-                    <p>Activate only the modules you need today, then expand without rebuilding your platform.</p>
+            <div class="card feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-puzzle-piece" style="font-size: 1.25rem;"></i>
                 </div>
+                <h5 class="feature-title">Modular ERP Foundation</h5>
+                <p class="feature-description">Activate only the modules you need today, then expand without rebuilding your platform.</p>
             </div>
         </div>
         <div class="col-lg-4">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5>SaaS Ready Deployment</h5>
-                    <p>Run environment-specific configurations and controlled release workflows for reliable updates.</p>
+            <div class="card feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-cloud-upload-alt" style="font-size: 1.25rem;"></i>
                 </div>
+                <h5 class="feature-title">SaaS Ready Deployment</h5>
+                <p class="feature-description">Run environment-specific configurations and controlled release workflows for reliable updates.</p>
             </div>
         </div>
     </section>

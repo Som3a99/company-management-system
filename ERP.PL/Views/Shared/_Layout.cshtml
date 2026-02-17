@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - ERP Management</title>
+    <title>@ViewData["Title"] - CompanyFlow</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/ERP.PL.styles.css" asp-append-version="true" />
@@ -18,13 +18,13 @@
                 <a class="navbar-brand d-flex align-items-center" asp-area="" asp-controller="Home" asp-action="Index">
                     <div class="brand-icon">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" />
-                            <rect x="3" y="13" width="7" height="7" rx="1" fill="currentColor" />
-                            <rect x="13" y="3" width="7" height="7" rx="1" fill="currentColor" />
-                            <rect x="13" y="13" width="7" height="7" rx="1" fill="currentColor" />
+                            <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" />
+                            <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" />
+                            <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" />
+                            <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" />
                         </svg>
                     </div>
-                    <span class="brand-text">ERP Management</span>
+                    <span class="brand-text">CompanyFlow</span>
                 </a>
                 <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                     <span class="navbar-toggler-icon"></span>
@@ -135,17 +135,9 @@
                             }
                             else
                             {
-                            <li class="nav-item">
-                                <a asp-controller="Account" asp-action="Login" class="nav-link d-flex align-items-center gap-2">
-                                    <div class="brand-icon-sm">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <rect x="3" y="3" width="7" height="7" rx="1" fill="currentColor" />
-                                            <rect x="3" y="13" width="7" height="7" rx="1" fill="currentColor" />
-                                            <rect x="13" y="3" width="7" height="7" rx="1" fill="currentColor" />
-                                            <rect x="13" y="13" width="7" height="7" rx="1" fill="currentColor" />
-                                        </svg>
-                                    </div>
-                                    <span>Login</span>
+                            <li class="nav-item ms-1">
+                                <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-arrow-right me-1"></i>Login
                                 </a>
                             </li>
                             }
@@ -192,7 +184,7 @@
     <footer class="footer-custom">
         <div class="container-fluid px-4">
             <div class="footer-content">
-                <span class="footer-text">&copy; 2026 ERP Management System. All rights reserved.</span>
+                <span class="footer-text">&copy; 2026 CompanyFlow. All rights reserved.</span>
                 <span class="footer-version">v1.0.0</span>
             </div>
         </div>

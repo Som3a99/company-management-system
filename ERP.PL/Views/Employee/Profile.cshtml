@@ -5,105 +5,6 @@
     var imageUrl = !string.IsNullOrEmpty(Model.ImageUrl) ? Model.ImageUrl : "/uploads/images/avatar-user.png";
 }
 
-<style>
-    .profile-header {
-        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-medium) 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: var(--radius-lg);
-        margin-bottom: 2rem;
-    }
-
-    .profile-avatar {
-        width: 120px;
-        height: 120px;
-        border-radius: 50%;
-        border: 4px solid white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        object-fit: cover;
-    }
-
-    .profile-info-card {
-        background: white;
-        border-radius: var(--radius-lg);
-        padding: 1.5rem;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        margin-bottom: 1.5rem;
-    }
-
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--gray-200);
-    }
-
-        .info-row:last-child {
-            border-bottom: none;
-        }
-
-    .info-label {
-        font-weight: 600;
-        color: var(--gray-700);
-    }
-
-    .info-value {
-        color: var(--gray-900);
-    }
-
-    .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--gray-900);
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 2px solid var(--primary-main);
-    }
-
-    .related-card {
-        background: var(--gray-50);
-        border-radius: var(--radius-md);
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid var(--primary-main);
-        transition: all 0.2s ease;
-    }
-
-        .related-card:hover {
-            background: white;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transform: translateX(4px);
-        }
-
-        .related-card h6 {
-            margin-bottom: 0.5rem;
-            color: var(--gray-900);
-        }
-
-        .related-card .text-muted {
-            font-size: 0.875rem;
-        }
-
-    .clickable-link {
-        color: var(--primary-main);
-        text-decoration: none;
-        font-weight: 500;
-        transition: color 0.2s ease;
-    }
-
-        .clickable-link:hover {
-            color: var(--primary-dark);
-            text-decoration: underline;
-        }
-
-    .status-badge-large {
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        font-size: 0.875rem;
-    }
-</style>
-
 <div class="container-fluid px-4">
     <!-- Back Button -->
     <div class="mb-3 animate-in">
@@ -156,7 +57,7 @@
             <div class="col-auto">
                 @if (Model.IsActive)
                 {
-                    <span class="badge status-badge-large" style="background-color: #dcfce7; color: #166534;">
+                    <span class="badge status-badge-large badge-status-active">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -2px;">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
                             <path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -166,7 +67,7 @@
                 }
                 else
                 {
-                    <span class="badge status-badge-large" style="background-color: #f3f4f6; color: #4b5563;">
+                    <span class="badge status-badge-large badge-status-inactive">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -2px;">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
                             <line x1="15" y1="9" x2="9" y2="15" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
