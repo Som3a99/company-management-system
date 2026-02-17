@@ -4,51 +4,125 @@
     Layout = "~/Views/Shared/_PublicLayout.cshtml";
 }
 
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6 col-lg-4">
-        <div class="card auth-card">
-            <div class="card-header header-gradient">
-                <h4 class="mb-0">
-                    <i class="fas fa-sign-in-alt me-2"></i>Login
-                </h4>
+<div class="auth-page-wrapper">
+  <div class="container">
+    <div class="row justify-content-center account-readable">
+        <div class="col-md-5 col-lg-4">
+            <div class="text-center mb-4 animate-in">
+                <div class="auth-logo mx-auto mb-3">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor"/>
+                    </svg>
+                </div>
+                <h2 class="auth-heading">Welcome back</h2>
+                <p class="auth-subheading">Sign in to your CompanyFlow account</p>
             </div>
-            <div class="card-body">
-                <form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post">
-                    @Html.AntiForgeryToken()
-                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+            <div class="card auth-card animate-in" style="animation-delay: 0.08s">
+                <div class="card-body p-4">
+                    <form asp-action="Login" asp-route-returnUrl="@ViewData["ReturnUrl"]" method="post">
+                        @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" style="font-size: 0.875rem;"></div>
 
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label"></label>
-                        <input asp-for="Email" class="form-control" placeholder="you@company.com" autocomplete="username" />
-                        <span asp-validation-for="Email" class="text-danger"></span>
-                    </div>
+                        <div class="mb-3">
+                            <label asp-for="Email" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input asp-for="Email" class="form-control" placeholder="you@company.com" autocomplete="username" />
+                            </div>
+                            <span asp-validation-for="Email" class="text-danger" style="font-size: 0.8125rem;"></span>
+                        </div>
 
-                    <div class="mb-3">
-                        <label asp-for="Password" class="form-label"></label>
-                        <input asp-for="Password" class="form-control" autocomplete="current-password" />
-                        <span asp-validation-for="Password" class="text-danger"></span>
-                    </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label asp-for="Password" class="form-label mb-0"></label>
+                                <a asp-action="ForgotPassword" class="auth-forgot-link">
+                                    Forgot password?
+                                </a>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                            </div>
+                            <span asp-validation-for="Password" class="text-danger" style="font-size: 0.8125rem;"></span>
+                        </div>
 
-                    <div class="mb-3 form-check">
-                        <input asp-for="RememberMe" class="form-check-input" />
-                        <label asp-for="RememberMe" class="form-check-label"></label>
-                    </div>
+                        <div class="mb-4 form-check">
+                            <input asp-for="RememberMe" class="form-check-input" />
+                            <label asp-for="RememberMe" class="form-check-label" style="font-size: 0.875rem;"></label>
+                        </div>
 
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
-                        </button>
-                    </div>
-                </form>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-primary-lg">
+                                <i class="fas fa-arrow-right"></i> Sign In
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="mb-3 text-end px-3 pb-3">
-                <a asp-action="ForgotPassword" class="text-decoration-none small">
-                    <i class="fas fa-key"></i> Forgot Password?
-                </a>
-            </div>
+            <p class="text-center mt-3 animate-in" style="font-size: 0.8125rem; color: var(--text-muted); animation-delay: 0.16s">
+                <i class="fas fa-shield-alt me-1"></i> Protected by enterprise-grade security
+            </p>
         </div>
     </div>
 </div>
+</div>
+@section Styles {
+    <style>
+        .auth-page-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 200px);
+            padding: 2rem 0;
+        }
+        .auth-logo {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, var(--accent-main), var(--accent-light));
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 4px 16px rgba(var(--accent-main-rgb), 0.3);
+        }
+        .auth-heading {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-bottom: 0.25rem;
+        }
+        .auth-subheading {
+            font-size: 0.9375rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+        .auth-forgot-link {
+            font-size: 0.8125rem;
+            color: var(--accent-main);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.15s ease;
+        }
+        .auth-forgot-link:hover {
+            color: var(--accent-hover);
+        }
+        .auth-card {
+            border: 1px solid var(--gray-200);
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-xl);
+        }
+        .auth-card .form-control {
+            background: var(--bg-secondary);
+        }
+        .auth-card .form-control:focus {
+            background: var(--bg-main);
+        }
+    </style>
+}
 
 @section Scripts {
     @{

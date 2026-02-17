@@ -2,34 +2,70 @@
     ViewData["Title"] = "Access Denied";
 }
 
-<div class="row justify-content-center mt-5">
-    <div class="col-md-6">
-        <div class="card auth-card border-danger">
-            <div class="card-header header-gradient danger">
-                <h4 class="mb-0">
-                    <i class="fas fa-ban me-2"></i>Access Denied
-                </h4>
-            </div>
-            <div class="card-body text-center">
-                <i class="fas fa-lock fa-5x text-danger mb-4"></i>
-                <h5>You do not have permission to access this page.</h5>
-                <p class="text-muted">
-                    If you believe this is an error, please contact your manager or IT support.
-                </p>
+<div class="container">
+    <div class="auth-page-wrapper">
+        <div class="row justify-content-center account-readable w-100">
+            <div class="col-md-6 col-lg-5">
+                <div class="text-center mb-4 animate-in">
+                    <div class="auth-logo mx-auto mb-3" style="background: linear-gradient(135deg, var(--danger), var(--danger-soft)); box-shadow: 0 4px 16px rgba(var(--danger-rgb), 0.3);">
+                        <i class="fas fa-shield-alt" style="font-size: 1.25rem; color: white;"></i>
+                    </div>
+                    <h2 class="auth-heading">Access Denied</h2>
+                    <p class="auth-subheading">You don't have permission to view this page</p>
+                </div>
 
-                @if (ViewData["ReturnUrl"] != null)
-                {
-                    <p class="text-muted small">
-                        Attempted to access: <code>@ViewData["ReturnUrl"]</code>
-                    </p>
-                }
+                <div class="card auth-card animate-in" style="animation-delay: 0.08s">
+                    <div class="card-body p-4 text-center">
+                        <p style="color: var(--text-muted); font-size: 0.9375rem; margin-bottom: 1.25rem;">
+                            If you believe this is an error, please contact your manager or IT support.
+                        </p>
 
-                <div class="mt-4">
-                    <a asp-action="Index" asp-controller="Home" class="btn btn-primary">
-                        <i class="fas fa-home me-2"></i>Return to Home
-                    </a>
+                        @if (ViewData["ReturnUrl"] != null)
+                        {
+                            <div class="mb-4" style="padding: 0.625rem 0.875rem; border-radius: var(--radius-md); background: var(--bg-elevated); font-size: 0.8125rem; color: var(--text-subtle); word-break: break-all;">
+                                <i class="fas fa-link me-1"></i> @ViewData["ReturnUrl"]
+                            </div>
+                        }
+
+                        <div class="d-grid">
+                            <a asp-action="Index" asp-controller="Home" class="btn btn-primary btn-primary-lg">
+                                <i class="fas fa-home me-1"></i> Return to Home
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+@section Styles {
+    <style>
+        .auth-page-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 220px);
+            padding: 2rem 0;
+        }
+        .auth-logo {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .auth-heading {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-bottom: 0.25rem;
+        }
+        .auth-subheading {
+            font-size: 0.9375rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+    </style>
+}

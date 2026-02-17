@@ -3,42 +3,52 @@
     ViewData["Title"] = "My Profile";
 }
 
-<div class="container-fluid px-4 py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+<div class="container py-4 account-readable">
+    <div class="d-flex justify-content-between align-items-center mb-4 animate-in">
         <div>
-            <h2 class="mb-1">My Profile</h2>
-            <p class="text-muted mb-0">Only your profile picture can be updated directly. Contact an administrator or manager for any other profile changes.</p>
+            <h2 class="mb-1 fw-bold" style="color: var(--text-heading);">My Profile</h2>
+            <p class="mb-0" style="color: var(--text-muted); font-size: 0.9375rem;">
+                Only your profile picture can be updated directly. Contact an administrator for other changes.
+            </p>
         </div>
     </div>
 
     <div class="row g-4">
         <div class="col-lg-4">
-            <div class="card shadow-sm">
-                <div class="card-body text-center">
-                    <img src="@Model.ImageUrl"
-                         alt="@Model.Username"
-                         class="rounded-circle border mb-3"
-                         style="width: 170px; height: 170px; object-fit: cover;" />
+            <div class="card animate-in" style="animation-delay: 0.06s">
+                <div class="card-body text-center p-4">
+                    <div class="profile-avatar-wrapper mx-auto mb-3">
+                        <img src="@Model.ImageUrl"
+                             alt="@Model.Username"
+                             class="profile-avatar" />
+                    </div>
 
-                    <h5 class="mb-1">@(!string.IsNullOrWhiteSpace(Model.FirstName) ? $"{Model.FirstName} {Model.LastName}" : Model.Username)</h5>
-                    <p class="text-muted mb-2">@Model.Position</p>
-                    <span class="badge bg-primary">@Model.PrimaryRole</span>
+                    <h5 class="mb-1 fw-semibold" style="color: var(--text-heading);">
+                        @(!string.IsNullOrWhiteSpace(Model.FirstName) ? $"{Model.FirstName} {Model.LastName}" : Model.Username)
+                    </h5>
+                    <p class="mb-2" style="color: var(--text-muted); font-size: 0.875rem;">@Model.Position</p>
+                    <span class="badge" style="background: var(--accent); color: white; font-weight: 500; padding: 0.375em 0.75em;">
+                        @Model.PrimaryRole
+                    </span>
 
-                    <hr />
+                    <hr style="border-color: var(--border-color); margin: 1.25rem 0;" />
 
                     <form asp-action="Profile" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
                         <div class="mb-3 text-start">
-                            <label asp-for="ProfileImage" class="form-label fw-semibold"></label>
+                            <label asp-for="ProfileImage" class="form-label fw-semibold" style="font-size: 0.875rem;"></label>
                             <input asp-for="ProfileImage" type="file" class="form-control" accept=".jpg,.jpeg,.png,.gif,.bmp" />
-                            <small class="text-muted">Max file size: 10MB. Allowed: JPG, PNG, GIF, BMP.</small>
+                            <small style="color: var(--text-subtle); font-size: 0.8125rem;">Max: 10MB. Allowed: JPG, PNG, GIF, BMP.</small>
                         </div>
                         <button type="submit" class="btn btn-primary w-100" @(Model.EmployeeId.HasValue ? "" : "disabled")>
-                            <i class="fas fa-upload me-2"></i>Update Profile Picture
+                            <i class="fas fa-upload me-1"></i> Update Photo
                         </button>
                         @if (!Model.EmployeeId.HasValue)
                         {
-                            <p class="text-warning small mt-2 mb-0">This account is not linked to an employee profile, so image updates are unavailable.</p>
+                            <p class="small mt-2 mb-0" style="color: var(--warning-emphasis); font-size: 0.8125rem;">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Not linked to an employee profile — image updates unavailable.
+                            </p>
                         }
                     </form>
                 </div>
@@ -46,68 +56,73 @@
         </div>
 
         <div class="col-lg-8">
-            <div class="card shadow-sm mb-3">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Account Information</h5>
+            <div class="card mb-3 animate-in" style="animation-delay: 0.1s">
+                <div class="card-header profile-section-header">
+                    <h6 class="mb-0 fw-semibold" style="color: var(--text-heading);">
+                        <i class="fas fa-user-circle me-2" style="color: var(--accent);"></i>Account Information
+                    </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Username</label>
+                            <label class="form-label profile-label">Username</label>
                             <input class="form-control" value="@Model.Username" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Email</label>
+                            <label class="form-label profile-label">Email</label>
                             <input class="form-control" value="@Model.Email" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Phone</label>
+                            <label class="form-label profile-label">Phone</label>
                             <input class="form-control" value="@(Model.PhoneNumber ?? "N/A")" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Status</label>
+                            <label class="form-label profile-label">Status</label>
                             <input class="form-control" value="@Model.AccountStatus" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Primary Role</label>
+                            <label class="form-label profile-label">Primary Role</label>
                             <input class="form-control" value="@Model.PrimaryRole" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Created At</label>
+                            <label class="form-label profile-label">Created At</label>
                             <input class="form-control" value="@Model.AccountCreatedAt.ToString("MMMM dd, yyyy")" readonly />
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="mb-0">Employee Information (Read-Only)</h5>
+            <div class="card animate-in" style="animation-delay: 0.14s">
+                <div class="card-header profile-section-header">
+                    <h6 class="mb-0 fw-semibold" style="color: var(--text-heading);">
+                        <i class="fas fa-id-badge me-2" style="color: var(--accent);"></i>Employee Information
+                        <span class="badge ms-2" style="background: var(--bg-elevated); color: var(--text-subtle); font-size: 0.6875rem; font-weight: 500;">Read-Only</span>
+                    </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Employee ID</label>
+                            <label class="form-label profile-label">Employee ID</label>
                             <input class="form-control" value="@(Model.EmployeeId?.ToString() ?? "N/A")" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Department</label>
+                            <label class="form-label profile-label">Department</label>
                             <input class="form-control" value="@(!string.IsNullOrWhiteSpace(Model.DepartmentName) ? $"{Model.DepartmentCode} - {Model.DepartmentName}" : "N/A")" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">First Name</label>
+                            <label class="form-label profile-label">First Name</label>
                             <input class="form-control" value="@(Model.FirstName ?? "N/A")" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Last Name</label>
+                            <label class="form-label profile-label">Last Name</label>
                             <input class="form-control" value="@(Model.LastName ?? "N/A")" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Position</label>
+                            <label class="form-label profile-label">Position</label>
                             <input class="form-control" value="@(Model.Position ?? "N/A")" readonly />
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label text-muted">Hire Date</label>
+                            <label class="form-label profile-label">Hire Date</label>
                             <input class="form-control" value="@(Model.HireDate?.ToString("MMMM dd, yyyy") ?? "N/A")" readonly />
                         </div>
                     </div>
@@ -116,6 +131,35 @@
         </div>
     </div>
 </div>
+
+@section Styles {
+    <style>
+        .profile-avatar-wrapper {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid var(--border-color);
+            box-shadow: 0 4px 16px var(--shadow-color, rgba(0,0,0,0.1));
+        }
+        .profile-avatar {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .profile-section-header {
+            background: var(--bg-elevated);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.875rem 1.25rem;
+        }
+        .profile-label {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+    </style>
+}
 
 @section Scripts {
     @{

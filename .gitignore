@@ -66,3 +66,7 @@ publish/
 packages/
 *.nupkg
 .nuget/packages/
+!ERP.PL/appsettings.Development.json
+
+# lib
+lib/

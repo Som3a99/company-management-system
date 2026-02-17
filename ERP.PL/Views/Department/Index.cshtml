@@ -28,7 +28,7 @@
     }
 
     .manager-name {
-        color: var(--gray-900);
+        color: var(--text-heading);
         font-size: 0.875rem;
         font-weight: 600;
         line-height: 1.2;
@@ -116,7 +116,7 @@
                 <div class="card">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <div class="stat-icon success" style="flex-shrink: 0;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     <circle cx="8.5" cy="7" r="4" stroke="white" stroke-width="2" />
@@ -136,7 +136,7 @@
                 <div class="card">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--accent-main) 0%, var(--accent-light) 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <div class="stat-icon primary" style="flex-shrink: 0;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     <circle cx="9" cy="7" r="4" stroke="white" stroke-width="2" />
@@ -156,7 +156,7 @@
                 <div class="card">
                     <div class="card-body p-3">
                         <div class="d-flex align-items-center gap-3">
-                            <div class="d-flex align-items-center justify-content-center" style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--warning) 0%, #fbbf24 100%); border-radius: var(--radius-md); flex-shrink: 0;">
+                            <div class="stat-icon warning" style="flex-shrink: 0;">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -180,7 +180,7 @@
                 <div class="row g-3 align-items-center">
                     <div class="col-lg-6">
                         <div class="input-group">
-                            <span class="input-group-text" style="background-color: var(--gray-50); border: 1.5px solid var(--gray-300);">
+                            <span class="input-group-text">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                     <path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -249,7 +249,7 @@
                             <td style="width: 18%;">
                                 <a asp-action="Profile" asp-route-id="@department.Id"
                                    class="clickable-link text-decoration-none">
-                                    <strong style="color: var(--gray-900);">@department.DepartmentName</strong>
+                                    <strong style="color: var(--text-heading);">@department.DepartmentName</strong>
                                 </a>
                             </td>
                             <td style="width: 20%;">

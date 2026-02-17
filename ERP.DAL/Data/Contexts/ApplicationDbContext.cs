@@ -22,6 +22,8 @@ namespace ERP.DAL.Data.Contexts
         public DbSet<TaskComment> TaskComments { get; set; } = null!;
         public DbSet<ReportJob> ReportJobs { get; set; } = null!;
         public DbSet<ReportPreset> ReportPresets { get; set; } = null!;
+        public DbSet<SeedHistory> SeedHistories { get; set; } = null!;
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -74,6 +76,15 @@ namespace ERP.DAL.Data.Contexts
                 entity.ToTable("ReportPresets");
                 entity.Property(r => r.Name).HasMaxLength(120).IsRequired();
                 entity.HasIndex(r => new { r.UserId, r.ReportType, r.Name }).IsUnique();
+            });
+
+            // Configure SeedHistory
+            modelBuilder.Entity<SeedHistory>(entity =>
+            {
+                entity.ToTable("SeedHistories");
+                entity.Property(s => s.SeedVersion).HasMaxLength(50).IsRequired();
+                entity.Property(s => s.Environment).HasMaxLength(50).IsRequired();
+                entity.HasIndex(s => new { s.SeedVersion, s.Environment });
             });
 
             // Apply existing configurations
