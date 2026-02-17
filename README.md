@@ -1,67 +1,85 @@
-# Company Management System
+# CompanyFlow - Business Management Platform
 
-## Overview
-Company Management System is a web-based enterprise application designed to manage
-internal company operations such as departments, employees, workflows, and organizational data
-in a structured and scalable manner.
+## Elevator Pitch
+“It is a web-based company management system designed to help businesses manage employees, projects, tasks, and operations in one centralized platform. The system is modular, customizable, and can be deployed for different companies as a ready-to-use business solution.”
 
-The project is built with maintainability and extensibility in mind, following a clear
-layered architecture and modern ASP.NET Core best practices.
+## 1-Minute Professional Explanation
+CompanyFlow is a modular ERP-style management system that improves operational efficiency by centralizing employees, departments, projects, tasks, and accountability workflows. It is built as a scalable multi-company-ready platform, with role-based permissions, progress tracking, and structured workflows suitable for real business operations.
 
----
+## Project Overview (Technical)
 
-## Core Objectives
-- Centralized company data management
-- Modular and scalable architecture
-- Clean separation of concerns
-- Foundation for role-based access control
+### Purpose
+- Manage employees and departments in a single source of truth
+- Track projects, tasks, and delivery progress
+- Improve visibility and accountability across teams
+- Standardize internal workflows with role-based controls
 
----
+### Core Features
+- Employee & Department management
+- Project & Task tracking
+- Role-based access control
+- Workflow and status monitoring
+- Audit and activity tracking foundation
+- Modular architecture for future customization
 
-## Tech Stack
+### Technology Stack
 - ASP.NET Core MVC
 - Entity Framework Core
 - SQL Server
-- Razor Views
-- Bootstrap / CSS
+- - Razor Views + Bootstrap/CSS
+- Layered architecture (`ERP.PL`, `ERP.BLL`, `ERP.DAL`)
+
+### Architecture
+- **ERP.PL (Presentation Layer):** MVC controllers, views, middleware, web configuration
+- **ERP.BLL (Business Logic Layer):** services, interfaces, application rules
+- **ERP.DAL (Data Access Layer):** EF Core context, entities, persistence
 
 ---
 
-## Architecture
-The solution follows a **3-layer architecture**:
+## System Workflow (Non-Technical)
 
-- **ERP.PL** – Presentation Layer  
-  Controllers, Razor Views, UI logic
+For non-technical teams, CompanyFlow can be described simply as:
 
-- **ERP.BLL** – Business Logic Layer  
-  Business rules, services, interfaces
+> “A system that helps companies organize their work, track employee tasks, and manage projects in one place instead of using scattered tools.”
 
-- **ERP.DAL** – Data Access Layer  
-  Entity Framework Core, database context, migrations
+### How work flows in the system
+1. Admin/Manager signs in
+2. Employees and departments are organized
+3. Projects are created and assigned
+4. Tasks are distributed to team members
+5. Progress is monitored through dashboard/reporting views
+6. Managers follow up with clear accountability data
 
----
+### Business Value
+- Reduces operational chaos
+- Improves team productivity
+- Centralizes company information
+- Increases management visibility
+- Adaptable across industries
 
-## Getting Started (Local Development)
-
-1. Install **Visual Studio** with ASP.NET and web development workload
-2. Open the solution file:
-3. Configure database connection in `appsettings.json`
-4. Apply migrations or ensure the database is created
-5. Run the project
-
----
-
-## Security Notes
-- Sensitive configuration files are excluded from source control
-- Secrets such as connection strings should never be committed
-- Use environment-specific configuration files locally
+### Suggested Website Taglines
+- **Smart Business Management in One Platform.**
+- **Organize Work. Track Progress. Grow Faster.**
+- **From Tasks to Teams - Everything in One Place.**
 
 ---
 
-## Project Status
-This project is under active development.
+## Environments
 
-➡️ **See `PROGRESS.md` for detailed development status and roadmap.**
+The system supports environment-based configuration using `ASPNETCORE_ENVIRONMENT`:
+- `Development` -> local/dev database and debug-friendly settings
+- `Production` -> secure production configuration with secrets from environment variables
+
+See `DEPLOYMENT.md` for branch strategy, release process, deployment steps, rollback, and backup guidance.
+
+
+## Seeding Modes
+
+The app supports environment-aware seeding:
+- `Seed__Mode=Development` -> full demo dataset for QA/UAT
+- `Seed__Mode=Production` -> production-safe baseline (roles + admin only)
+
+See `DEPLOYMENT.md` section **Database Seeding (Development vs Production)** for exact commands and comparison matrix.
 
 ---
 
