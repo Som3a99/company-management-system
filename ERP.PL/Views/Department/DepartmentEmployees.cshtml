@@ -221,10 +221,23 @@
                         <tr>
                             <td>
                                 <a asp-controller="Employee" asp-action="Profile" asp-route-id="@employee.Id">
-                                    <img src="/uploads/images/@employee.ImageUrl"
+                                    @{
+                                        // ImageUrl is already a full relative path e.g. "/uploads/images/emp_3_abc.jpg"
+                                        // or a default avatar "/uploads/images/avatar-male.png".
+                                        // Do NOT prepend /uploads/images/ again.
+                                        var imgSrc = !string.IsNullOrWhiteSpace(employee.ImageUrl)
+                                        ? employee.ImageUrl
+                                        : "/uploads/images/avatar-user.png";
+
+                                        // Safe initials fallback — guard against empty names
+                                        var fi = !string.IsNullOrWhiteSpace(employee.FirstName) ? employee.FirstName[0].ToString() : "?";
+                                        var li = !string.IsNullOrWhiteSpace(employee.LastName) ? employee.LastName[0].ToString() : "";
+                                        var initials = Uri.EscapeDataString(fi + li);
+                                    }
+                                    <img src="@imgSrc"
                                          alt="@employee.FirstName @employee.LastName"
                                          style="width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 2px solid var(--gray-200); cursor: pointer; transition: transform 0.2s ease;"
-                                         onerror="this.src='https://via.placeholder.com/40?text=@(employee.FirstName[0])@(employee.LastName[0])'"
+                                         onerror="if(!this.dataset.fallback){this.dataset.fallback='1';this.src='/uploads/images/avatar-user.png';}"
                                          onmouseover="this.style.transform='scale(1.1)'"
                                          onmouseout="this.style.transform='scale(1)'" />
                                 </a>
@@ -377,6 +390,17 @@
             const loadingIndicator = document.getElementById('loadingIndicator');
             const tableContainer = document.querySelector('.table-container');
 
+            // Bug fix: always hide the loading indicator when the page finishes rendering.
+            // Without this, browsers that replay the page from bfcache (back/forward cache)
+            // can restore it in the "spinner visible" state from the previous submit,
+            // leaving the page in a permanent loading state.
+            if (loadingIndicator) {
+                loadingIndicator.style.display = 'none';
+            }
+            if (tableContainer) {
+                tableContainer.style.opacity = '1';
+            }
+
             // Show loading indicator on form submit
             if (form) {
                 form.addEventListener('submit', function() {
@@ -420,16 +444,23 @@
         });
 
         function clearSearch() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('statusFilter').value = 'all';
+            const searchInput = document.getElementById('searchInput');
+            const statusFilter = document.getElementById('statusFilter');
+            const searchForm = document.getElementById('searchForm');
+
+            if (searchInput) searchInput.value = '';
+            if (statusFilter) statusFilter.value = 'all';
             updateFilterButtons('all');
-            document.getElementById('searchForm').submit();
+            if (searchForm) searchForm.submit();
         }
 
         function setStatusFilter(status) {
-            document.getElementById('statusFilter').value = status;
+            const statusFilter = document.getElementById('statusFilter');
+            const searchForm = document.getElementById('searchForm');
+
+            if (statusFilter) statusFilter.value = status;
             updateFilterButtons(status);
-            document.getElementById('searchForm').submit();
+            if (searchForm) searchForm.submit();
         }
 
         function updateFilterButtons(activeStatus) {
