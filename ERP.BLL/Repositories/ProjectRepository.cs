@@ -10,9 +10,11 @@ namespace ERP.BLL.Repositories
     public class ProjectRepository : GenericRepository<Project>, IProjectRepository
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public ProjectRepository(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor) : base(context)
+        private readonly ICacheService _cacheService;
+        public ProjectRepository(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor, ICacheService cacheService) : base(context)
         {
             _httpContextAccessor=httpContextAccessor;
+            _cacheService=cacheService;
         }
 
         private bool IsCEO()
@@ -34,6 +36,13 @@ namespace ERP.BLL.Repositories
             return claim != null ? int.Parse(claim.Value) : null;
         }
 
+        private int? GetUserDepartmentId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("DepartmentId");
+            return claim != null ? int.Parse(claim.Value) : null;
+        }
+
         private int? GetAssignedProjectId()
         {
             var claim = _httpContextAccessor.HttpContext?.User
@@ -41,57 +50,106 @@ namespace ERP.BLL.Repositories
             return claim != null ? int.Parse(claim.Value) : null;
         }
 
-        // Override GetAll to include navigation properties
-        public override async Task<IEnumerable<Project>> GetAllAsync()
+        private IQueryable<Project> ApplyScopeFilter(IQueryable<Project> query)
         {
-            var query = _context.Projects
-                .AsNoTracking()
-                .Include(p => p.Department)
-                .Include(p => p.ProjectManager)
-                .Where(p => !p.IsDeleted);
-
-            // CEO sees all projects
             if (IsCEO())
             {
-                return await query.ToListAsync();
+                return query.Where(p => !p.IsDeleted);
             }
 
-            // Department manager sees projects in own department
-            var managedDeptId = GetManagedDepartmentId();
-            if (managedDeptId.HasValue)
+            var managedDepartmentId = GetManagedDepartmentId();
+            if (managedDepartmentId.HasValue)
             {
-                query = query.Where(p => p.DepartmentId == managedDeptId.Value);
-                return await query.ToListAsync();
+                return query.Where(p => p.DepartmentId == managedDepartmentId.Value && !p.IsDeleted);
             }
 
-            // Project manager sees own project
             var managedProjectId = GetManagedProjectId();
             if (managedProjectId.HasValue)
             {
-                query = query.Where(p => p.Id == managedProjectId.Value);
-                return await query.ToListAsync();
+                return query.Where(p => p.Id == managedProjectId.Value && !p.IsDeleted);
             }
 
-            // Employee sees assigned project
+            var userDepartmentId = GetUserDepartmentId();
+            if (userDepartmentId.HasValue)
+            {
+                return query.Where(p => p.DepartmentId == userDepartmentId.Value && !p.IsDeleted);
+            }
+
             var assignedProjectId = GetAssignedProjectId();
             if (assignedProjectId.HasValue)
             {
-                query = query.Where(p => p.Id == assignedProjectId.Value);
-                return await query.ToListAsync();
+                return query.Where(p => p.Id == assignedProjectId.Value && !p.IsDeleted);
             }
 
-            // No context = no projects
-            return new List<Project>();
+            return query.Where(p => false); // No access
+        }
+
+        // Override GetAll to include navigation properties
+        public override async Task<IEnumerable<Project>> GetAllAsync()
+        {
+            var key = BuildScopedProjectListKey();
+            return await _cacheService.GetOrCreateSafeAsync(
+                key,
+                async () =>
+                {
+                    var query = _context.Projects
+                        .AsNoTracking()
+                        .Include(p => p.Department)
+                        .Include(p => p.ProjectManager)
+                        .Include(p => p.Employees)
+                        .Where(p => !p.IsDeleted);
+
+                    if (IsCEO())
+                    {
+                        return await query.ToListAsync();
+                    }
+
+                    var managedDepartmentId = GetManagedDepartmentId();
+                    if (managedDepartmentId.HasValue)
+                    {
+                        query = query.Where(p => p.DepartmentId == managedDepartmentId.Value);
+                        return await query.ToListAsync();
+                    }
+
+                    var managedProjectId = GetManagedProjectId();
+                    if (managedProjectId.HasValue)
+                    {
+                        query = query.Where(p => p.Id == managedProjectId.Value);
+                        return await query.ToListAsync();
+                    }
+
+                    var userDepartmentId = GetUserDepartmentId();
+                    if (userDepartmentId.HasValue)
+                    {
+                        query = query.Where(p => p.DepartmentId == userDepartmentId.Value);
+                        return await query.ToListAsync();
+                    }
+
+                    var assignedProjectId = GetAssignedProjectId();
+                    if (assignedProjectId.HasValue)
+                    {
+                        query = query.Where(p => p.Id == assignedProjectId.Value);
+                        return await query.ToListAsync();
+                    }
+
+                    return new List<Project>();
+                },
+                TimeSpan.FromMinutes(10));
         }
 
         // Override GetById to include navigation properties
         public override async Task<Project?> GetByIdAsync(int id)
         {
-            return await _context.Projects
-                .AsNoTracking()
-                .Include(p => p.Department)
-                .Include(p => p.ProjectManager)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            var key = $"erp:proj:{id}";
+            return await _cacheService.GetOrCreateNullableAsync(
+                key,
+                async () => await ApplyScopeFilter(_context.Projects
+                    .AsNoTracking()
+                    .Include(p => p.Department)
+                    .Include(p => p.ProjectManager)
+                    .Include(p => p.Employees))
+                    .FirstOrDefaultAsync(p => p.Id == id),
+                TimeSpan.FromMinutes(5));
         }
 
         /// <summary>
@@ -271,18 +329,22 @@ namespace ERP.BLL.Repositories
         /// </summary>
         public async Task<Project?> GetProjectProfileAsync(int id)
         {
-            return await _context.Projects
-                .AsNoTracking()
-                .Include(p => p.Department) // Project's department
-                .Include(p => p.ProjectManager) // Project manager
-                    .ThenInclude(m => m!.Department) // Manager's department
-                                .Include(p => p.Employees.Where(e => !e.IsDeleted))
-                    .ThenInclude(e => e.Department)
-                .Include(p => p.ProjectEmployees)
-                    .ThenInclude(pe => pe.Employee)
+            var key = $"erp:proj:{id}:profile";
+            return await _cacheService.GetOrCreateNullableAsync(
+                key,
+                async () => await _context.Projects
+                    .AsNoTracking()
+                    .Include(p => p.Department)
+                    .Include(p => p.ProjectManager)
+                        .ThenInclude(m => m!.Department)
+                    .Include(p => p.Employees.Where(e => !e.IsDeleted))
                         .ThenInclude(e => e.Department)
-                .Where(p => p.Id == id && !p.IsDeleted)
-                .FirstOrDefaultAsync();
+                    .Include(p => p.ProjectEmployees)
+                        .ThenInclude(pe => pe.Employee)
+                            .ThenInclude(e => e.Department)
+                    .Where(p => p.Id == id && !p.IsDeleted)
+                    .FirstOrDefaultAsync(),
+                TimeSpan.FromMinutes(5));
         }
 
         /// <summary>
@@ -338,6 +400,50 @@ namespace ERP.BLL.Repositories
                 .ToListAsync();
 
             return new PagedResult<Project>(items, totalCount, pageNumber, pageSize);
+        }
+
+        public async Task InvalidateCacheAsync(int? projectId = null)
+        {
+            await _cacheService.RemoveByPrefixAsync("erp:proj:scope:");
+            await _cacheService.RemoveAsync(CacheKeys.ProjectsAll);
+            await _cacheService.RemoveAsync(CacheKeys.AvailableProjectManagersAll);
+            await _cacheService.RemoveByPrefixAsync(CacheKeys.ReportProjectsPrefix);
+            await _cacheService.RemoveByPrefixAsync(CacheKeys.ReportTasksPrefix);
+            await _cacheService.RemoveByPrefixAsync(CacheKeys.ReportDepartmentsPrefix);
+
+            if (projectId.HasValue)
+            {
+                await _cacheService.RemoveAsync($"erp:proj:{projectId.Value}");
+                await _cacheService.RemoveAsync($"erp:proj:{projectId.Value}:profile");
+            }
+        }
+
+        private string BuildScopedProjectListKey()
+        {
+            if (IsCEO())
+            {
+                return "erp:proj:scope:ceo";
+            }
+
+            var managedDepartmentId = GetManagedDepartmentId();
+            if (managedDepartmentId.HasValue)
+            {
+                return $"erp:proj:scope:manageddept:{managedDepartmentId.Value}";
+            }
+
+            var managedProjectId = GetManagedProjectId();
+            if (managedProjectId.HasValue)
+            {
+                return $"erp:proj:scope:managedproj:{managedProjectId.Value}";
+            }
+
+            var userDepartmentId = GetUserDepartmentId();
+            if (userDepartmentId.HasValue)
+            {
+                return $"erp:proj:scope:userdept:{userDepartmentId.Value}";
+            }
+
+            return "erp:proj:scope:none";
         }
     }
 }

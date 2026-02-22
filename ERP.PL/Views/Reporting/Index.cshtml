@@ -9,6 +9,14 @@
         <a class="btn btn-outline-dark" asp-action="Jobs">Async Jobs & Presets</a>
     </div>
 
+    @if (!string.IsNullOrWhiteSpace(ViewData["CacheStatus"]?.ToString()))
+    {
+        <div class="alert alert-info py-2 d-flex justify-content-between align-items-center" role="alert">
+            <span>Results cache: <strong>@ViewData["CacheStatus"]</strong></span>
+            <small class="text-muted">Updated @(((DateTime?)ViewData["CacheGeneratedUtc"])?.ToString("u"))</small>
+        </div>
+    }
+
     <form method="get" class="card card-body mb-4">
         <div class="row g-3">
             <div class="col-md-2">
@@ -33,6 +41,15 @@
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button class="btn btn-primary w-100" type="submit">Apply Filters</button>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <a class="btn btn-outline-danger w-100" asp-action="Index"
+                   asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")"
+                   asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")"
+                   asp-route-DepartmentId="@Model.Filters.DepartmentId"
+                   asp-route-ProjectId="@Model.Filters.ProjectId"
+                   asp-route-Export="@Model.Filters.Export"
+                   asp-route-refreshCache="true">Refresh (Bypass Cache)</a>
             </div>
         </div>
     </form>

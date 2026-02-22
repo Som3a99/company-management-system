@@ -86,6 +86,25 @@
     </div>
 
     <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card card-soft">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Cache Health</h6>
+                    <div class="d-flex flex-wrap gap-4">
+                        <div><strong>Hit Ratio:</strong> @ViewBag.CacheHitRatio%</div>
+                        <div><strong>Entries:</strong> @ViewBag.CacheEntryCount</div>
+                        <div><strong>Estimated Size:</strong> @ViewBag.CacheEstimatedSize</div>
+                    </div>
+                    @if (ViewBag.CachePressureWarning != null)
+                    {
+                        <div class="alert alert-warning mt-3 mb-0">@ViewBag.CachePressureWarning</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
         <div class="col-12">
             <div class="card card-soft">
                 <div class="card-header header-gradient">

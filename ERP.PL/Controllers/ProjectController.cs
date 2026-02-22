@@ -22,6 +22,7 @@ namespace ERP.PL.Controllers
         private readonly IAuditService _auditService;
         private readonly IRoleManagementService _roleManagementService;
         private readonly IProjectTeamService _projectTeamService;
+        private readonly ICacheService _cacheService;
 
 
         public ProjectController(
@@ -31,7 +32,8 @@ namespace ERP.PL.Controllers
             IConfiguration configuration,
             IAuditService auditService,
             IRoleManagementService roleManagementService,
-            IProjectTeamService projectTeamService)
+            IProjectTeamService projectTeamService,
+            ICacheService cacheService)
         {
             _mapper = mapper;
             _unitOfWork = unitOfWork;
@@ -40,6 +42,7 @@ namespace ERP.PL.Controllers
             _auditService=auditService;
             _roleManagementService=roleManagementService;
             _projectTeamService=projectTeamService;
+            _cacheService=cacheService;
         }
 
         #region Index
@@ -203,6 +206,7 @@ namespace ERP.PL.Controllers
                 await _unitOfWork.CompleteAsync();
 
                 await transaction.CommitAsync();
+                await InvalidateProjectRelatedCachesAsync(mappedProject.Id);
 
                 // Audit log success
                 await _auditService.LogAsync(
@@ -402,6 +406,7 @@ namespace ERP.PL.Controllers
                 // Commit DB changes
                 await _unitOfWork.CompleteAsync();
                 await transaction.CommitAsync();
+                await InvalidateProjectRelatedCachesAsync(existingProject.Id);
 
                 // AUTO-ASSIGN ROLE IF MANAGER CHANGED
                 if (existingProject.ProjectManagerId.HasValue)
@@ -526,6 +531,7 @@ namespace ERP.PL.Controllers
             {
                 await _unitOfWork.ProjectRepository.DeleteAsync(id);
                 await _unitOfWork.CompleteAsync();
+                await InvalidateProjectRelatedCachesAsync(id);
 
                 // Audit log success
                 await _auditService.LogAsync(
@@ -797,7 +803,10 @@ namespace ERP.PL.Controllers
         /// </summary>
         private async Task LoadDepartmentsAsync(int? selectedDepartmentId = null)
         {
-            var departments = await _unitOfWork.DepartmentRepository.GetAllAsync();
+            var departments = await _cacheService.GetOrCreateSafeAsync(
+                                CacheKeys.DepartmentsAll,
+                                async () => (await _unitOfWork.DepartmentRepository.GetAllAsync()).ToList(),
+                                TimeSpan.FromMinutes(10));
             ViewBag.Departments = new SelectList(
                 departments.Select(d => new
                 {
@@ -815,8 +824,17 @@ namespace ERP.PL.Controllers
         /// </summary>
         private async Task LoadAvailableProjectManagersAsync(int? currentManagerId = null, int? currentProjectId = null)
         {
-            var employees = await _unitOfWork.EmployeeRepository.GetAllAsync();
-            var projects = await _unitOfWork.ProjectRepository.GetAllAsync();
+            var employees = await _cacheService.GetOrCreateSafeAsync(
+                CacheKeys.AvailableProjectManagersAll,
+                async () => (await _unitOfWork.EmployeeRepository.GetAllAsync())
+                    .Where(e => e.IsActive && !e.IsDeleted)
+                    .ToList(),
+                TimeSpan.FromMinutes(10));
+
+            var projects = await _cacheService.GetOrCreateSafeAsync(
+                CacheKeys.ProjectsAll,
+                async () => (await _unitOfWork.ProjectRepository.GetAllAsync()).ToList(),
+                TimeSpan.FromMinutes(10));
 
             // Get all employees who are already managing a project (except current)
             var managingEmployeeIds = projects
@@ -826,9 +844,7 @@ namespace ERP.PL.Controllers
 
             // Filter available managers: active, not deleted, not managing another project
             var availableManagers = employees
-                .Where(e => e.IsActive &&
-                           !e.IsDeleted &&
-                           !managingEmployeeIds.Contains(e.Id))
+                .Where(e => !managingEmployeeIds.Contains(e.Id))
                 .OrderBy(e => e.LastName)
                 .ThenBy(e => e.FirstName);
 
@@ -871,6 +887,17 @@ namespace ERP.PL.Controllers
             return false;
         }
 
+        /// <summary>
+        /// Invalidation rules:
+        /// - Department list cache is shared by create/edit forms.
+        /// - Available managers list changes when projects or employee role assignments change.
+        /// - Report caches are evicted to avoid stale aggregate values.
+        /// </summary>
+        private Task InvalidateProjectRelatedCachesAsync(int? projectId = null)
+        {
+            // Repository-level invalidation keeps project list and profile caches consistent.
+            return _unitOfWork.ProjectRepository.InvalidateCacheAsync(projectId);
+        }
         #endregion
     }
 }

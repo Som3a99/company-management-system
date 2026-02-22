@@ -29,6 +29,7 @@ namespace ERP.PL.Controllers
 
         // Public homepage - accessible to anyone
         [AllowAnonymous]
+        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Any)]
         public IActionResult Index()
         {
             // If user is already logged in, redirect to internal dashboard
@@ -85,6 +86,7 @@ namespace ERP.PL.Controllers
         }
 
         [AllowAnonymous]
+        [ResponseCache(Duration = 300, Location = ResponseCacheLocation.Any)]
         public IActionResult Privacy()
         {
             return View();

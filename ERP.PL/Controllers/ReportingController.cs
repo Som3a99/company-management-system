@@ -1,37 +1,52 @@
-﻿using ERP.BLL.Reporting.Dtos;
+﻿using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
+using ERP.BLL.Reporting.Dtos;
 using ERP.BLL.Reporting.Interfaces;
 using ERP.DAL.Models;
 using ERP.PL.Utilities;
 using ERP.PL.ViewModels.Reporting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 using System.Text.Json;
 
 namespace ERP.PL.Controllers
 {
     [Authorize(Policy = "RequireManager")]
+    [EnableRateLimiting("ReportingHeavy")]
     public class ReportingController : Controller
     {
         private readonly IReportingService _reportingService;
         private readonly IReportJobService _reportJobService;
+        private readonly ICacheService _cacheService;
 
-        public ReportingController(IReportingService reportingService, IReportJobService reportJobService)
+        public ReportingController(IReportingService reportingService, IReportJobService reportJobService, ICacheService cacheService)
         {
             _reportingService = reportingService;
             _reportJobService = reportJobService;
+            _cacheService=cacheService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index([FromQuery] ReportFilterViewModel filters)
+        public async Task<IActionResult> Index([FromQuery] ReportFilterViewModel filters, [FromQuery] bool refreshCache = false)
         {
             var scope = ResolveScope(filters);
             if (!scope.Allowed)
                 return Forbid();
 
+            if (refreshCache)
+            {
+                await RefreshReportCachesAsync();
+                ViewData["CacheStatus"] = "BYPASS";
+            }
+
             var request = ToRequest(filters);
             var taskRows = await _reportingService.GetTaskReportAsync(request, scope.DepartmentId, scope.ProjectId);
             var projectRows = await _reportingService.GetProjectReportAsync(request, scope.DepartmentId, scope.ProjectId);
+
+            ViewData["CacheStatus"] ??= Response.Headers["X-Cache-Status"].ToString();
+            ViewData["CacheGeneratedUtc"] = DateTime.UtcNow;
 
             var vm = new ReportingIndexViewModel
             {
@@ -51,13 +66,23 @@ namespace ERP.PL.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Department([FromQuery] ReportFilterViewModel filters)
+        public async Task<IActionResult> Department([FromQuery] ReportFilterViewModel filters, [FromQuery] bool refreshCache = false)
         {
             var scope = ResolveScope(filters);
             if (!scope.Allowed || scope.ProjectId.HasValue)
                 return Forbid();
 
+            if (refreshCache)
+            {
+                await RefreshReportCachesAsync();
+                ViewData["CacheStatus"] = "BYPASS";
+            }
+
             var rows = await _reportingService.GetDepartmentReportAsync(ToRequest(filters), scope.DepartmentId);
+
+            ViewData["CacheStatus"] ??= Response.Headers["X-Cache-Status"].ToString();
+            ViewData["CacheGeneratedUtc"] = DateTime.UtcNow;
+
             return View(new ReportingIndexViewModel
             {
                 Filters = filters,
@@ -67,9 +92,17 @@ namespace ERP.PL.Controllers
 
         [Authorize(Policy = "RequireCEO")]
         [HttpGet]
-        public async Task<IActionResult> Audit([FromQuery] ReportFilterViewModel filters)
+        public async Task<IActionResult> Audit([FromQuery] ReportFilterViewModel filters, [FromQuery] bool refreshCache = false)
         {
+            if (refreshCache)
+            {
+                await RefreshReportCachesAsync();
+                ViewData["CacheStatus"] = "BYPASS";
+            }
+
             var rows = await _reportingService.GetAuditReportAsync(ToRequest(filters));
+            ViewData["CacheStatus"] ??= Response.Headers["X-Cache-Status"].ToString();
+            ViewData["CacheGeneratedUtc"] = DateTime.UtcNow;
             return View(new ReportingIndexViewModel
             {
                 Filters = filters,
@@ -272,6 +305,15 @@ namespace ERP.PL.Controllers
                 ReportExportFormat.Pdf => File(ReportExportUtility.ToPdf(title, headers, rows), "application/pdf", $"{name}.pdf"),
                 _ => File(ReportExportUtility.ToCsv(title, headers, rows), "text/csv", $"{name}.csv")
             };
+        }
+
+        private Task RefreshReportCachesAsync()
+        {
+            return Task.WhenAll(
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportTasksPrefix),
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportProjectsPrefix),
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportDepartmentsPrefix),
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportAuditPrefix));
         }
     }
 }

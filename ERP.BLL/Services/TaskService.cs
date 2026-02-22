@@ -18,6 +18,7 @@ namespace ERP.BLL.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ApplicationDbContext _dbContext;
+        private readonly ICacheService _cacheService;
 
         private static readonly Dictionary<TaskStatus, HashSet<TaskStatus>> AllowedTransitions = new()
         {
@@ -35,7 +36,8 @@ namespace ERP.BLL.Services
             IEmployeeRepository employeeRepository,
             IUnitOfWork unitOfWork,
             IHttpContextAccessor httpContextAccessor,
-            ApplicationDbContext dbContext)
+            ApplicationDbContext dbContext,
+            ICacheService cacheService)
         {
             _taskRepository = taskRepository;
             _projectRepository = projectRepository;
@@ -43,6 +45,7 @@ namespace ERP.BLL.Services
             _unitOfWork = unitOfWork;
             _httpContextAccessor = httpContextAccessor;
             _dbContext = dbContext;
+            _cacheService=cacheService;
         }
 
         public async Task<TaskOperationResult<TaskItem>> CreateTaskAsync(CreateTaskRequest request, string currentUserId)
@@ -89,6 +92,7 @@ namespace ERP.BLL.Services
 
             await _taskRepository.AddAsync(entity);
             await _unitOfWork.CompleteAsync();
+            await InvalidateTaskReportCachesAsync();
             await WriteAuditLogAsync(currentUserId, "TASK_CREATE", entity.Id, new { entity.ProjectId, entity.AssignedToEmployeeId, entity.Priority });
 
             return TaskOperationResult<TaskItem>.Success(entity);
@@ -138,6 +142,7 @@ namespace ERP.BLL.Services
             try
             {
                 await _unitOfWork.CompleteAsync();
+                await InvalidateTaskReportCachesAsync();
                 await WriteAuditLogAsync(currentUserId, "TASK_UPDATE", task.Id, new { task.Title, task.Priority, task.DueDate, task.StartDate });
             }
             catch (DbUpdateConcurrencyException)
@@ -176,6 +181,7 @@ namespace ERP.BLL.Services
             try
             {
                 await _unitOfWork.CompleteAsync();
+                await InvalidateTaskReportCachesAsync();
                 await WriteAuditLogAsync(currentUserId, "TASK_STATUS_UPDATE", task.Id, new { OldStatus = oldStatus.ToString(), NewStatus = request.NewStatus.ToString() });
             }
             catch (DbUpdateConcurrencyException)
@@ -215,6 +221,7 @@ namespace ERP.BLL.Services
             try
             {
                 await _unitOfWork.CompleteAsync();
+                await InvalidateTaskReportCachesAsync();
                 await WriteAuditLogAsync(currentUserId, "TASK_REASSIGN", task.Id, new { OldAssigneeEmployeeId = previousAssignee, NewAssigneeEmployeeId = request.AssignedToEmployeeId });
             }
             catch (DbUpdateConcurrencyException)
@@ -247,6 +254,7 @@ namespace ERP.BLL.Services
             try
             {
                 await _unitOfWork.CompleteAsync();
+                await InvalidateTaskReportCachesAsync();
                 await WriteAuditLogAsync(currentUserId, "TASK_UNASSIGN", task.Id, new { });
             }
             catch (DbUpdateConcurrencyException)
@@ -274,6 +282,7 @@ namespace ERP.BLL.Services
             try
             {
                 await _unitOfWork.CompleteAsync();
+                await InvalidateTaskReportCachesAsync();
                 await WriteAuditLogAsync(currentUserId, "TASK_DELETE", taskId, new { });
             }
             catch (DbUpdateConcurrencyException)
@@ -429,6 +438,16 @@ namespace ERP.BLL.Services
             _dbContext.AuditLogs.Add(audit);
             await _dbContext.SaveChangesAsync();
 
+        }
+        /// <summary>
+        /// Invalidation rule: task writes impact task/project/department reporting aggregates.
+        /// </summary>
+        private Task InvalidateTaskReportCachesAsync()
+        {
+            return Task.WhenAll(
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportTasksPrefix),
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportProjectsPrefix),
+                _cacheService.RemoveByPrefixAsync(CacheKeys.ReportDepartmentsPrefix));
         }
     }
 }

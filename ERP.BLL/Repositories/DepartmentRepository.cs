@@ -12,9 +12,11 @@ namespace ERP.BLL.Repositories
     public class DepartmentRepository : GenericRepository<Department>, IDepartmentRepository
     {
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public DepartmentRepository(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor) : base(context)
+        private readonly ICacheService _cacheService;
+        public DepartmentRepository(ApplicationDbContext context, IHttpContextAccessor httpContextAccessor, ICacheService cacheService) : base(context)
         {
             _httpContextAccessor=httpContextAccessor;
+            _cacheService=cacheService;
         }
 
         private bool IsCEO()
@@ -39,47 +41,55 @@ namespace ERP.BLL.Repositories
         // Override GetAll to include Employees navigation property
         public override async Task<IEnumerable<Department>> GetAllAsync()
         {
-            var query = _context.Departments
-                .AsNoTracking()
-                .Include(d => d.Employees)
-                .Include(d => d.Manager)
-                .Include(d => d.Projects)
-                .Where(d => !d.IsDeleted);
-            // CEO sees all departments
-            if (IsCEO())
-            {
-                return await query.ToListAsync();
-            }
+            var cacheKey = BuildScopedDepartmentListKey();
+            return await _cacheService.GetOrCreateSafeAsync(
+                cacheKey,
+                async () =>
+                {
+                    var query = _context.Departments
+                        .AsNoTracking()
+                        .Include(d => d.Employees)
+                        .Include(d => d.Manager)
+                        .Include(d => d.Projects)
+                        .Where(d => !d.IsDeleted);
 
-            // Department manager sees own department
-            var managedDeptId = GetManagedDepartmentId();
-            if (managedDeptId.HasValue)
-            {
-                query = query.Where(d => d.Id == managedDeptId.Value);
-                return await query.ToListAsync();
-            }
+                    if (IsCEO())
+                    {
+                        return await query.ToListAsync();
+                    }
 
-            // Regular employee sees own department
-            var userDeptId = GetUserDepartmentId();
-            if (userDeptId.HasValue)
-            {
-                query = query.Where(d => d.Id == userDeptId.Value);
-                return await query.ToListAsync();
-            }
+                    var managedDeptId = GetManagedDepartmentId();
+                    if (managedDeptId.HasValue)
+                    {
+                        query = query.Where(d => d.Id == managedDeptId.Value);
+                        return await query.ToListAsync();
+                    }
 
-            // No context = no departments
-            return new List<Department>();
+                    var userDeptId = GetUserDepartmentId();
+                    if (userDeptId.HasValue)
+                    {
+                        query = query.Where(d => d.Id == userDeptId.Value);
+                        return await query.ToListAsync();
+                    }
+
+                    return new List<Department>();
+                },
+                TimeSpan.FromMinutes(10));
         }
 
         // Override GetById to include Employees navigation property
         public override async Task<Department?> GetByIdAsync(int id)
         {
-            return await _context.Departments
-                .AsNoTracking()
-                .Include(d => d.Employees)
-                .Include(d => d.Manager)
-                .Include(d => d.Projects)
-                .FirstOrDefaultAsync(d => d.Id == id);
+            var key = $"erp:dept:{id}";
+            return await _cacheService.GetOrCreateNullableAsync(
+                key,
+                async () => await _context.Departments
+                    .AsNoTracking()
+                    .Include(d => d.Employees)
+                    .Include(d => d.Manager)
+                    .Include(d => d.Projects)
+                    .FirstOrDefaultAsync(d => d.Id == id),
+                TimeSpan.FromMinutes(5));
         }
 
         /// <summary>
@@ -259,18 +269,61 @@ namespace ERP.BLL.Repositories
         /// </summary>
         public async Task<Department?> GetDepartmentProfileAsync(int id)
         {
-            return await _context.Departments
-                .AsNoTracking()
-                .Include(d => d.Manager) // Department manager
-                    .ThenInclude(m => m!.Department) // Manager's department (if different)
-                .Include(d => d.Employees.Where(e => !e.IsDeleted)) // Active employees
-                    .ThenInclude(e => e.Project) // Each employee's project
-                .Include(d => d.Projects.Where(p => !p.IsDeleted)) // Active projects
-                    .ThenInclude(p => p.ProjectManager) // Each project's manager
-                .Include(d => d.Projects.Where(p => !p.IsDeleted))
-                    .ThenInclude(p => p.Employees.Where(e => !e.IsDeleted)) // Employees in each project
-                .Where(d => d.Id == id && !d.IsDeleted)
-                .FirstOrDefaultAsync();
+            var key = $"erp:dept:{id}:profile";
+            return await _cacheService.GetOrCreateNullableAsync(
+                key,
+                async () => await _context.Departments
+                    .AsNoTracking()
+                    .Include(d => d.Manager)
+                        .ThenInclude(m => m!.Department)
+                    .Include(d => d.Employees.Where(e => !e.IsDeleted))
+                        .ThenInclude(e => e.Project)
+                    .Include(d => d.Projects.Where(p => !p.IsDeleted))
+                        .ThenInclude(p => p.ProjectManager)
+                    .Include(d => d.Projects.Where(p => !p.IsDeleted))
+                        .ThenInclude(p => p.Employees.Where(e => !e.IsDeleted))
+                    .Where(d => d.Id == id && !d.IsDeleted)
+                    .FirstOrDefaultAsync(),
+                TimeSpan.FromMinutes(5));
+        }
+
+        public async Task InvalidateCacheAsync(int? departmentId = null)
+        {
+            await _cacheService.RemoveByPrefixAsync("erp:dept:scope:");
+            await _cacheService.RemoveAsync(CacheKeys.DepartmentsAll);
+            await _cacheService.RemoveByPrefixAsync(CacheKeys.ReportDepartmentsPrefix);
+
+            if (departmentId.HasValue)
+            {
+                await _cacheService.RemoveAsync($"erp:dept:{departmentId.Value}");
+                await _cacheService.RemoveAsync($"erp:dept:{departmentId.Value}:profile");
+            }
+
+            // Department writes can impact manager/dropdown and project-department reports.
+            await _cacheService.RemoveAsync(CacheKeys.AvailableProjectManagersAll);
+            await _cacheService.RemoveByPrefixAsync(CacheKeys.ReportProjectsPrefix);
+        }
+
+        private string BuildScopedDepartmentListKey()
+        {
+            if (IsCEO())
+            {
+                return "erp:dept:scope:ceo";
+            }
+
+            var managedDeptId = GetManagedDepartmentId();
+            if (managedDeptId.HasValue)
+            {
+                return $"erp:dept:scope:managed:{managedDeptId.Value}";
+            }
+
+            var userDeptId = GetUserDepartmentId();
+            if (userDeptId.HasValue)
+            {
+                return $"erp:dept:scope:user:{userDeptId.Value}";
+            }
+
+            return "erp:dept:scope:none";
         }
 
     }

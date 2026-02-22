@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 
 namespace ERP.PL.Controllers
@@ -26,6 +27,8 @@ namespace ERP.PL.Controllers
         private readonly IAuditService _auditService;
         private readonly ILogger<ITAdminController> _logger;
         private readonly IMapper _mapper;
+        private readonly ICacheService _cacheService;
+        private readonly IMemoryCache _memoryCache;
 
         public ITAdminController(
             ApplicationDbContext context,
@@ -33,7 +36,9 @@ namespace ERP.PL.Controllers
             IUnitOfWork unitOfWork,
             IAuditService auditService,
             ILogger<ITAdminController> logger,
-            IMapper mapper)
+            IMapper mapper,
+            ICacheService cacheService,
+            IMemoryCache memoryCache)
         {
             _context = context;
             _userManager = userManager;
@@ -41,6 +46,8 @@ namespace ERP.PL.Controllers
             _auditService = auditService;
             _logger = logger;
             _mapper = mapper;
+            _cacheService=cacheService;
+            _memoryCache=memoryCache;
         }
 
         #region Dashboard
@@ -51,21 +58,37 @@ namespace ERP.PL.Controllers
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
-            var pendingResets = await _context.PasswordResetRequests
-                .Where(r => r.Status == ResetStatus.Pending)
-                .CountAsync();
+            var stats = await _cacheService.GetOrCreateSafeAsync(
+                CacheKeys.ItAdminDashboard,
+                async () => new ITAdminDashboardStats
+                {
+                    PendingResets = await _context.PasswordResetRequests
+                        .CountAsync(r => r.Status == ResetStatus.Pending),
+                    ExpiredResets = await _context.PasswordResetRequests
+                        .CountAsync(r => r.Status == ResetStatus.Pending && r.ExpiresAt < DateTime.UtcNow),
+                    LockedAccounts = await _userManager.Users
+                        .CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.Now)
+                },
+                TimeSpan.FromMinutes(2));
 
-            var expiredResets = await _context.PasswordResetRequests
-                .Where(r => r.Status == ResetStatus.Pending && r.ExpiresAt < DateTime.UtcNow)
-                .CountAsync();
+            ViewBag.PendingResets = stats.PendingResets;
+            ViewBag.ExpiredResets = stats.ExpiredResets;
+            ViewBag.LockedAccounts = stats.LockedAccounts;
+            Response.Headers["X-Cache-Context"] = "erp:dashboard:itadmin";
 
-            var lockedAccounts = await _userManager.Users
-                .Where(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.Now)
-                .CountAsync();
+            var memoryStats = (_memoryCache as MemoryCache)?.GetCurrentStatistics();
+            var totalLookups = (memoryStats?.TotalHits ?? 0) + (memoryStats?.TotalMisses ?? 0);
+            var hitRatio = totalLookups == 0 ? 0 : Math.Round((memoryStats?.TotalHits ?? 0) * 100.0 / totalLookups, 2);
 
-            ViewBag.PendingResets = pendingResets;
-            ViewBag.ExpiredResets = expiredResets;
-            ViewBag.LockedAccounts = lockedAccounts;
+            ViewBag.CacheHitRatio = hitRatio;
+            ViewBag.CacheEntryCount = memoryStats?.CurrentEntryCount ?? 0;
+            ViewBag.CacheEstimatedSize = memoryStats?.CurrentEstimatedSize ?? 0;
+
+            if ((memoryStats?.CurrentEntryCount ?? 0) > 900)
+            {
+                ViewBag.CachePressureWarning = "Cache entry count is near configured limit. Review eviction and TTLs.";
+            }
+
 
             return View();
         }
@@ -240,6 +263,7 @@ namespace ERP.PL.Controllers
                 request.ResolvedAt = DateTime.UtcNow;
                 request.ResolvedBy = User.Identity!.Name;
                 await _context.SaveChangesAsync();
+                await InvalidateDashboardCacheAsync();
 
                 // Audit log
                 await _auditService.LogAsync(
@@ -302,6 +326,7 @@ namespace ERP.PL.Controllers
             request.ResolvedBy = User.Identity!.Name;
             request.DenialReason = denialReason ?? "Requires in-person verification";
             await _context.SaveChangesAsync();
+            await InvalidateDashboardCacheAsync();
 
             // Audit log
             await _auditService.LogAsync(
@@ -333,6 +358,7 @@ namespace ERP.PL.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await InvalidateDashboardCacheAsync();
 
             TempData["SuccessMessage"] = $"Marked {expiredRequests.Count} expired request(s)";
             return RedirectToAction(nameof(PasswordResetRequests));
@@ -360,6 +386,11 @@ namespace ERP.PL.Controllers
 
             return ipAddress;
         }
+
+        /// <summary>
+        /// Invalidation rule: dashboard aggregates depend on password reset requests and lockout state.
+        /// </summary>
+        private Task InvalidateDashboardCacheAsync() => _cacheService.RemoveAsync(CacheKeys.ItAdminDashboard);
         #endregion
 
     }

@@ -42,5 +42,10 @@ namespace ERP.BLL.Interfaces
         /// Get department with all related data for profile page
         /// </summary>
         Task<Department?> GetDepartmentProfileAsync(int id);
+
+        /// <summary>
+        /// Evicts department aggregate/list/profile cache entries after successful writes.
+        /// </summary>
+        Task InvalidateCacheAsync(int? departmentId = null);
     }
 }

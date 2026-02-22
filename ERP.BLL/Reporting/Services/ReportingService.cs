@@ -1,7 +1,11 @@
-﻿using ERP.BLL.Reporting.Dtos;
+﻿using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
+using ERP.BLL.Reporting.Dtos;
 using ERP.BLL.Reporting.Interfaces;
 using ERP.DAL.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
+using System.Text;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
 
 namespace ERP.BLL.Reporting.Services
@@ -9,13 +13,76 @@ namespace ERP.BLL.Reporting.Services
     public sealed class ReportingService : IReportingService
     {
         private readonly ApplicationDbContext _dbContext;
+        private readonly ICacheService _cacheService;
 
-        public ReportingService(ApplicationDbContext dbContext)
+        public ReportingService(ApplicationDbContext dbContext, ICacheService cacheService)
         {
             _dbContext = dbContext;
+            _cacheService=cacheService;
         }
 
         public async Task<IReadOnlyList<TaskReportRowDto>> GetTaskReportAsync(ReportRequestDto request, int? scopedDepartmentId, int? scopedProjectId)
+        {
+            var cacheKey = BuildHashedKey(
+                CacheKeys.ReportTasksPrefix,
+                request.StartDateUtc,
+                request.EndDateUtc,
+                request.DepartmentId,
+                request.ProjectId,
+                scopedDepartmentId,
+                scopedProjectId);
+
+            return await _cacheService.GetOrCreateSafeAsync(
+                cacheKey,
+                async () => await GetTaskReportCoreAsync(request, scopedDepartmentId, scopedProjectId),
+                TimeSpan.FromMinutes(5));
+        }
+
+        public async Task<IReadOnlyList<ProjectReportRowDto>> GetProjectReportAsync(ReportRequestDto request, int? scopedDepartmentId, int? scopedProjectId)
+        {
+            var cacheKey = BuildHashedKey(
+                CacheKeys.ReportProjectsPrefix,
+                request.StartDateUtc,
+                request.EndDateUtc,
+                request.DepartmentId,
+                request.ProjectId,
+                scopedDepartmentId,
+                scopedProjectId);
+
+            return await _cacheService.GetOrCreateSafeAsync(
+                cacheKey,
+                async () => await GetProjectReportCoreAsync(request, scopedDepartmentId, scopedProjectId),
+                TimeSpan.FromMinutes(5));
+        }
+
+        public async Task<IReadOnlyList<DepartmentReportRowDto>> GetDepartmentReportAsync(ReportRequestDto request, int? scopedDepartmentId)
+        {
+            var cacheKey = BuildHashedKey(
+                CacheKeys.ReportDepartmentsPrefix,
+                request.DepartmentId,
+                scopedDepartmentId);
+
+            return await _cacheService.GetOrCreateSafeAsync(
+                cacheKey,
+                async () => await GetDepartmentReportCoreAsync(request, scopedDepartmentId),
+                TimeSpan.FromMinutes(5));
+        }
+
+        public async Task<IReadOnlyList<AuditReportRowDto>> GetAuditReportAsync(ReportRequestDto request)
+        {
+            var cacheKey = BuildHashedKey(
+                CacheKeys.ReportAuditPrefix,
+                request.StartDateUtc,
+                request.EndDateUtc,
+                request.DepartmentId,
+                request.ProjectId);
+
+            return await _cacheService.GetOrCreateSafeAsync(
+                cacheKey,
+                async () => await GetAuditReportCoreAsync(request),
+                TimeSpan.FromMinutes(1));
+        }
+        private async Task<IReadOnlyList<TaskReportRowDto>> GetTaskReportCoreAsync(ReportRequestDto request, int? scopedDepartmentId, int? scopedProjectId)
         {
             var query = _dbContext.TaskItems
                 .AsNoTracking()
@@ -60,7 +127,7 @@ namespace ERP.BLL.Reporting.Services
                 .ToListAsync();
         }
 
-        public async Task<IReadOnlyList<ProjectReportRowDto>> GetProjectReportAsync(ReportRequestDto request, int? scopedDepartmentId, int? scopedProjectId)
+        private async Task<IReadOnlyList<ProjectReportRowDto>> GetProjectReportCoreAsync(ReportRequestDto request, int? scopedDepartmentId, int? scopedProjectId)
         {
             var query = _dbContext.Projects
                 .AsNoTracking()
@@ -103,7 +170,7 @@ namespace ERP.BLL.Reporting.Services
                 .ToListAsync();
         }
 
-        public async Task<IReadOnlyList<DepartmentReportRowDto>> GetDepartmentReportAsync(ReportRequestDto request, int? scopedDepartmentId)
+        private async Task<IReadOnlyList<DepartmentReportRowDto>> GetDepartmentReportCoreAsync(ReportRequestDto request, int? scopedDepartmentId)
         {
             var query = _dbContext.Departments
                 .AsNoTracking()
@@ -133,7 +200,7 @@ namespace ERP.BLL.Reporting.Services
                 .ToListAsync();
         }
 
-        public async Task<IReadOnlyList<AuditReportRowDto>> GetAuditReportAsync(ReportRequestDto request)
+        private async Task<IReadOnlyList<AuditReportRowDto>> GetAuditReportCoreAsync(ReportRequestDto request)
         {
             var query = _dbContext.AuditLogs.AsNoTracking().AsQueryable();
 
@@ -157,6 +224,14 @@ namespace ERP.BLL.Reporting.Services
                 })
                 .Take(1000)
                 .ToListAsync();
+        }
+
+
+        private static string BuildHashedKey(string prefix, params object?[] values)
+        {
+            var payload = string.Join('|', values.Select(v => v?.ToString() ?? "null"));
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)))[..10];
+            return $"{prefix}{hash}";
         }
     }
 }

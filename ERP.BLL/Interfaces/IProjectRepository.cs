@@ -61,5 +61,10 @@ namespace ERP.BLL.Interfaces
         /// </summary>
         Task<Project?> GetProjectProfileAsync(int id);
 
+        /// <summary>
+        /// Evicts department aggregate/list/profile cache entries after successful writes.
+        /// </summary>
+        Task InvalidateCacheAsync(int? projectId = null);
+
     }
 }

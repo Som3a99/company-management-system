@@ -1,4 +1,6 @@
-﻿using ERP.DAL.Data.Contexts;
+﻿using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
+using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using ERP.PL.Helpers;
 using ERP.PL.Services;
@@ -23,6 +25,7 @@ namespace ERP.PL.Controllers
         private static readonly ConcurrentDictionary<string, List<DateTime>> _adminResetAttempts = new();
         private const int AdminResetLimitPerMinute = 5;
         private readonly DocumentSettings _documentSettings;
+        private readonly ICacheService _cacheService;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
@@ -30,7 +33,8 @@ namespace ERP.PL.Controllers
             ILogger<AccountController> logger,
             IAuditService auditService,
             ApplicationDbContext context,
-            DocumentSettings documentSettings)
+            DocumentSettings documentSettings,
+            ICacheService cacheService)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -38,6 +42,7 @@ namespace ERP.PL.Controllers
             _auditService=auditService;
             _context=context;
             _documentSettings=documentSettings;
+            _cacheService=cacheService;
         }
 
 
@@ -523,6 +528,7 @@ namespace ERP.PL.Controllers
             };
 
             _context.PasswordResetRequests.Add(resetRequest);
+            await _cacheService.RemoveAsync(CacheKeys.ItAdminDashboard);
             await _context.SaveChangesAsync();
 
             // Audit log

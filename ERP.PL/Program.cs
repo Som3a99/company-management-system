@@ -20,7 +20,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using System.IO.Compression;
+using System.Threading.RateLimiting;
 namespace ERP.PL
 {
     public class Program
@@ -73,6 +75,8 @@ namespace ERP.PL
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IReportJobService, ReportJobService>();
             builder.Services.AddHostedService<ReportJobWorkerService>();
+            builder.Services.AddHostedService<CacheTelemetryHostedService>();
+            builder.Services.AddHostedService<CacheWarmupHostedService>();
 
             // Custom Claims Principal Factory to add extra claims for authorization
             builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>,ApplicationUserClaimsPrincipalFactory>();
@@ -122,8 +126,30 @@ namespace ERP.PL
                 options.Level = CompressionLevel.Fastest;
             });
 
-            builder.Services.AddMemoryCache();
+            builder.Services.AddMemoryCache(options =>
+            {
+                options.SizeLimit = 1024;
+                options.CompactionPercentage = 0.25;
+                options.TrackStatistics = true;
+            });
+            builder.Services.AddSingleton<ICacheService, InMemoryCacheService>();
             builder.Services.AddResponseCaching();
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.AddPolicy("ReportingHeavy", context =>
+                    RateLimitPartition.GetTokenBucketLimiter(
+                        partitionKey: context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+                        factory: _ => new TokenBucketRateLimiterOptions
+                        {
+                            TokenLimit = 30,
+                            QueueLimit = 0,
+                            ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                            TokensPerPeriod = 30,
+                            AutoReplenishment = true
+                        }));
+            });
 
 
             // LOGGING: Configure logging
@@ -267,10 +293,38 @@ namespace ERP.PL
             app.UseResponseCompression();
             app.UseResponseCaching();
 
-            app.UseStaticFiles();
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                OnPrepareResponse = context =>
+                {
+                    var fileName = context.File.Name;
+                    var responseHeaders = context.Context.Response.Headers;
+
+                    if (fileName.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
+                    {
+                        responseHeaders.Append("Cache-Control", "public,max-age=31536000,immutable");
+                        return;
+                    }
+
+                    if (fileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".gif", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".woff", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".woff2", StringComparison.OrdinalIgnoreCase) ||
+                        fileName.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase))
+                    {
+                        responseHeaders.Append("Cache-Control", "public,max-age=2592000");
+                    }
+                }
+            });
 
             app.UseRouting();
-
+            app.UseRateLimiter();
             app.UseStatusCodePages(async context =>
             {
                 if (context.HttpContext.Response.StatusCode == StatusCodes.Status413PayloadTooLarge)
@@ -284,6 +338,22 @@ namespace ERP.PL
             app.UseAuthorization();
 
             app.MapHealthChecks("/health");
+
+            app.MapGet("/health/cache", (IMemoryCache memoryCache) =>
+            {
+                var stats = (memoryCache as MemoryCache)?.GetCurrentStatistics();
+                return Results.Ok(new
+                {
+                    Status = "Healthy",
+                    Cache = new
+                    {
+                        stats?.CurrentEntryCount,
+                        stats?.CurrentEstimatedSize,
+                        stats?.TotalHits,
+                        stats?.TotalMisses
+                    }
+                });
+            });
 
             app.MapControllerRoute(
                 name: "default",

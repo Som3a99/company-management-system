@@ -23,7 +23,8 @@ namespace ERP.PL.Controllers
         private readonly ILogger<DepartmentController> _logger;
         private readonly IAuditService _auditService;
         private readonly IRoleManagementService _roleManagementService;
-        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork, ILogger<DepartmentController> logger, IAuditService auditService, IRoleManagementService roleManagementService)
+        private readonly ICacheService _cacheService;
+        public DepartmentController(IMapper mapper, IUnitOfWork unitOfWork, ILogger<DepartmentController> logger, IAuditService auditService, IRoleManagementService roleManagementService, ICacheService cacheService)
         {
 
             _mapper=mapper;
@@ -31,6 +32,7 @@ namespace ERP.PL.Controllers
             _logger=logger;
             _auditService=auditService;
             _roleManagementService=roleManagementService;
+            _cacheService=cacheService;
         }
 
         #region Index
@@ -174,6 +176,7 @@ namespace ERP.PL.Controllers
                 await _unitOfWork.CompleteAsync();
 
                 await transaction.CommitAsync();
+                await InvalidateDepartmentRelatedCachesAsync(mappedDepartment.Id);
 
                 // Audit log success
                 await _auditService.LogAsync(
@@ -342,6 +345,7 @@ namespace ERP.PL.Controllers
                 // Commit DB changes
                 await _unitOfWork.CompleteAsync();
                 await transaction.CommitAsync();
+                await InvalidateDepartmentRelatedCachesAsync(existingDepartment.Id);
 
                 // AUTO-ASSIGN ROLE IF MANAGER CHANGED
                 if (existingDepartment.ManagerId.HasValue)
@@ -485,6 +489,8 @@ namespace ERP.PL.Controllers
             {
                 await _unitOfWork.DepartmentRepository.DeleteAsync(id);
                 await _unitOfWork.CompleteAsync();
+                await InvalidateDepartmentRelatedCachesAsync(id);
+
                 // Audit log success
 
                 await _auditService.LogAsync(
@@ -751,6 +757,17 @@ namespace ERP.PL.Controllers
                 "DisplayText",
                 currentManagerId
             );
+        }
+
+        /// <summary>
+        /// Invalidation rules:
+        /// - Department dropdown cache is shared across create/edit forms.
+        /// - Department-level reports depend on department writes.
+        /// </summary>
+        private Task InvalidateDepartmentRelatedCachesAsync(int? departmentId = null)
+        {
+            // Repository-level invalidation keeps department list and profile caches consistent.
+            return _unitOfWork.DepartmentRepository.InvalidateCacheAsync(departmentId);
         }
         #endregion
     }

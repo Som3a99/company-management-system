@@ -1,4 +1,6 @@
-﻿using ERP.DAL.Data.Contexts;
+﻿using ERP.BLL.Common;
+using ERP.BLL.Interfaces;
+using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -10,15 +12,21 @@ namespace ERP.PL.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ApplicationDbContext _context;
         private readonly ILogger<RoleManagementService> _logger;
+        private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly ICacheService _cacheService;
 
         public RoleManagementService(
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext context,
-            ILogger<RoleManagementService> logger)
+            ILogger<RoleManagementService> logger,
+            SignInManager<ApplicationUser> signInManager,
+            ICacheService cacheService)
         {
             _userManager = userManager;
             _context = context;
             _logger = logger;
+            _signInManager=signInManager;
+            _cacheService=cacheService;
         }
 
         public async Task SyncEmployeeRolesAsync(int employeeId)
@@ -54,14 +62,11 @@ namespace ERP.PL.Services
                     _logger.LogInformation($"Added 'DepartmentManager' role to {user.Email}");
                 }
             }
-            else
+            else if (await _userManager.IsInRoleAsync(user, "DepartmentManager"))
             {
                 // Remove DepartmentManager role if no longer managing
-                if (await _userManager.IsInRoleAsync(user, "DepartmentManager"))
-                {
-                    await _userManager.RemoveFromRoleAsync(user, "DepartmentManager");
-                    _logger.LogInformation($"Removed 'DepartmentManager' role from {user.Email}");
-                }
+                await _userManager.RemoveFromRoleAsync(user, "DepartmentManager");
+                _logger.LogInformation($"Removed 'DepartmentManager' role from {user.Email}");
             }
 
             // Check if employee manages a project
@@ -73,15 +78,16 @@ namespace ERP.PL.Services
                     _logger.LogInformation($"Added 'ProjectManager' role to {user.Email}");
                 }
             }
-            else
+            else if (await _userManager.IsInRoleAsync(user, "ProjectManager"))
             {
                 // Remove ProjectManager role if no longer managing
-                if (await _userManager.IsInRoleAsync(user, "ProjectManager"))
-                {
-                    await _userManager.RemoveFromRoleAsync(user, "ProjectManager");
-                    _logger.LogInformation($"Removed 'ProjectManager' role from {user.Email}");
-                }
+                await _userManager.RemoveFromRoleAsync(user, "ProjectManager");
+                _logger.LogInformation($"Removed 'ProjectManager' role from {user.Email}");
             }
+
+            await _cacheService.RemoveAsync(CacheKeys.AvailableProjectManagersAll);
+            await _cacheService.RemoveAsync($"{CacheKeys.UserClaimsPrefix}{user.Id}:claims");
+            await _signInManager.RefreshSignInAsync(user);
         }
 
         public async Task RemoveManagementRolesAsync(string applicationUserId)
@@ -99,6 +105,11 @@ namespace ERP.PL.Services
             {
                 await _userManager.RemoveFromRoleAsync(user, "ProjectManager");
             }
+
+
+            await _cacheService.RemoveAsync(CacheKeys.AvailableProjectManagersAll);
+            await _cacheService.RemoveAsync($"{CacheKeys.UserClaimsPrefix}{user.Id}:claims");
+            await _signInManager.RefreshSignInAsync(user);
         }
     }
 }
