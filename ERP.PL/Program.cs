@@ -360,7 +360,11 @@ namespace ERP.PL
                 pattern: "{controller=Home}/{action=Index}/{id?}");
             #endregion
 
-            await ApplyDatabaseMigrationsAndSeedAsync(app);
+            if (!app.Environment.IsEnvironment("Testing"))
+            {
+                await ApplyDatabaseMigrationsAndSeedAsync(app);
+            }
+
             app.Run();
         }
 
@@ -379,8 +383,17 @@ namespace ERP.PL
                 var shouldApplyMigrations = app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
                 if (shouldApplyMigrations)
                 {
-                    await dbContext.Database.MigrateAsync();
-                    logger.LogInformation("Database migrations applied successfully during startup.");
+                    if (dbContext.Database.IsRelational())
+                    {
+                        await dbContext.Database.MigrateAsync();
+                        logger.LogInformation("Database migrations applied successfully during startup.");
+                    }
+                    else
+                    {
+                        // Non-relational providers (InMemory, SQLite in-memory) don't support migrations
+                        await dbContext.Database.EnsureCreatedAsync();
+                        logger.LogInformation("Database schema created using EnsureCreatedAsync (non-relational provider detected).");
+                    }
                 }
 
                 var seedMode = app.Configuration["Seed:Mode"]?.Trim();

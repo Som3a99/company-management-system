@@ -25,7 +25,6 @@ namespace ERP.BLL.Services
             [TaskStatus.New] = new HashSet<TaskStatus> { TaskStatus.InProgress, TaskStatus.Cancelled },
             [TaskStatus.Blocked] = new HashSet<TaskStatus> { TaskStatus.InProgress, TaskStatus.Cancelled },
             [TaskStatus.InProgress] = new HashSet<TaskStatus> { TaskStatus.Blocked, TaskStatus.Completed },
-            [TaskStatus.Blocked] = new HashSet<TaskStatus> { TaskStatus.InProgress },
             [TaskStatus.Completed] = new HashSet<TaskStatus>(),
             [TaskStatus.Cancelled] = new HashSet<TaskStatus>()
         };

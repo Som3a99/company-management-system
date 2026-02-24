@@ -31,7 +31,14 @@ namespace ERP.PL.Services
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Report job worker error");
-                    await Task.Delay(3000, stoppingToken);
+                    try
+                    {
+                        await Task.Delay(3000, stoppingToken);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
                 }
             }
         }

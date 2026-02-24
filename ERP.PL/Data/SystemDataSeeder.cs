@@ -33,7 +33,14 @@ namespace ERP.PL.Data
         {
             logger.LogInformation("Starting production baseline seed operation.");
 
-            await context.Database.MigrateAsync();
+            if (context.Database.IsRelational())
+            {
+                await context.Database.MigrateAsync();
+            }
+            else
+            {
+                await context.Database.EnsureCreatedAsync();
+            }
 
             // Check if already seeded
             if (await IsSeedCompletedAsync(context, "Production", SeedVersion))
@@ -99,7 +106,14 @@ namespace ERP.PL.Data
                     logger.LogWarning("Database deleted for reset.");
                 }
 
-                await context.Database.MigrateAsync();
+                if (context.Database.IsRelational())
+                {
+                    await context.Database.MigrateAsync();
+                }
+                else
+                {
+                    await context.Database.EnsureCreatedAsync();
+                }
                 // Check if seeding already completed for this version
                 if (!resetDatabase && await IsSeedCompletedAsync(context, environment, SeedVersion))
                 {

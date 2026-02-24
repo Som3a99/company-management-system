@@ -1,0 +1,33 @@
+name: Security Scans
+
+on:
+  pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
+
+jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+
+  dotnet-vulnerability-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore CompanyManagementSystem.sln
+
+      - name: Scan NuGet vulnerabilities
+        run: dotnet list CompanyManagementSystem.sln package --vulnerable --include-transitive
