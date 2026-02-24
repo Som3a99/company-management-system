@@ -4,6 +4,7 @@ using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace ERP.PL.Services
 {
@@ -38,14 +39,20 @@ namespace ERP.PL.Services
 
                 await cacheService.SetAsync(CacheKeys.DepartmentsAll, departments, TimeSpan.FromMinutes(10));
 
+                var lockedAccountsQuery = userManager.Users
+                                                     .Where(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.Now);
+
+                var lockedAccounts = lockedAccountsQuery.Provider is IAsyncQueryProvider
+                    ? await lockedAccountsQuery.CountAsync(cancellationToken)
+                    : lockedAccountsQuery.Count();
+
                 var dashboardStats = new ITAdminDashboardStats
                 {
                     PendingResets = await dbContext.PasswordResetRequests
                         .CountAsync(r => r.Status == ResetStatus.Pending, cancellationToken),
                     ExpiredResets = await dbContext.PasswordResetRequests
                         .CountAsync(r => r.Status == ResetStatus.Pending && r.ExpiresAt < DateTime.UtcNow, cancellationToken),
-                    LockedAccounts = await userManager.Users
-                        .CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.Now, cancellationToken)
+                    LockedAccounts = lockedAccounts
                 };
 
                 await cacheService.SetAsync(CacheKeys.ItAdminDashboard, dashboardStats, TimeSpan.FromMinutes(2));

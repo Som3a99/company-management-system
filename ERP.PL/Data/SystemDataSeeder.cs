@@ -33,14 +33,7 @@ namespace ERP.PL.Data
         {
             logger.LogInformation("Starting production baseline seed operation.");
 
-            if (context.Database.IsRelational())
-            {
-                await context.Database.MigrateAsync();
-            }
-            else
-            {
-                await context.Database.EnsureCreatedAsync();
-            }
+            await EnsureDatabaseReadyAsync(context, logger);
 
             // Check if already seeded
             if (await IsSeedCompletedAsync(context, "Production", SeedVersion))
@@ -102,18 +95,18 @@ namespace ERP.PL.Data
 
                 if (resetDatabase)
                 {
-                    await context.Database.EnsureDeletedAsync();
-                    logger.LogWarning("Database deleted for reset.");
+                    if (string.Equals(environment, "Testing", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning("Skipping destructive database reset in Testing environment.");
+                    }
+                    else
+                    {
+                        await context.Database.EnsureDeletedAsync();
+                        logger.LogWarning("Database deleted for reset.");
+                    }
                 }
 
-                if (context.Database.IsRelational())
-                {
-                    await context.Database.MigrateAsync();
-                }
-                else
-                {
-                    await context.Database.EnsureCreatedAsync();
-                }
+                await EnsureDatabaseReadyAsync(context, logger);
                 // Check if seeding already completed for this version
                 if (!resetDatabase && await IsSeedCompletedAsync(context, environment, SeedVersion))
                 {
@@ -735,6 +728,18 @@ namespace ERP.PL.Data
                     }
                 }
             }
+        }
+
+        private static async Task EnsureDatabaseReadyAsync(ApplicationDbContext context, ILogger logger)
+        {
+            if (context.Database.IsRelational())
+            {
+                await context.Database.MigrateAsync();
+                return;
+            }
+
+            logger.LogInformation("Non-relational provider '{ProviderName}' detected. Using EnsureCreatedAsync instead of migrations.", context.Database.ProviderName);
+            await context.Database.EnsureCreatedAsync();
         }
     }
 }

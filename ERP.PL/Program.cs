@@ -260,7 +260,10 @@ namespace ERP.PL
             }
 
             app.UseForwardedHeaders();
-            app.UseHttpsRedirection();
+            if (!app.Environment.IsEnvironment("Testing"))
+            {
+                app.UseHttpsRedirection();
+            }
             app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
             app.Use(async (context, next) =>

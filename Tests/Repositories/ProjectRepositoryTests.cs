@@ -12,6 +12,7 @@ namespace Tests.Repositories
         public async Task GetAllAsync_ShouldReturnScopedProjects_ForManagedDepartment()
         {
             using var db = TestDbContextFactory.Create();
+            TestWebApplicationFactory.SeedDepartments(db);
             db.Projects.AddRange(
                 new Project { Id = 1, ProjectCode = "PRJ_001", ProjectName = "One", DepartmentId = 1, StartDate = DateTime.UtcNow },
                 new Project { Id = 2, ProjectCode = "PRJ_002", ProjectName = "Two", DepartmentId = 2, StartDate = DateTime.UtcNow });
