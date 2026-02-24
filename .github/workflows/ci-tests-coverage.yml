@@ -23,7 +23,7 @@ jobs:
 
       - name: Test with coverage
         run: |
-          dotnet test ERP.Tests/ERP.Tests.csproj \
+          dotnet test Tests/Tests.csproj \
             --configuration Release \
             --collect:"XPlat Code Coverage" \
             --results-directory TestResults
