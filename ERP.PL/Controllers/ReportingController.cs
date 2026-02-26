@@ -1,4 +1,5 @@
 ﻿using ERP.BLL.Common;
+using ERP.BLL.DTOs;
 using ERP.BLL.Interfaces;
 using ERP.BLL.Reporting.Dtos;
 using ERP.BLL.Reporting.Interfaces;
@@ -20,12 +21,24 @@ namespace ERP.PL.Controllers
         private readonly IReportingService _reportingService;
         private readonly IReportJobService _reportJobService;
         private readonly ICacheService _cacheService;
+        private readonly IAiNarrativeService _aiNarrativeService;
+        private readonly IAuditAnomalyService _anomalyService;
+        private readonly IExecutiveDigestService _digestService;
 
-        public ReportingController(IReportingService reportingService, IReportJobService reportJobService, ICacheService cacheService)
+        public ReportingController(
+            IReportingService reportingService,
+            IReportJobService reportJobService,
+            ICacheService cacheService,
+            IAiNarrativeService aiNarrativeService,
+            IAuditAnomalyService anomalyService,
+            IExecutiveDigestService digestService)
         {
             _reportingService = reportingService;
             _reportJobService = reportJobService;
-            _cacheService=cacheService;
+            _cacheService = cacheService;
+            _aiNarrativeService = aiNarrativeService;
+            _anomalyService = anomalyService;
+            _digestService = digestService;
         }
 
         [HttpGet]
@@ -61,6 +74,35 @@ namespace ERP.PL.Controllers
                     ActiveProjects = projectRows.Count(p => !string.Equals(p.Status, ProjectStatus.Completed.ToString(), StringComparison.OrdinalIgnoreCase) && !string.Equals(p.Status, ProjectStatus.Cancelled.ToString(), StringComparison.OrdinalIgnoreCase))
                 }
             };
+
+            // AI Executive Summary
+            try
+            {
+                var blockedTasks = taskRows.Count(t => string.Equals(t.Status, ERP.DAL.Models.TaskStatus.Blocked.ToString(), StringComparison.OrdinalIgnoreCase));
+                var completedTasks = taskRows.Count(t => string.Equals(t.Status, ERP.DAL.Models.TaskStatus.Completed.ToString(), StringComparison.OrdinalIgnoreCase));
+                var departmentWithMost = taskRows
+                    .Where(t => !string.IsNullOrWhiteSpace(t.Project))
+                    .GroupBy(t => t.Project)
+                    .OrderByDescending(g => g.Count())
+                    .Select(g => g.Key)
+                    .FirstOrDefault() ?? string.Empty;
+
+                var summaryInput = new ReportSummaryInput
+                {
+                    TotalTasks = vm.Widget.TotalTasks,
+                    CompletedTasks = completedTasks,
+                    OverdueTasks = vm.Widget.OverdueTasks,
+                    BlockedTasks = blockedTasks,
+                    ActiveProjects = vm.Widget.ActiveProjects,
+                    DepartmentWithMostTasks = departmentWithMost
+                };
+
+                ViewBag.AISummary = await _aiNarrativeService.GenerateSummaryAsync(summaryInput);
+            }
+            catch
+            {
+                ViewBag.AISummary = null;
+            }
 
             return View(vm);
         }
@@ -108,6 +150,17 @@ namespace ERP.PL.Controllers
                 Filters = filters,
                 AuditRows = rows
             });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> EstimationAccuracy()
+        {
+            var scope = ResolveScope(new ReportFilterViewModel());
+            if (!scope.Allowed)
+                return Forbid();
+
+            var rows = await _reportingService.GetEstimateAccuracyAsync(scope.DepartmentId);
+            return View(rows);
         }
 
         [HttpGet]
@@ -238,6 +291,27 @@ namespace ERP.PL.Controllers
             var data = rows.Select(r => (IReadOnlyList<string?>)[r.TimestampUtc.ToString("u"), r.UserEmail, r.Action, r.ResourceType, r.ResourceId?.ToString(), r.Succeeded.ToString(), r.ErrorMessage]).ToList();
             return BuildExportResult(filters.Export, "Audit Activity Report", "audit-report", headers, data);
         }
+
+        #region Phase 3 — Anomaly Detection (CEO only)
+        [HttpGet]
+        [Authorize(Roles = "CEO")]
+        public async Task<IActionResult> Anomalies(int lookbackHours = 24)
+        {
+            var anomalies = await _anomalyService.DetectAnomaliesAsync(lookbackHours);
+            ViewBag.LookbackHours = lookbackHours;
+            return View(anomalies);
+        }
+        #endregion
+
+        #region Phase 3 — Executive Digest (CEO only)
+        [HttpGet]
+        [Authorize(Roles = "CEO")]
+        public async Task<IActionResult> Digest()
+        {
+            var digest = await _digestService.PrepareDigestAsync();
+            return View(digest);
+        }
+        #endregion
 
         private ReportRequestDto ToRequest(ReportFilterViewModel vm) => new()
         {

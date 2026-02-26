@@ -1,4 +1,5 @@
-﻿using ERP.DAL.Models;
+﻿using ERP.BLL.DTOs;
+using ERP.DAL.Models;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace ERP.PL.ViewModels.Tasks
@@ -18,5 +19,15 @@ namespace ERP.PL.ViewModels.Tasks
 
         public List<SelectListItem> ProjectOptions { get; set; } = new();
         public List<SelectListItem> AssigneeOptions { get; set; } = new();
+
+        /// <summary>
+        /// Employee workload data for the selected project, displayed alongside the assignee dropdown.
+        /// </summary>
+        public List<EmployeeWorkloadResult> Workloads { get; set; } = new();
+
+        /// <summary>
+        /// Phase 3 — Intelligent assignment suggestions for the selected project.
+        /// </summary>
+        public List<TaskAssignmentSuggestion> Suggestions { get; set; } = new();
     }
 }

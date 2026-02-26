@@ -54,6 +54,21 @@
         </div>
     </form>
 
+    @if (!string.IsNullOrWhiteSpace(ViewBag.AISummary as string))
+    {
+        <div class="card mb-4 border-start border-4 border-primary">
+            <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    <strong>AI Executive Summary</strong>
+                </div>
+                <p class="mb-0">@ViewBag.AISummary</p>
+            </div>
+        </div>
+    }
+
     <div class="row g-3 mb-4">
         <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Total Tasks</small><h4>@Model.Widget.TotalTasks</h4></div></div></div>
         <div class="col-md-3"><div class="card"><div class="card-body"><small class="text-muted">Overdue Tasks</small><h4 class="text-danger">@Model.Widget.OverdueTasks</h4></div></div></div>
@@ -65,6 +80,7 @@
         <a class="btn btn-outline-secondary btn-sm" asp-action="ExportTasks" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Tasks</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="ExportProjects" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Projects</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="Department">Department Reports</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="EstimationAccuracy">Estimation Accuracy</a>
         @if (User.IsInRole("CEO"))
         {
             <a class="btn btn-outline-secondary btn-sm" asp-action="Audit">Audit Reports</a>

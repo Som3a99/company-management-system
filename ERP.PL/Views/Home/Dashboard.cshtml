@@ -64,6 +64,69 @@
 
     <!-- Module Cards -->
     <div class="row g-3 animate-in" style="animation-delay: 0.08s">
+
+        @if (Model.Intelligence != null)
+        {
+            <!-- Phase 3 — Proactive Intelligence Widgets -->
+            <div class="col-12">
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card" style="border-left: 3px solid var(--danger, #dc3545);">
+                            <div class="stat-icon" style="background: rgba(220,53,69,0.1); color: var(--danger, #dc3545);">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">@Model.Intelligence.HighRiskTaskCount</div>
+                                <div class="stat-label">High Risk Tasks</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card" style="border-left: 3px solid var(--warning, #ffc107);">
+                            <div class="stat-icon" style="background: rgba(255,193,7,0.1); color: var(--warning, #ffc107);">
+                                <i class="fas fa-user-clock"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">@Model.Intelligence.OverloadedEmployeeCount</div>
+                                <div class="stat-label">Overloaded Staff</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="stat-card" style="border-left: 3px solid var(--info, #0dcaf0);">
+                            <div class="stat-icon" style="background: rgba(13,202,240,0.1); color: var(--info, #0dcaf0);">
+                                <i class="fas fa-calendar-times"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">@Model.Intelligence.BehindScheduleProjectCount</div>
+                                <div class="stat-label">Behind Schedule</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        @{
+                            var health = Model.Intelligence.TeamHealth;
+                            var healthColor = health.Status switch
+                            {
+                                "Healthy" => "var(--success, #198754)",
+                                "Attention" => "var(--warning, #ffc107)",
+                                _ => "var(--danger, #dc3545)"
+                            };
+                        }
+                        <div class="stat-card" style="border-left: 3px solid @healthColor;">
+                            <div class="stat-icon" style="background: rgba(25,135,84,0.1); color: @healthColor;">
+                                <i class="fas fa-heart"></i>
+                            </div>
+                            <div>
+                                <div class="stat-value">@health.Score<span style="font-size: 0.6em;">%</span></div>
+                                <div class="stat-label">Team Health — @health.Status</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
         <div class="col-lg-4 col-md-6">
             <div class="card card-featured h-100" data-badge="Workforce & assignments">
                 <div class="card-body">

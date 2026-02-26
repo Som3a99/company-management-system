@@ -1,4 +1,6 @@
-﻿namespace ERP.PL.ViewModels.Home
+﻿using ERP.BLL.DTOs;
+
+namespace ERP.PL.ViewModels.Home
 {
     public class HomeDashboardViewModel
     {
@@ -8,5 +10,8 @@
         public int SystemHealthPercentage { get; set; }
         public int VisibleTasks { get; set; }
         public int MyOpenTasks { get; set; }
+
+        // Phase 3 — Proactive Intelligence Widgets
+        public DashboardIntelligenceData? Intelligence { get; set; }
     }
 }

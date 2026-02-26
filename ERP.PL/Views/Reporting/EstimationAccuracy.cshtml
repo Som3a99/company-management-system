@@ -1,0 +1,59 @@
+@model IReadOnlyList<ERP.BLL.DTOs.EmployeeEstimateAccuracy>
+@{
+    ViewData["Title"] = "Estimation Accuracy Report";
+}
+
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0">Estimation Accuracy Report</h2>
+        <a class="btn btn-outline-dark" asp-action="Index">Back to Reports</a>
+    </div>
+
+    <p class="text-muted mb-4">
+        Compares estimated hours vs actual hours for completed tasks per employee.
+        <strong>Ratio</strong> = Actual / Estimated.
+        &lt;0.8 = Underestimated, 0.8–1.2 = Accurate, &gt;1.2 = Overestimated.
+    </p>
+
+    @if (Model.Count == 0)
+    {
+        <div class="alert alert-info">
+            No completed tasks with estimation data found for your scope.
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header fw-bold">Employee Estimation Accuracy</div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Employee</th>
+                            <th>Completed Tasks</th>
+                            <th>Ratio (Actual/Estimated)</th>
+                            <th>Accuracy Label</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model)
+                        {
+                            var badgeClass = row.Label switch
+                            {
+                                "Underestimated" => "bg-warning text-dark",
+                                "Overestimated" => "bg-danger",
+                                _ => "bg-success"
+                            };
+                            <tr>
+                                <td>@row.EmployeeName</td>
+                                <td>@row.CompletedTasks</td>
+                                <td>@row.Ratio.ToString("F2")</td>
+                                <td><span class="badge @badgeClass">@row.Label</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+</div>

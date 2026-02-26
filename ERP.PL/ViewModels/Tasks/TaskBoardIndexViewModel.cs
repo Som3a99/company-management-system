@@ -1,4 +1,5 @@
-﻿using ERP.DAL.Models;
+﻿using ERP.BLL.DTOs;
+using ERP.DAL.Models;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
 
 namespace ERP.PL.ViewModels.Tasks
@@ -20,5 +21,10 @@ namespace ERP.PL.ViewModels.Tasks
         public int InProgressCount { get; set; }
         public int BlockedCount { get; set; }
         public int CompletedCount { get; set; }
+
+        /// <summary>
+        /// Risk results keyed by TaskItem.Id for display in the task list.
+        /// </summary>
+        public Dictionary<int, TaskRiskResult> TaskRisks { get; set; } = new();
     }
 }

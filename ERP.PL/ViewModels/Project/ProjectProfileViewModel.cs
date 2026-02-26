@@ -1,4 +1,5 @@
-﻿using ERP.DAL.Models;
+﻿using ERP.BLL.DTOs;
+using ERP.DAL.Models;
 
 namespace ERP.PL.ViewModels.Project
 {
@@ -40,6 +41,9 @@ namespace ERP.PL.ViewModels.Project
         public int DaysInProgress { get; set; }
         public int? DaysRemaining { get; set; }
         public decimal BudgetPerTeamMember { get; set; }
+
+        // AI Forecast
+        public ProjectForecastResult? Forecast { get; set; }
 
         // Team Members (for display - recent/top employees)
         public List<TeamMemberSummary> TeamMembers { get; set; } = new();

@@ -72,11 +72,24 @@ namespace ERP.PL
             builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
             builder.Services.AddScoped<ITaskRepository, TaskRepository>();
             builder.Services.AddScoped<ITaskService, TaskService>();
+            builder.Services.AddSingleton<ITaskRiskService, TaskRiskService>();
+            builder.Services.AddScoped<IWorkloadService, WorkloadService>();
+            builder.Services.AddScoped<IAiNarrativeService, AiNarrativeService>();
+            builder.Services.AddScoped<ITaskDescriptionService, TaskDescriptionService>();
+            builder.Services.AddScoped<IProjectForecastService, ProjectForecastService>();
+            builder.Services.AddHttpClient("AiService");
             builder.Services.AddScoped<IReportingService, ReportingService>();
             builder.Services.AddScoped<IReportJobService, ReportJobService>();
             builder.Services.AddHostedService<ReportJobWorkerService>();
             builder.Services.AddHostedService<CacheTelemetryHostedService>();
             builder.Services.AddHostedService<CacheWarmupHostedService>();
+
+            // Phase 3 — Proactive Intelligence
+            builder.Services.AddScoped<ITaskAssignmentSuggestionService, TaskAssignmentSuggestionService>();
+            builder.Services.AddScoped<IAuditAnomalyService, AuditAnomalyService>();
+            builder.Services.AddScoped<ITeamHealthService, TeamHealthService>();
+            builder.Services.AddScoped<IDashboardIntelligenceService, DashboardIntelligenceService>();
+            builder.Services.AddScoped<IExecutiveDigestService, ExecutiveDigestService>();
 
             // Custom Claims Principal Factory to add extra claims for authorization
             builder.Services.AddScoped<IUserClaimsPrincipalFactory<ApplicationUser>,ApplicationUserClaimsPrincipalFactory>();

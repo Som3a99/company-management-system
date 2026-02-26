@@ -63,6 +63,7 @@
                         <th>Title</th>
                         <th>Status</th>
                         <th>Priority</th>
+                        <th>Risk</th>
                         <th>Assignee</th>
                         <th>Due Date</th>
                         <th>Actions</th>
@@ -71,17 +72,33 @@
                 <tbody>
                     @if (!Model.Tasks.Any())
                     {
-                        <tr><td colspan="7" class="text-center py-3">No tasks found.</td></tr>
+                        <tr><td colspan="8" class="text-center py-3">No tasks found.</td></tr>
                     }
                     else
                     {
                         foreach (var task in Model.Tasks)
                         {
+                            var risk = Model.TaskRisks.GetValueOrDefault(task.Id);
+                            var riskBadgeClass = risk?.Level switch
+                            {
+                                "High" => "bg-danger",
+                                "Medium" => "bg-warning text-dark",
+                                "Low" => "bg-success",
+                                _ => "bg-secondary"
+                            };
                             <tr>
                                 <td>@task.Id</td>
                                 <td>@task.Title</td>
                                 <td>@task.Status</td>
                                 <td>@task.Priority</td>
+                                <td>
+                                    @if (risk != null)
+                                    {
+                                        <span class="badge @riskBadgeClass" title="@risk.Reason">
+                                            @risk.Level Risk (@risk.Score)
+                                        </span>
+                                    }
+                                </td>
                                 <td>@task.AssignedToEmployeeId</td>
                                 <td>@task.DueDate?.ToString("yyyy-MM-dd")</td>
                                 <td>

@@ -23,6 +23,7 @@ namespace ERP.PL.Controllers
         private readonly IRoleManagementService _roleManagementService;
         private readonly IProjectTeamService _projectTeamService;
         private readonly ICacheService _cacheService;
+        private readonly IProjectForecastService _projectForecastService;
 
 
         public ProjectController(
@@ -33,7 +34,8 @@ namespace ERP.PL.Controllers
             IAuditService auditService,
             IRoleManagementService roleManagementService,
             IProjectTeamService projectTeamService,
-            ICacheService cacheService)
+            ICacheService cacheService,
+            IProjectForecastService projectForecastService)
         {
             _mapper = mapper;
             _unitOfWork = unitOfWork;
@@ -43,6 +45,7 @@ namespace ERP.PL.Controllers
             _roleManagementService=roleManagementService;
             _projectTeamService=projectTeamService;
             _cacheService=cacheService;
+            _projectForecastService = projectForecastService;
         }
 
         #region Index
@@ -770,6 +773,16 @@ namespace ERP.PL.Controllers
 
                 // Map to profile view model
                 var profileViewModel = _mapper.Map<ProjectProfileViewModel>(project);
+
+                // Get AI forecast
+                try
+                {
+                    profileViewModel.Forecast = await _projectForecastService.ForecastAsync(id);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to load forecast for project {ProjectId}", id);
+                }
 
                 return View(profileViewModel);
             }

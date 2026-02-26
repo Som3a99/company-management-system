@@ -1,4 +1,5 @@
 ﻿using ERP.BLL.Common;
+using ERP.BLL.DTOs;
 using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
@@ -16,11 +17,25 @@ namespace ERP.PL.Controllers
     {
         private readonly ITaskService _taskService;
         private readonly ApplicationDbContext _context;
+        private readonly ITaskRiskService _taskRiskService;
+        private readonly IWorkloadService _workloadService;
+        private readonly ITaskDescriptionService _taskDescriptionService;
+        private readonly ITaskAssignmentSuggestionService _suggestionService;
 
-        public TaskBoardController(ITaskService taskService, ApplicationDbContext context)
+        public TaskBoardController(
+            ITaskService taskService,
+            ApplicationDbContext context,
+            ITaskRiskService taskRiskService,
+            IWorkloadService workloadService,
+            ITaskDescriptionService taskDescriptionService,
+            ITaskAssignmentSuggestionService suggestionService)
         {
             _taskService = taskService;
             _context = context;
+            _taskRiskService = taskRiskService;
+            _workloadService = workloadService;
+            _taskDescriptionService = taskDescriptionService;
+            _suggestionService = suggestionService;
         }
 
         #region Index
@@ -46,6 +61,13 @@ namespace ERP.PL.Controllers
             var blockedCount = (await _taskService.GetTasksForUserAsync(request with { Status = TaskStatus.Blocked, PageNumber = 1, PageSize = 1 }, userId)).TotalCount;
             var completedCount = (await _taskService.GetTasksForUserAsync(request with { Status = TaskStatus.Completed, PageNumber = 1, PageSize = 1 }, userId)).TotalCount;
 
+            // Calculate risk for each task
+            var taskRisks = new Dictionary<int, BLL.DTOs.TaskRiskResult>();
+            foreach (var task in paged.Items)
+            {
+                taskRisks[task.Id] = _taskRiskService.CalculateRisk(task);
+            }
+
             var vm = new TaskBoardIndexViewModel
             {
                 Tasks = paged.Items.ToList(),
@@ -60,7 +82,8 @@ namespace ERP.PL.Controllers
                 NewCount = newCount,
                 InProgressCount = inProgressCount,
                 BlockedCount = blockedCount,
-                CompletedCount = completedCount
+                CompletedCount = completedCount,
+                TaskRisks = taskRisks
             };
 
             return View(vm);
@@ -343,11 +366,48 @@ namespace ERP.PL.Controllers
         }
         #endregion
 
+        #region AI Generate Description
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> GenerateDescription([FromBody] GenerateTaskDescriptionRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Title))
+                return BadRequest(new { error = "Title is required." });
+
+            try
+            {
+                var description = await _taskDescriptionService.GenerateDescriptionAsync(request);
+                return Json(new { description });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { error = "Failed to generate description." });
+            }
+        }
+        #endregion
+
         #region Helper Methods
         private async Task PopulateOptionsAsync(TaskUpsertViewModel vm, int? projectId)
         {
             vm.ProjectOptions = await GetManageableProjectOptionsAsync();
             vm.AssigneeOptions = await GetAssignableEmployeeOptionsAsync(projectId);
+
+            // Populate workload data for the assignee dropdown
+            if (projectId.HasValue && projectId.Value > 0)
+            {
+                vm.Workloads = await _workloadService.GetWorkloadAsync(projectId.Value);
+
+                // Phase 3 — Intelligent assignment suggestions
+                try
+                {
+                    vm.Suggestions = await _suggestionService.GetSuggestionsAsync(
+                        projectId.Value, vm.Title);
+                }
+                catch
+                {
+                    vm.Suggestions = new List<TaskAssignmentSuggestion>();
+                }
+            }
         }
 
         private async Task<List<SelectListItem>> GetManageableProjectOptionsAsync()

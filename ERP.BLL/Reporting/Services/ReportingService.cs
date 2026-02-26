@@ -1,4 +1,5 @@
 ﻿using ERP.BLL.Common;
+using ERP.BLL.DTOs;
 using ERP.BLL.Interfaces;
 using ERP.BLL.Reporting.Dtos;
 using ERP.BLL.Reporting.Interfaces;
@@ -224,6 +225,66 @@ namespace ERP.BLL.Reporting.Services
                 })
                 .Take(1000)
                 .ToListAsync();
+        }
+
+
+        public async Task<IReadOnlyList<EmployeeEstimateAccuracy>> GetEstimateAccuracyAsync(int? scopedDepartmentId)
+        {
+            var cacheKey = BuildHashedKey("erp:report:accuracy:", scopedDepartmentId);
+
+            return await _cacheService.GetOrCreateSafeAsync(
+                cacheKey,
+                async () => await GetEstimateAccuracyCoreAsync(scopedDepartmentId),
+                TimeSpan.FromMinutes(5));
+        }
+
+        private async Task<IReadOnlyList<EmployeeEstimateAccuracy>> GetEstimateAccuracyCoreAsync(int? scopedDepartmentId)
+        {
+            var query = _dbContext.TaskItems
+                .AsNoTracking()
+                .Include(t => t.AssignedToEmployee)
+                .ThenInclude(e => e.Department)
+                .Where(t => t.Status == TaskStatus.Completed
+                    && t.AssignedToEmployeeId.HasValue
+                    && t.EstimatedHours.HasValue
+                    && t.EstimatedHours.Value > 0);
+
+            if (scopedDepartmentId.HasValue)
+                query = query.Where(t => t.AssignedToEmployee != null && t.AssignedToEmployee.DepartmentId == scopedDepartmentId.Value);
+
+            var grouped = await query
+                .GroupBy(t => new { t.AssignedToEmployeeId, t.AssignedToEmployee!.FirstName, t.AssignedToEmployee.LastName })
+                .Select(g => new
+                {
+                    EmployeeId = g.Key.AssignedToEmployeeId!.Value,
+                    EmployeeName = g.Key.FirstName + " " + g.Key.LastName,
+                    CompletedTasks = g.Count(),
+                    TotalEstimated = g.Sum(t => (double)t.EstimatedHours!.Value),
+                    TotalActual = g.Sum(t => (double)t.ActualHours)
+                })
+                .OrderBy(x => x.EmployeeName)
+                .Take(500)
+                .ToListAsync();
+
+            return grouped.Select(g =>
+            {
+                var ratio = g.TotalEstimated > 0 ? g.TotalActual / g.TotalEstimated : 1.0;
+                return new EmployeeEstimateAccuracy
+                {
+                    EmployeeId = g.EmployeeId,
+                    EmployeeName = g.EmployeeName,
+                    CompletedTasks = g.CompletedTasks,
+                    Ratio = Math.Round(ratio, 2),
+                    Label = ClassifyAccuracy(ratio)
+                };
+            }).ToList();
+        }
+
+        internal static string ClassifyAccuracy(double ratio)
+        {
+            if (ratio < 0.8) return "Underestimated";
+            if (ratio <= 1.2) return "Accurate";
+            return "Overestimated";
         }
 
 

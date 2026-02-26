@@ -20,9 +20,58 @@
     </div>
     <div class="col-md-3">
         <label asp-for="AssignedToEmployeeId" class="form-label">Assignee</label>
-        <select asp-for="AssignedToEmployeeId" asp-items="Model.AssigneeOptions" class="form-select">
-            <option value="">-- Unassigned --</option>
-        </select>
+        @if (Model.Workloads.Any())
+        {
+            <select asp-for="AssignedToEmployeeId" class="form-select">
+                <option value="">-- Unassigned --</option>
+                @foreach (var opt in Model.AssigneeOptions)
+                {
+                    var workload = Model.Workloads.FirstOrDefault(w => w.EmployeeId.ToString() == opt.Value);
+                    var displayText = workload != null
+                        ? $"{opt.Text} — {workload.Label} ({workload.ActiveTasks} tasks, {workload.RemainingHours}h)"
+                        : $"{opt.Text} — Available (0 tasks, 0h)";
+                    <option value="@opt.Value" selected="@(opt.Value == Model.AssignedToEmployeeId?.ToString())">@displayText</option>
+                }
+            </select>
+        }
+        else
+        {
+            <select asp-for="AssignedToEmployeeId" asp-items="Model.AssigneeOptions" class="form-select">
+                <option value="">-- Unassigned --</option>
+            </select>
+        }
+        @if (Model.Workloads.Any())
+        {
+            <div class="mt-2">
+                @foreach (var w in Model.Workloads)
+                {
+                    var badgeClass = w.Label switch
+                    {
+                        "Heavy" => "bg-danger",
+                        "Moderate" => "bg-warning text-dark",
+                        _ => "bg-success"
+                    };
+                    <small class="d-block">
+                        <span class="badge @badgeClass">@w.Label</span>
+                        @w.EmployeeName — @w.ActiveTasks tasks, @(w.RemainingHours)h remaining
+                    </small>
+                }
+            </div>
+        }
+        @if (Model.Suggestions.Any())
+        {
+            <div class="mt-2 p-2" style="border: 1px solid var(--border-color, #dee2e6); border-radius: 6px; background: var(--bg-card, #f8f9fa);">
+                <small class="fw-bold d-block mb-1"><i class="fas fa-lightbulb text-warning"></i> Suggested Assignees</small>
+                @foreach (var s in Model.Suggestions)
+                {
+                    var scoreBadge = s.CompositeScore >= 70 ? "bg-success" : (s.CompositeScore >= 40 ? "bg-warning text-dark" : "bg-secondary");
+                    <small class="d-block">
+                        <span class="badge @scoreBadge">@s.CompositeScore</span>
+                        @s.EmployeeName — @s.Reasoning
+                    </small>
+                }
+            </div>
+        }
     </div>
     <div class="col-md-3">
         <label asp-for="Priority" class="form-label"></label>
@@ -42,6 +91,59 @@
     </div>
     <div class="col-12">
         <label asp-for="Description" class="form-label"></label>
-        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <div class="input-group">
+            <textarea asp-for="Description" class="form-control" rows="3" id="taskDescription"></textarea>
+            <button type="button" class="btn btn-outline-primary" id="btnGenerateDescription" title="AI Generate Description">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -2px;">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                </svg>
+                Generate
+            </button>
+        </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('btnGenerateDescription')?.addEventListener('click', async function () {
+        const titleEl = document.querySelector('[name="Title"]');
+        const projectEl = document.querySelector('[name="ProjectId"]');
+        const descEl = document.getElementById('taskDescription');
+        const btn = this;
+
+        const title = titleEl?.value?.trim();
+        if (!title) {
+            alert('Please enter a task title first.');
+            return;
+        }
+
+        const projectOption = projectEl?.selectedOptions?.[0];
+        const projectName = projectOption && projectOption.value ? projectOption.text : '';
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Generating...';
+
+        try {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
+            const response = await fetch('/TaskBoard/GenerateDescription', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ title: title, projectName: projectName })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                descEl.value = data.description;
+            } else {
+                alert('Failed to generate description. Please try again.');
+            }
+        } catch {
+            alert('Failed to generate description. Please try again.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -2px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Generate';
+        }
+    });
+</script>

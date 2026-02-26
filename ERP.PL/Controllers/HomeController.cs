@@ -18,13 +18,20 @@ namespace ERP.PL.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ITaskService _taskService;
+        private readonly IDashboardIntelligenceService _intelligenceService;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, UserManager<ApplicationUser> userManager, ITaskService taskService)
+        public HomeController(
+            ILogger<HomeController> logger,
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager,
+            ITaskService taskService,
+            IDashboardIntelligenceService intelligenceService)
         {
             _logger = logger;
             _context = context;
             _userManager = userManager;
             _taskService = taskService;
+            _intelligenceService = intelligenceService;
         }
 
         // Public homepage - accessible to anyone
@@ -81,6 +88,16 @@ namespace ERP.PL.Controllers
                 VisibleTasks = visibleTasks,
                 MyOpenTasks = myOpenTasks
             };
+
+            // Phase 3 — Proactive Intelligence Widgets
+            try
+            {
+                viewModel.Intelligence = await _intelligenceService.GetIntelligenceAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load dashboard intelligence data");
+            }
 
             return View(viewModel);
         }

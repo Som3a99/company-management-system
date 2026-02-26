@@ -1,0 +1,76 @@
+@model List<ERP.BLL.DTOs.AuditAnomalyFlag>
+@{
+    ViewData["Title"] = "Audit Anomaly Detection";
+}
+
+<div class="container-fluid px-4 py-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h3><i class="fas fa-shield-alt text-danger"></i> Audit Anomaly Detection</h3>
+            <p class="text-muted mb-0">Security anomalies detected in the last @(ViewBag.LookbackHours) hour(s)</p>
+        </div>
+        <div>
+            <a asp-action="Anomalies" asp-route-lookbackHours="6" class="btn btn-sm btn-outline-secondary">6h</a>
+            <a asp-action="Anomalies" asp-route-lookbackHours="24" class="btn btn-sm btn-outline-secondary">24h</a>
+            <a asp-action="Anomalies" asp-route-lookbackHours="72" class="btn btn-sm btn-outline-secondary">72h</a>
+            <a asp-action="Anomalies" asp-route-lookbackHours="168" class="btn btn-sm btn-outline-secondary">7d</a>
+        </div>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div class="alert alert-success">
+            <i class="fas fa-check-circle"></i> No anomalies detected in the selected period.
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i> <strong>@Model.Count anomaly flag(s)</strong> detected.
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Severity</th>
+                        <th>Type</th>
+                        <th>User</th>
+                        <th>Description</th>
+                        <th>Detected At</th>
+                        <th>Related Logs</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model)
+                    {
+                        var rowClass = a.Severity switch
+                        {
+                            "High" => "table-danger",
+                            "Medium" => "table-warning",
+                            _ => ""
+                        };
+                        var severityBadge = a.Severity switch
+                        {
+                            "High" => "bg-danger",
+                            "Medium" => "bg-warning text-dark",
+                            _ => "bg-info"
+                        };
+                        <tr class="@rowClass">
+                            <td><span class="badge @severityBadge">@a.Severity</span></td>
+                            <td>@a.AnomalyType</td>
+                            <td>@a.UserEmail</td>
+                            <td>@a.Description</td>
+                            <td>@a.DetectedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@a.RelatedLogCount</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <a asp-action="Index" class="btn btn-outline-secondary mt-2">
+        <i class="fas fa-arrow-left"></i> Back to Reports
+    </a>
+</div>
