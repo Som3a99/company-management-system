@@ -165,8 +165,6 @@ namespace ERP.PL.Controllers
                 return View(project);
             }
 
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-
             try
             {
                 // Validate project manager if selected
@@ -202,23 +200,29 @@ namespace ERP.PL.Controllers
                     }
                 }
 
-                // Create project
+                // Create project inside execution-strategy-safe transaction
                 var mappedProject = _mapper.Map<ERP.DAL.Models.Project>(project);
 
-                await _unitOfWork.ProjectRepository.AddAsync(mappedProject);
-                await _unitOfWork.CompleteAsync();
+                await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    await _unitOfWork.ProjectRepository.AddAsync(mappedProject);
+                    await _unitOfWork.CompleteAsync();
+                });
 
-                await transaction.CommitAsync();
                 await InvalidateProjectRelatedCachesAsync(mappedProject.Id);
 
-                // Audit log success
-                await _auditService.LogAsync(
-                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
-                    User.Identity!.Name!,
-                    "CREATE_PROJECT_SUCCESS",
-                    "Project",
-                    mappedProject.Id,
-                    details: $"Created project: {mappedProject.ProjectCode} - {mappedProject.ProjectName}");
+                // Audit log success (outside transaction — non-critical)
+                try
+                {
+                    await _auditService.LogAsync(
+                        User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                        User.Identity!.Name!,
+                        "CREATE_PROJECT_SUCCESS",
+                        "Project",
+                        mappedProject.Id,
+                        details: $"Created project: {mappedProject.ProjectCode} - {mappedProject.ProjectName}");
+                }
+                catch { /* audit failure is non-critical */ }
 
                 TempData["SuccessMessage"] =
                     $"Project '{mappedProject.ProjectName}' created successfully!";
@@ -228,7 +232,6 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
                 when (ex.InnerException?.Message.Contains("IX_Projects_ProjectManagerId_Unique") == true)
             {
-                await transaction.RollbackAsync();
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -253,8 +256,6 @@ namespace ERP.PL.Controllers
             }
             catch (DbUpdateException ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -282,8 +283,6 @@ namespace ERP.PL.Controllers
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -322,6 +321,7 @@ namespace ERP.PL.Controllers
             return View(projectViewModel);
         }
 
+        [HttpPost]
         [Authorize(Roles = "CEO,ProjectManager")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(ProjectViewModel project)
@@ -346,8 +346,6 @@ namespace ERP.PL.Controllers
                 await LoadAvailableProjectManagersAsync(project.ProjectManagerId, project.Id);
                 return View(project);
             }
-
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
 
             try
             {
@@ -406,9 +404,12 @@ namespace ERP.PL.Controllers
                 _mapper.Map(project, existingProject);
                 _unitOfWork.ProjectRepository.Update(existingProject);
 
-                // Commit DB changes
-                await _unitOfWork.CompleteAsync();
-                await transaction.CommitAsync();
+                // Commit DB changes inside execution-strategy-safe transaction
+                await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    await _unitOfWork.CompleteAsync();
+                });
+
                 await InvalidateProjectRelatedCachesAsync(existingProject.Id);
 
                 // AUTO-ASSIGN ROLE IF MANAGER CHANGED
@@ -417,15 +418,18 @@ namespace ERP.PL.Controllers
                     await _roleManagementService.SyncEmployeeRolesAsync(existingProject.ProjectManagerId.Value);
                 }
 
-                // Audit log success
-                await _auditService.LogAsync(
-                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
-                    User.Identity!.Name!,
-                    "EDIT_PROJECT_SUCCESS",
-                    "Project",
-                    existingProject.Id,
-                    details: $"Updated project: {existingProject.ProjectCode} - {existingProject.ProjectName}");
-
+                // Audit log success (outside transaction — non-critical)
+                try
+                {
+                    await _auditService.LogAsync(
+                        User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                        User.Identity!.Name!,
+                        "EDIT_PROJECT_SUCCESS",
+                        "Project",
+                        existingProject.Id,
+                        details: $"Updated project: {existingProject.ProjectCode} - {existingProject.ProjectName}");
+                }
+                catch { /* audit failure is non-critical */ }
 
                 TempData["SuccessMessage"] =
                     $"Project '{existingProject.ProjectName}' updated successfully!";
@@ -435,7 +439,6 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
                 when (ex.InnerException?.Message.Contains("IX_Projects_ProjectManagerId_Unique") == true)
             {
-                await transaction.RollbackAsync();
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -457,8 +460,6 @@ namespace ERP.PL.Controllers
             }
             catch (DbUpdateException ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -486,8 +487,6 @@ namespace ERP.PL.Controllers
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,

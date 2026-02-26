@@ -407,6 +407,124 @@ namespace ERP.PL.Controllers
 
         #endregion
 
+        #region Change Role
+
+        /// <summary>
+        /// Display the role change form for a user.
+        /// CEO accounts are protected — their roles cannot be modified.
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> ChangeRole(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            // CEO protection: nobody can change a CEO's roles  
+            if (roles.Contains("CEO"))
+            {
+                TempData["ErrorMessage"] = "The CEO role is protected and cannot be modified.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var employee = user.EmployeeId.HasValue
+                ? await _unitOfWork.EmployeeRepository.GetByIdAsync(user.EmployeeId.Value)
+                : null;
+
+            var vm = new ChangeRoleViewModel
+            {
+                UserId = user.Id,
+                Email = user.Email!,
+                EmployeeName = employee != null ? $"{employee.FirstName} {employee.LastName}" : null,
+                CurrentRoles = roles.ToList(),
+                SelectedRoles = roles.ToList(),
+                AvailableRoles = GetAvailableRoles()
+            };
+
+            return View(vm);
+        }
+
+        /// <summary>
+        /// Apply role changes for a user.
+        /// Enforces: CEO accounts immutable; ITAdmin cannot assign CEO.
+        /// </summary>
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ChangeRole(ChangeRoleViewModel vm)
+        {
+            var user = await _userManager.FindByIdAsync(vm.UserId);
+            if (user == null) return NotFound();
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+
+            // CEO protection
+            if (currentRoles.Contains("CEO"))
+            {
+                TempData["ErrorMessage"] = "The CEO role is protected and cannot be modified.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // ITAdmin cannot assign CEO role
+            if (vm.SelectedRoles.Contains("CEO") && !User.IsInRole("CEO"))
+            {
+                TempData["ErrorMessage"] = "Only a CEO can assign the CEO role.";
+                return RedirectToAction(nameof(ChangeRole), new { userId = vm.UserId });
+            }
+
+            // Ensure at least one role
+            if (vm.SelectedRoles == null || vm.SelectedRoles.Count == 0)
+            {
+                TempData["ErrorMessage"] = "At least one role must be selected.";
+                return RedirectToAction(nameof(ChangeRole), new { userId = vm.UserId });
+            }
+
+            try
+            {
+                // Remove roles that are no longer selected
+                var rolesToRemove = currentRoles.Except(vm.SelectedRoles).ToList();
+                if (rolesToRemove.Any())
+                    await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+
+                // Add newly selected roles
+                var rolesToAdd = vm.SelectedRoles.Except(currentRoles).ToList();
+                if (rolesToAdd.Any())
+                    await _userManager.AddToRolesAsync(user, rolesToAdd);
+
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CHANGE_USER_ROLE",
+                    "ApplicationUser",
+                    user.EmployeeId,
+                    details: $"User: {user.Email} — Roles changed from [{string.Join(", ", currentRoles)}] to [{string.Join(", ", vm.SelectedRoles)}]");
+
+                _logger.LogInformation("Roles changed for {Email} from [{Old}] to [{New}] by {Admin}",
+                    user.Email, string.Join(", ", currentRoles), string.Join(", ", vm.SelectedRoles), User.Identity!.Name);
+
+                TempData["SuccessMessage"] = $"Roles updated for {user.Email}.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error changing roles for user {UserId}", vm.UserId);
+
+                await _auditService.LogAsync(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                    User.Identity!.Name!,
+                    "CHANGE_USER_ROLE_FAILED",
+                    "ApplicationUser",
+                    user.EmployeeId,
+                    succeeded: false,
+                    errorMessage: ex.Message);
+
+                TempData["ErrorMessage"] = "An unexpected error occurred while changing the user's roles.";
+                return RedirectToAction(nameof(Index));
+            }
+        }
+
+        #endregion
+
         #region Helper Methods
 
         /// <summary>

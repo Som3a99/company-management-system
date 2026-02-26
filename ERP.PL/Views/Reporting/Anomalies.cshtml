@@ -1,68 +1,118 @@
 @model List<ERP.BLL.DTOs.AuditAnomalyFlag>
 @{
     ViewData["Title"] = "Audit Anomaly Detection";
+    var lookback = ViewBag.LookbackHours as int? ?? 24;
 }
 
 <div class="container-fluid px-4 py-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <!-- Header -->
+    <div class="anomaly-header d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h3><i class="fas fa-shield-alt text-danger"></i> Audit Anomaly Detection</h3>
-            <p class="text-muted mb-0">Security anomalies detected in the last @(ViewBag.LookbackHours) hour(s)</p>
+            <h3 class="anomaly-title mb-1">
+                <i class="fas fa-shield-alt"></i> Audit Anomaly Detection
+            </h3>
+            <p class="anomaly-subtitle mb-0">Security anomalies detected in the last @lookback hour(s)</p>
         </div>
-        <div>
-            <a asp-action="Anomalies" asp-route-lookbackHours="6" class="btn btn-sm btn-outline-secondary">6h</a>
-            <a asp-action="Anomalies" asp-route-lookbackHours="24" class="btn btn-sm btn-outline-secondary">24h</a>
-            <a asp-action="Anomalies" asp-route-lookbackHours="72" class="btn btn-sm btn-outline-secondary">72h</a>
-            <a asp-action="Anomalies" asp-route-lookbackHours="168" class="btn btn-sm btn-outline-secondary">7d</a>
+        <div class="anomaly-time-filters">
+            @foreach (var h in new[] { 6, 24, 72, 168 })
+            {
+                var label = h == 168 ? "7d" : $"{h}h";
+                var active = lookback == h ? "active" : "";
+                <a asp-action="Anomalies" asp-route-lookbackHours="@h"
+                   class="anomaly-time-btn @active">@label</a>
+            }
         </div>
     </div>
 
-    @if (!Model.Any())
+    @if (Model is null || !Model.Any())
     {
-        <div class="alert alert-success">
-            <i class="fas fa-check-circle"></i> No anomalies detected in the selected period.
+        <!-- No anomalies banner -->
+        <div class="anomaly-banner anomaly-banner-clear">
+            <i class="fas fa-check-circle me-2"></i>
+            No anomalies detected in the selected period.
         </div>
     }
     else
     {
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i> <strong>@Model.Count anomaly flag(s)</strong> detected.
+        <!-- Anomaly count banner -->
+        <div class="anomaly-banner anomaly-banner-warn">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>@Model.Count anomaly flag(s)</strong> detected — review immediately.
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-dark">
+        <!-- Summary cards -->
+        <div class="row g-3 mb-4">
+            @{
+                var highCount = Model.Count(m => m.Severity == "High");
+                var medCount  = Model.Count(m => m.Severity == "Medium");
+                var lowCount  = Model.Count(m => m.Severity != "High" && m.Severity != "Medium");
+            }
+            <div class="col-md-4">
+                <div class="anomaly-stat-card anomaly-stat-high">
+                    <div class="anomaly-stat-icon"><i class="fas fa-radiation"></i></div>
+                    <div>
+                        <div class="anomaly-stat-value">@highCount</div>
+                        <div class="anomaly-stat-label">High Severity</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="anomaly-stat-card anomaly-stat-medium">
+                    <div class="anomaly-stat-icon"><i class="fas fa-exclamation-circle"></i></div>
+                    <div>
+                        <div class="anomaly-stat-value">@medCount</div>
+                        <div class="anomaly-stat-label">Medium Severity</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="anomaly-stat-card anomaly-stat-low">
+                    <div class="anomaly-stat-icon"><i class="fas fa-info-circle"></i></div>
+                    <div>
+                        <div class="anomaly-stat-value">@lowCount</div>
+                        <div class="anomaly-stat-label">Low / Info</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="anomaly-table-wrapper">
+            <table class="table anomaly-table mb-0">
+                <thead>
                     <tr>
-                        <th>Severity</th>
-                        <th>Type</th>
+                        <th style="width:110px">Severity</th>
+                        <th style="width:160px">Type</th>
                         <th>User</th>
                         <th>Description</th>
-                        <th>Detected At</th>
-                        <th>Related Logs</th>
+                        <th style="width:150px">Detected At</th>
+                        <th style="width:100px;text-align:center">Logs</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var a in Model)
                     {
-                        var rowClass = a.Severity switch
+                        var rowCls = a.Severity switch
                         {
-                            "High" => "table-danger",
-                            "Medium" => "table-warning",
-                            _ => ""
+                            "High"   => "anomaly-row-high",
+                            "Medium" => "anomaly-row-medium",
+                            _        => "anomaly-row-low"
                         };
-                        var severityBadge = a.Severity switch
+                        var badgeCls = a.Severity switch
                         {
-                            "High" => "bg-danger",
-                            "Medium" => "bg-warning text-dark",
-                            _ => "bg-info"
+                            "High"   => "anomaly-badge-high",
+                            "Medium" => "anomaly-badge-medium",
+                            _        => "anomaly-badge-low"
                         };
-                        <tr class="@rowClass">
-                            <td><span class="badge @severityBadge">@a.Severity</span></td>
-                            <td>@a.AnomalyType</td>
-                            <td>@a.UserEmail</td>
+                        <tr class="@rowCls">
+                            <td><span class="anomaly-badge @badgeCls">@a.Severity</span></td>
+                            <td class="fw-medium">@a.AnomalyType</td>
+                            <td><code class="anomaly-email">@a.UserEmail</code></td>
                             <td>@a.Description</td>
                             <td>@a.DetectedAt.ToString("yyyy-MM-dd HH:mm")</td>
-                            <td>@a.RelatedLogCount</td>
+                            <td style="text-align:center">
+                                <span class="anomaly-log-count">@a.RelatedLogCount</span>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -70,7 +120,312 @@
         </div>
     }
 
-    <a asp-action="Index" class="btn btn-outline-secondary mt-2">
-        <i class="fas fa-arrow-left"></i> Back to Reports
+    <a asp-action="Index" class="btn btn-outline-secondary mt-3">
+        <i class="fas fa-arrow-left me-1"></i> Back to Reports
     </a>
 </div>
+
+@section Styles {
+<style>
+    /* ═══════════════════════════════════════
+       ANOMALY VIEW — LIGHT MODE DEFAULTS
+       ═══════════════════════════════════════ */
+
+    /* ── Header ── */
+    .anomaly-title {
+        font-weight: 700;
+        font-size: 1.5rem;
+        color: var(--text-heading);
+    }
+    .anomaly-title i {
+        color: var(--danger);
+        margin-right: 0.4rem;
+    }
+    .anomaly-subtitle {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+    }
+
+    /* ── Time-filter buttons ── */
+    .anomaly-time-filters {
+        display: flex;
+        gap: 0.35rem;
+    }
+    .anomaly-time-btn {
+        display: inline-block;
+        padding: 0.3rem 0.75rem;
+        border-radius: var(--radius-md, 0.5rem);
+        font-size: 0.8125rem;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid var(--gray-300);
+        color: var(--text-body);
+        background: var(--bg-main);
+        transition: all 0.15s ease;
+    }
+    .anomaly-time-btn:hover {
+        background: var(--accent-main);
+        color: #fff;
+        border-color: var(--accent-main);
+    }
+    .anomaly-time-btn.active {
+        background: var(--accent-main);
+        color: #fff;
+        border-color: var(--accent-main);
+    }
+
+    /* ── Banners ── */
+    .anomaly-banner {
+        display: flex;
+        align-items: center;
+        padding: 0.85rem 1.1rem;
+        border-radius: var(--radius-md, 0.5rem);
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 1.25rem;
+    }
+    .anomaly-banner-clear {
+        background: rgba(16, 185, 129, 0.12);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        color: #065f46;
+    }
+    .anomaly-banner-warn {
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        color: #92400e;
+    }
+
+    /* ── Stat cards ── */
+    .anomaly-stat-card {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius-md, 0.5rem);
+        border: 1px solid var(--gray-200);
+        background: var(--bg-main);
+    }
+    .anomaly-stat-icon {
+        font-size: 1.5rem;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: var(--radius-md, 0.5rem);
+    }
+    .anomaly-stat-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+    .anomaly-stat-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+    }
+
+    /* Stat card color variants — light */
+    .anomaly-stat-high .anomaly-stat-icon  { background: rgba(239,68,68,0.12); color: #dc2626; }
+    .anomaly-stat-high .anomaly-stat-value  { color: #dc2626; }
+
+    .anomaly-stat-medium .anomaly-stat-icon { background: rgba(245,158,11,0.12); color: #d97706; }
+    .anomaly-stat-medium .anomaly-stat-value { color: #d97706; }
+
+    .anomaly-stat-low .anomaly-stat-icon    { background: rgba(59,130,246,0.12); color: #2563eb; }
+    .anomaly-stat-low .anomaly-stat-value   { color: #2563eb; }
+
+    /* ── Table wrapper ── */
+    .anomaly-table-wrapper {
+        border-radius: var(--radius-lg, 0.75rem);
+        overflow: hidden;
+        border: 1px solid var(--gray-200);
+        background: var(--bg-main);
+        box-shadow: var(--shadow-sm);
+    }
+
+    /* ── Table head ── */
+    .anomaly-table thead {
+        background: var(--gray-50);
+    }
+    .anomaly-table thead th {
+        font-weight: 700;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-heading);
+        padding: 0.85rem 1.1rem;
+        border-bottom: 2px solid var(--gray-200);
+    }
+
+    /* ── Table body ── */
+    .anomaly-table tbody td {
+        padding: 0.8rem 1.1rem;
+        font-size: 0.875rem;
+        color: var(--text-body);
+        border-bottom: 1px solid var(--gray-200);
+        vertical-align: middle;
+    }
+    .anomaly-table tbody tr:last-child td { border-bottom: none; }
+
+    /* Row severity colors — light mode (semi-transparent left border + subtle bg) */
+    .anomaly-row-high {
+        background: rgba(239, 68, 68, 0.06) !important;
+        border-left: 3px solid #ef4444;
+    }
+    .anomaly-row-medium {
+        background: rgba(245, 158, 11, 0.06) !important;
+        border-left: 3px solid #f59e0b;
+    }
+    .anomaly-row-low {
+        background: transparent !important;
+        border-left: 3px solid var(--info);
+    }
+
+    .anomaly-table tbody tr:hover {
+        filter: brightness(0.97);
+    }
+
+    /* ── Severity badges ── */
+    .anomaly-badge {
+        display: inline-block;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+    }
+    .anomaly-badge-high   { background: #ef4444; color: #fff; }
+    .anomaly-badge-medium { background: #f59e0b; color: #fff; }
+    .anomaly-badge-low    { background: var(--info); color: #fff; }
+
+    /* ── Email code ── */
+    .anomaly-email {
+        font-family: 'Monaco','Menlo','Fira Code',monospace;
+        font-size: 0.8125rem;
+        background: var(--gray-100);
+        color: var(--accent-main);
+        padding: 0.2rem 0.45rem;
+        border-radius: var(--radius-sm, 0.25rem);
+        font-weight: 500;
+    }
+
+    /* ── Log count pill ── */
+    .anomaly-log-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        height: 24px;
+        padding: 0 0.4rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        background: var(--gray-100);
+        color: var(--text-heading);
+    }
+
+
+    /* ═══════════════════════════════════════
+       ANOMALY VIEW — DARK MODE OVERRIDES
+       ═══════════════════════════════════════ */
+    html[data-theme='dark'] .anomaly-title i { color: var(--danger); }
+
+    /* Banners */
+    html[data-theme='dark'] .anomaly-banner-clear {
+        background: rgba(52, 211, 153, 0.10);
+        border-color: rgba(52, 211, 153, 0.30);
+        color: #6ee7b7;
+    }
+    html[data-theme='dark'] .anomaly-banner-warn {
+        background: rgba(251, 191, 36, 0.10);
+        border-color: rgba(251, 191, 36, 0.30);
+        color: #fcd34d;
+    }
+
+    /* Time-filter buttons */
+    html[data-theme='dark'] .anomaly-time-btn {
+        background: var(--bg-elevated);
+        border-color: var(--gray-300);
+        color: var(--text-body);
+    }
+    html[data-theme='dark'] .anomaly-time-btn:hover,
+    html[data-theme='dark'] .anomaly-time-btn.active {
+        background: var(--accent-main);
+        color: #fff;
+        border-color: var(--accent-main);
+    }
+
+    /* Stat cards */
+    html[data-theme='dark'] .anomaly-stat-card {
+        background: var(--bg-elevated);
+        border-color: var(--gray-300);
+    }
+    html[data-theme='dark'] .anomaly-stat-high .anomaly-stat-icon  { background: rgba(248,113,113,0.15); color: #f87171; }
+    html[data-theme='dark'] .anomaly-stat-high .anomaly-stat-value  { color: #f87171; }
+
+    html[data-theme='dark'] .anomaly-stat-medium .anomaly-stat-icon { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    html[data-theme='dark'] .anomaly-stat-medium .anomaly-stat-value { color: #fbbf24; }
+
+    html[data-theme='dark'] .anomaly-stat-low .anomaly-stat-icon    { background: rgba(96,165,250,0.15); color: #60a5fa; }
+    html[data-theme='dark'] .anomaly-stat-low .anomaly-stat-value   { color: #60a5fa; }
+
+    /* Table wrapper */
+    html[data-theme='dark'] .anomaly-table-wrapper {
+        background: var(--bg-elevated);
+        border-color: var(--gray-300);
+    }
+
+    /* Table head */
+    html[data-theme='dark'] .anomaly-table thead {
+        background: var(--bg-tertiary);
+    }
+    html[data-theme='dark'] .anomaly-table thead th {
+        color: var(--text-heading);
+        border-bottom-color: var(--gray-300);
+    }
+
+    /* Table body */
+    html[data-theme='dark'] .anomaly-table tbody td {
+        color: var(--text-body);
+        border-bottom-color: var(--gray-300);
+    }
+
+    /* Row severity — dark mode (higher-opacity tint on dark bg for readability) */
+    html[data-theme='dark'] .anomaly-row-high {
+        background: rgba(248, 113, 113, 0.10) !important;
+        border-left-color: #f87171;
+    }
+    html[data-theme='dark'] .anomaly-row-medium {
+        background: rgba(251, 191, 36, 0.10) !important;
+        border-left-color: #fbbf24;
+    }
+    html[data-theme='dark'] .anomaly-row-low {
+        border-left-color: var(--info);
+    }
+
+    html[data-theme='dark'] .anomaly-table tbody tr:hover {
+        filter: brightness(1.08);
+    }
+
+    /* Badges — dark mode (slightly softer, strong contrast) */
+    html[data-theme='dark'] .anomaly-badge-high   { background: #f87171; color: #0f172a; }
+    html[data-theme='dark'] .anomaly-badge-medium  { background: #fbbf24; color: #0f172a; }
+    html[data-theme='dark'] .anomaly-badge-low     { background: #60a5fa; color: #0f172a; }
+
+    /* Email code */
+    html[data-theme='dark'] .anomaly-email {
+        background: var(--gray-200);
+        color: var(--accent-light);
+    }
+
+    /* Log count pill */
+    html[data-theme='dark'] .anomaly-log-count {
+        background: var(--gray-200);
+        color: var(--text-heading);
+    }
+</style>
+}

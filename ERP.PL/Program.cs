@@ -77,9 +77,20 @@ namespace ERP.PL
             builder.Services.AddScoped<IAiNarrativeService, AiNarrativeService>();
             builder.Services.AddScoped<ITaskDescriptionService, TaskDescriptionService>();
             builder.Services.AddScoped<IProjectForecastService, ProjectForecastService>();
-            builder.Services.AddHttpClient("AiService");
+            builder.Services.AddHttpClient("AiService", client =>
+            {
+                client.Timeout = TimeSpan.FromSeconds(30);
+            });
             builder.Services.AddScoped<IReportingService, ReportingService>();
-            builder.Services.AddScoped<IReportJobService, ReportJobService>();
+            builder.Services.AddScoped<IReportJobService>(sp =>
+            {
+                var dbContext = sp.GetRequiredService<ApplicationDbContext>();
+                var reportingService = sp.GetRequiredService<IReportingService>();
+                var logger = sp.GetRequiredService<ILogger<ReportJobService>>();
+                var env = sp.GetRequiredService<IWebHostEnvironment>();
+                var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
+                return new ReportJobService(dbContext, reportingService, logger, webRoot);
+            });
             builder.Services.AddHostedService<ReportJobWorkerService>();
             builder.Services.AddHostedService<CacheTelemetryHostedService>();
             builder.Services.AddHostedService<CacheWarmupHostedService>();
@@ -269,6 +280,8 @@ namespace ERP.PL
             }
             else
             {
+                // Production: catch unhandled exceptions and return safe error responses
+                app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
                 app.UseHsts();
             }
 
@@ -277,7 +290,6 @@ namespace ERP.PL
             {
                 app.UseHttpsRedirection();
             }
-            app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
             app.Use(async (context, next) =>
             {
@@ -337,6 +349,25 @@ namespace ERP.PL
                         responseHeaders.Append("Cache-Control", "public,max-age=2592000");
                     }
                 }
+            });
+
+            // Serve generated report files from wwwroot/reports
+            var reportJobsPath = Path.Combine(app.Environment.WebRootPath ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot"), "reports", "jobs");
+            Directory.CreateDirectory(reportJobsPath);
+            app.UseStaticFiles(new StaticFileOptions
+            {
+                FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(reportJobsPath),
+                RequestPath = "/reports/jobs",
+                ServeUnknownFileTypes = false,
+                ContentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider(
+                    new Dictionary<string, string>
+                    {
+                        { ".pdf", "application/pdf" },
+                        { ".csv", "text/csv" },
+                        { ".xls", "application/vnd.ms-excel" },
+                        { ".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
+                        { ".html", "text/html" }
+                    })
             });
 
             app.UseRouting();

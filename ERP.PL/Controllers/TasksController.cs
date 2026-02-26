@@ -1,5 +1,7 @@
 ﻿using ERP.BLL.Common;
+using ERP.BLL.DTOs;
 using ERP.BLL.Interfaces;
+using ERP.BLL.Services;
 using ERP.DAL.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +15,12 @@ namespace ERP.PL.Controllers
     public class TasksController : ControllerBase
     {
         private readonly ITaskService _taskService;
+        private readonly ITaskDescriptionService _taskDescriptionService;
 
-        public TasksController(ITaskService taskService)
+        public TasksController(ITaskService taskService, ITaskDescriptionService taskDescriptionService)
         {
             _taskService = taskService;
+            _taskDescriptionService = taskDescriptionService;
         }
 
         [HttpPost]
@@ -157,6 +161,28 @@ namespace ERP.PL.Controllers
                 result.TotalCount,
                 Items = result.Items.Select(ToResponse)
             });
+        }
+
+        [HttpPost("generate-description")]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> GenerateDescription([FromBody] GenerateTaskDescriptionRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Title))
+                return BadRequest(new { error = "Title is required." });
+
+            try
+            {
+                var description = await _taskDescriptionService.GenerateDescriptionAsync(request);
+                return Ok(new { description });
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<TasksController>>();
+                logger?.LogError(ex, "AI description generation failed for title: {Title}", request.Title);
+
+                var fallback = TaskDescriptionService.BuildFallbackDescription(request);
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = "AI service unavailable.", fallback });
+            }
         }
 
         private string? GetCurrentUserId() => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

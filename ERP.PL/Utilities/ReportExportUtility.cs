@@ -7,6 +7,9 @@ namespace ERP.PL.Utilities
         public static byte[] ToCsv(string title, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string?>> rows)
             => ReportFileBuilder.ToCsv(title, headers, rows);
 
+        public static byte[] ToHtml(string title, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string?>> rows)
+            => ReportFileBuilder.ToStyledHtml(title, headers, rows);
+
         public static byte[] ToExcel(IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string?>> rows, string title)
             => ReportFileBuilder.ToExcelHtml(title, headers, rows);
 

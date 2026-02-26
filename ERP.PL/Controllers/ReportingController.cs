@@ -24,6 +24,7 @@ namespace ERP.PL.Controllers
         private readonly IAiNarrativeService _aiNarrativeService;
         private readonly IAuditAnomalyService _anomalyService;
         private readonly IExecutiveDigestService _digestService;
+        private readonly ILogger<ReportingController> _logger;
 
         public ReportingController(
             IReportingService reportingService,
@@ -31,7 +32,8 @@ namespace ERP.PL.Controllers
             ICacheService cacheService,
             IAiNarrativeService aiNarrativeService,
             IAuditAnomalyService anomalyService,
-            IExecutiveDigestService digestService)
+            IExecutiveDigestService digestService,
+            ILogger<ReportingController> logger)
         {
             _reportingService = reportingService;
             _reportJobService = reportJobService;
@@ -39,6 +41,7 @@ namespace ERP.PL.Controllers
             _aiNarrativeService = aiNarrativeService;
             _anomalyService = anomalyService;
             _digestService = digestService;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -292,12 +295,39 @@ namespace ERP.PL.Controllers
             return BuildExportResult(filters.Export, "Audit Activity Report", "audit-report", headers, data);
         }
 
+        [HttpGet]
+        public async Task<IActionResult> ExportEstimationAccuracy([FromQuery] ReportFilterViewModel filters)
+        {
+            var scope = ResolveScope(filters);
+            if (!scope.Allowed)
+                return Forbid();
+
+            var rows = await _reportingService.GetEstimateAccuracyAsync(scope.DepartmentId);
+            var headers = new[] { "Employee", "Completed Tasks", "Ratio (Actual/Estimated)", "Accuracy Label" };
+            var data = rows.Select(r => (IReadOnlyList<string?>)new string?[] {
+                r.EmployeeName, r.CompletedTasks.ToString(), r.Ratio.ToString("F2"), r.Label
+            }).ToList();
+            return BuildExportResult(filters.Export, "Estimation Accuracy Report", "estimation-accuracy", headers, data);
+        }
+
         #region Phase 3 — Anomaly Detection (CEO only)
         [HttpGet]
         [Authorize(Roles = "CEO")]
         public async Task<IActionResult> Anomalies(int lookbackHours = 24)
         {
-            var anomalies = await _anomalyService.DetectAnomaliesAsync(lookbackHours);
+            List<AuditAnomalyFlag> anomalies;
+            try
+            {
+                anomalies = await _anomalyService.DetectAnomaliesAsync(lookbackHours);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Anomaly detection failed (lookback={LookbackHours}h): {Message}",
+                    lookbackHours, ex.InnerException?.Message ?? ex.Message);
+                anomalies = new List<AuditAnomalyFlag>();
+                TempData["ErrorMessage"] = "Anomaly detection encountered an error. Showing empty results.";
+            }
+
             ViewBag.LookbackHours = lookbackHours;
             return View(anomalies);
         }
@@ -308,7 +338,19 @@ namespace ERP.PL.Controllers
         [Authorize(Roles = "CEO")]
         public async Task<IActionResult> Digest()
         {
-            var digest = await _digestService.PrepareDigestAsync();
+            WeeklyDigestData digest;
+            try
+            {
+                digest = await _digestService.PrepareDigestAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Executive digest preparation failed: {Message}",
+                    ex.InnerException?.Message ?? ex.Message);
+                digest = new WeeklyDigestData();
+                TempData["ErrorMessage"] = "Digest generation encountered an error. Showing default data.";
+            }
+
             return View(digest);
         }
         #endregion
@@ -374,8 +416,9 @@ namespace ERP.PL.Controllers
         {
             return format switch
             {
+                ReportExportFormat.Html => File(ReportExportUtility.ToHtml(title, headers, rows), "text/html", $"{name}.html"),
                 ReportExportFormat.Csv => File(ReportExportUtility.ToCsv(title, headers, rows), "text/csv", $"{name}.csv"),
-                ReportExportFormat.Excel => File(ReportExportUtility.ToExcel(headers, rows, title), "application/vnd.ms-excel", $"{name}.xls"),
+                ReportExportFormat.Excel => File(ReportExportUtility.ToExcel(headers, rows, title), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{name}.xlsx"),
                 ReportExportFormat.Pdf => File(ReportExportUtility.ToPdf(title, headers, rows), "application/pdf", $"{name}.pdf"),
                 _ => File(ReportExportUtility.ToCsv(title, headers, rows), "text/csv", $"{name}.csv")
             };

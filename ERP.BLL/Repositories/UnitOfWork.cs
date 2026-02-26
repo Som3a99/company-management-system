@@ -1,5 +1,6 @@
 ﻿using ERP.BLL.Interfaces;
 using ERP.DAL.Data.Contexts;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace ERP.BLL.Repositories
@@ -43,13 +44,51 @@ namespace ERP.BLL.Repositories
         }
 
         /// <summary>
-        /// Begin a database transaction
-        /// Use this for operations that need to be atomic (all succeed or all fail)
+        /// Begin a database transaction.
+        /// IMPORTANT: Prefer <see cref="ExecuteInTransactionAsync"/> when using
+        /// SqlServerRetryingExecutionStrategy (EnableRetryOnFailure).
+        /// Direct BeginTransactionAsync is NOT compatible with retry strategies.
         /// </summary>
-        /// <returns>Transaction object to commit or rollback</returns>
+        [Obsolete("Use ExecuteInTransactionAsync instead when EnableRetryOnFailure is configured.")]
         public async Task<IDbContextTransaction> BeginTransactionAsync()
         {
             return await _context.Database.BeginTransactionAsync();
+        }
+
+        /// <summary>
+        /// Execute operations inside a transaction that is compatible with
+        /// SqlServerRetryingExecutionStrategy. All operations within the action
+        /// are executed as a retriable atomic unit.
+        /// </summary>
+        /// <param name="action">The transactional operations to execute.</param>
+        public async Task ExecuteInTransactionAsync(Func<Task> action)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                await action();
+                await transaction.CommitAsync();
+            });
+        }
+
+        /// <summary>
+        /// Execute operations inside a transaction that is compatible with
+        /// SqlServerRetryingExecutionStrategy. Returns a result from the transactional work.
+        /// </summary>
+        /// <typeparam name="TResult">The type of result returned.</typeparam>
+        /// <param name="action">The transactional operations to execute.</param>
+        /// <returns>The result of the transactional operations.</returns>
+        public async Task<TResult> ExecuteInTransactionAsync<TResult>(Func<Task<TResult>> action)
+        {
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                var result = await action();
+                await transaction.CommitAsync();
+                return result;
+            });
         }
 
         /// <summary>

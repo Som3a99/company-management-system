@@ -154,7 +154,6 @@ namespace ERP.PL.Controllers
             }
 
             // Start transaction BEFORE any file operations
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
             string? tempImagePath = null;
             string? finalImagePath = null;
 
@@ -177,35 +176,44 @@ namespace ERP.PL.Controllers
                     employeeMapped.ImageUrl = _documentSettings.GetDefaultAvatarByGender(employeeMapped.Gender);
                 }
 
-                // Save employee to get ID
-                await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
-                await _unitOfWork.CompleteAsync();
-
-                // FIX: If we have a temp image, move it to final location with employee ID
-                if (!string.IsNullOrEmpty(tempImagePath) && employeeMapped.Id > 0)
+                // Execute DB operations inside execution-strategy-safe transaction
+                await _unitOfWork.ExecuteInTransactionAsync(async () =>
                 {
-                    var originalFileName = employee.Image?.FileName ?? string.Empty;
-                    finalImagePath = await _documentSettings.MoveImageToFinalLocation(
-                        tempImagePath,
-                        employeeMapped.Id,
-                        originalFileName);
-
-                    // Update employee with final image path
-                    employeeMapped.ImageUrl = finalImagePath;
-                    _unitOfWork.EmployeeRepository.Update(employeeMapped);
+                    // Save employee to get ID
+                    await _unitOfWork.EmployeeRepository.AddAsync(employeeMapped);
                     await _unitOfWork.CompleteAsync();
+
+                    // FIX: If we have a temp image, move it to final location with employee ID
+                    if (!string.IsNullOrEmpty(tempImagePath) && employeeMapped.Id > 0)
+                    {
+                        var originalFileName = employee.Image?.FileName ?? string.Empty;
+                        finalImagePath = await _documentSettings.MoveImageToFinalLocation(
+                            tempImagePath,
+                            employeeMapped.Id,
+                            originalFileName);
+
+                        // Update employee with final image path
+                        employeeMapped.ImageUrl = finalImagePath;
+                        _unitOfWork.EmployeeRepository.Update(employeeMapped);
+                        await _unitOfWork.CompleteAsync();
+                    }
+                });
+
+                // Audit log success (outside transaction — non-critical)
+                try
+                {
+                    await _auditService.LogAsync(
+                        User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                        User.Identity!.Name!,
+                        "CREATE_EMPLOYEE_SUCCESS",
+                        "Employee",
+                        employeeMapped.Id,
+                        details: $"Created employee: {employeeMapped.FirstName} {employeeMapped.LastName}");
                 }
-
-                await transaction.CommitAsync();
-
-                // Audit log success
-                await _auditService.LogAsync(
-                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
-                    User.Identity!.Name!,
-                    "CREATE_EMPLOYEE_SUCCESS",
-                    "Employee",
-                    employeeMapped.Id,
-                    details: $"Created employee: {employeeMapped.FirstName} {employeeMapped.LastName}");
+                catch (Exception auditEx)
+                {
+                    _logger.LogWarning(auditEx, "Audit log failed after employee creation (non-critical)");
+                }
 
                 TempData["SuccessMessage"] = $"Employee '{employeeMapped.FirstName} {employeeMapped.LastName}' created successfully!";
                 return RedirectToAction(nameof(Index));
@@ -214,8 +222,6 @@ namespace ERP.PL.Controllers
                 ex.InnerException is SqlException sqlEx &&
                 (sqlEx.Number == 2601 || sqlEx.Number == 2627))
             {
-                await transaction.RollbackAsync();
-
                 // Clean up temp file if exists
                 if (!string.IsNullOrEmpty(tempImagePath))
                 {
@@ -240,8 +246,6 @@ namespace ERP.PL.Controllers
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-
                 // Clean up temp file if exists
                 if (!string.IsNullOrEmpty(tempImagePath))
                 {

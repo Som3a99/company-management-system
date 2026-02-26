@@ -1,6 +1,7 @@
 ﻿using ERP.BLL.Common;
 using ERP.BLL.DTOs;
 using ERP.BLL.Interfaces;
+using ERP.BLL.Services;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using ERP.PL.ViewModels.Tasks;
@@ -379,9 +380,14 @@ namespace ERP.PL.Controllers
                 var description = await _taskDescriptionService.GenerateDescriptionAsync(request);
                 return Json(new { description });
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return StatusCode(500, new { error = "Failed to generate description." });
+                var logger = HttpContext.RequestServices.GetService<ILogger<TaskBoardController>>();
+                logger?.LogError(ex, "AI description generation failed for title: {Title}", request.Title);
+
+                // Return fallback description instead of a bare 500
+                var fallback = TaskDescriptionService.BuildFallbackDescription(request);
+                return StatusCode(500, new { error = "AI service unavailable.", fallback });
             }
         }
         #endregion
@@ -395,7 +401,14 @@ namespace ERP.PL.Controllers
             // Populate workload data for the assignee dropdown
             if (projectId.HasValue && projectId.Value > 0)
             {
-                vm.Workloads = await _workloadService.GetWorkloadAsync(projectId.Value);
+                try
+                {
+                    vm.Workloads = await _workloadService.GetWorkloadAsync(projectId.Value);
+                }
+                catch
+                {
+                    vm.Workloads = new List<EmployeeWorkloadResult>();
+                }
 
                 // Phase 3 — Intelligent assignment suggestions
                 try

@@ -3,6 +3,7 @@ using ERP.BLL.Reporting.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
 namespace ERP.BLL.Reporting.Services
@@ -11,11 +12,16 @@ namespace ERP.BLL.Reporting.Services
     {
         private readonly ApplicationDbContext _dbContext;
         private readonly IReportingService _reportingService;
+        private readonly string _webRootPath;
+        private readonly ILogger<ReportJobService> _logger;
 
-        public ReportJobService(ApplicationDbContext dbContext, IReportingService reportingService)
+        public ReportJobService(ApplicationDbContext dbContext, IReportingService reportingService, ILogger<ReportJobService> logger, string? webRootPath = null)
         {
             _dbContext = dbContext;
             _reportingService = reportingService;
+            _logger = logger;
+            // Use provided webRootPath, or fall back to ContentRootPath/wwwroot
+            _webRootPath = webRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
         }
 
         public async Task<int> EnqueueJobAsync(string userId, ReportType reportType, ReportFileFormat format, ReportRequestDto request)
@@ -103,21 +109,25 @@ namespace ERP.BLL.Reporting.Services
                 {
                     ReportFileFormat.Csv => ReportFileBuilder.ToCsv(payload.Title, payload.Headers, payload.Rows),
                     ReportFileFormat.Excel => ReportFileBuilder.ToExcelHtml(payload.Title, payload.Headers, payload.Rows),
+                    ReportFileFormat.Pdf => ReportFileBuilder.ToSimplePdf(payload.Title, payload.Headers, payload.Rows),
                     _ => ReportFileBuilder.ToSimplePdf(payload.Title, payload.Headers, payload.Rows)
                 };
 
                 var ext = job.Format switch
                 {
                     ReportFileFormat.Csv => "csv",
-                    ReportFileFormat.Excel => "xls",
+                    ReportFileFormat.Excel => "xlsx",
+                    ReportFileFormat.Pdf => "pdf",
                     _ => "pdf"
                 };
 
-                var folder = Path.Combine(AppContext.BaseDirectory, "wwwroot", "reports", "jobs");
+                var folder = Path.Combine(_webRootPath, "reports", "jobs");
                 Directory.CreateDirectory(folder);
                 var fileName = $"report-job-{job.Id}-{DateTime.UtcNow:yyyyMMddHHmmss}.{ext}";
                 var fullPath = Path.Combine(folder, fileName);
                 await File.WriteAllBytesAsync(fullPath, bytes, cancellationToken);
+
+                _logger.LogInformation("Report job {JobId} written to {FullPath} ({ByteCount} bytes)", job.Id, fullPath, bytes.Length);
 
                 job.OutputPath = $"/reports/jobs/{fileName}";
                 job.Status = ReportJobStatus.Completed;

@@ -135,8 +135,6 @@ namespace ERP.PL.Controllers
                 return View(department);
             }
 
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-
             try
             {
                 //Optional UX validation (NOT trusted for safety)
@@ -169,23 +167,29 @@ namespace ERP.PL.Controllers
                     }
                 }
 
-                // Create department
+                // Create department inside execution-strategy-safe transaction
                 var mappedDepartment = _mapper.Map<Department>(department);
 
-                await _unitOfWork.DepartmentRepository.AddAsync(mappedDepartment);
-                await _unitOfWork.CompleteAsync();
+                await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    await _unitOfWork.DepartmentRepository.AddAsync(mappedDepartment);
+                    await _unitOfWork.CompleteAsync();
+                });
 
-                await transaction.CommitAsync();
                 await InvalidateDepartmentRelatedCachesAsync(mappedDepartment.Id);
 
-                // Audit log success
-                await _auditService.LogAsync(
-                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
-                    User.Identity!.Name!,
-                    "CREATE_DEPARTMENT_SUCCESS",
-                    "Department",
-                    mappedDepartment.Id,
-                    details: $"Created department: {mappedDepartment.DepartmentCode} - {mappedDepartment.DepartmentName}");
+                // Audit log success (outside transaction — non-critical)
+                try
+                {
+                    await _auditService.LogAsync(
+                        User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                        User.Identity!.Name!,
+                        "CREATE_DEPARTMENT_SUCCESS",
+                        "Department",
+                        mappedDepartment.Id,
+                        details: $"Created department: {mappedDepartment.DepartmentCode} - {mappedDepartment.DepartmentName}");
+                }
+                catch { /* audit failure is non-critical */ }
 
                 TempData["SuccessMessage"] =
                     $"Department '{mappedDepartment.DepartmentName}' created successfully!";
@@ -195,8 +199,6 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
                 when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -219,8 +221,6 @@ namespace ERP.PL.Controllers
             }
             catch (DbUpdateException ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -248,8 +248,6 @@ namespace ERP.PL.Controllers
             }
             catch(Exception ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -296,11 +294,9 @@ namespace ERP.PL.Controllers
             }
 
             // Start transaction only when needed
-            using var transaction = await _unitOfWork.BeginTransactionAsync();
-
             try
             {
-                // Validate manager existence & assignment (inside transaction)
+                // Validate manager existence & assignment
                 if (department.ManagerId.HasValue)
                 {
                     var manager = await _unitOfWork.EmployeeRepository
@@ -342,9 +338,12 @@ namespace ERP.PL.Controllers
                 _mapper.Map(department, existingDepartment);
                 _unitOfWork.DepartmentRepository.Update(existingDepartment);
 
-                // Commit DB changes
-                await _unitOfWork.CompleteAsync();
-                await transaction.CommitAsync();
+                // Commit DB changes inside execution-strategy-safe transaction
+                await _unitOfWork.ExecuteInTransactionAsync(async () =>
+                {
+                    await _unitOfWork.CompleteAsync();
+                });
+
                 await InvalidateDepartmentRelatedCachesAsync(existingDepartment.Id);
 
                 // AUTO-ASSIGN ROLE IF MANAGER CHANGED
@@ -353,15 +352,18 @@ namespace ERP.PL.Controllers
                     await _roleManagementService.SyncEmployeeRolesAsync(existingDepartment.ManagerId.Value);
                 }
 
-                // Audit log success
-                await _auditService.LogAsync(
-                    User.FindFirstValue(ClaimTypes.NameIdentifier)!,
-                    User.Identity!.Name!,
-                    "EDIT_DEPARTMENT_SUCCESS",
-                    "Department",
-                    existingDepartment.Id,
-                    details: $"Updated department: {existingDepartment.DepartmentCode} - {existingDepartment.DepartmentName}");
-
+                // Audit log success (outside transaction — non-critical)
+                try
+                {
+                    await _auditService.LogAsync(
+                        User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+                        User.Identity!.Name!,
+                        "EDIT_DEPARTMENT_SUCCESS",
+                        "Department",
+                        existingDepartment.Id,
+                        details: $"Updated department: {existingDepartment.DepartmentCode} - {existingDepartment.DepartmentName}");
+                }
+                catch { /* audit failure is non-critical */ }
 
                 TempData["SuccessMessage"] =
                     $"Department '{existingDepartment.DepartmentName}' updated successfully!";
@@ -371,9 +373,6 @@ namespace ERP.PL.Controllers
             catch (DbUpdateException ex)
                 when (ex.InnerException?.Message.Contains("IX_Departments_ManagerId_Unique") == true)
             {
-                await transaction.RollbackAsync();
-
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -396,8 +395,6 @@ namespace ERP.PL.Controllers
             }
             catch (DbUpdateException ex)
             {
-                await transaction.RollbackAsync();
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -425,7 +422,6 @@ namespace ERP.PL.Controllers
             }
             catch(Exception ex)
             {
-
                 // Audit log failure
                 await _auditService.LogAsync(
                     User.FindFirstValue(ClaimTypes.NameIdentifier)!,
@@ -436,7 +432,6 @@ namespace ERP.PL.Controllers
                     succeeded: false,
                     errorMessage: ex.Message);
 
-                await transaction.RollbackAsync();
                 throw;
             }
         }

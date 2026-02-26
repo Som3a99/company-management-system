@@ -81,9 +81,12 @@
         <a class="btn btn-outline-secondary btn-sm" asp-action="ExportProjects" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Projects</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="Department">Department Reports</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="EstimationAccuracy">Estimation Accuracy</a>
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Jobs">Async Jobs & Presets</a>
         @if (User.IsInRole("CEO"))
         {
             <a class="btn btn-outline-secondary btn-sm" asp-action="Audit">Audit Reports</a>
+            <a class="btn btn-outline-info btn-sm" asp-action="Digest"><i class="fas fa-file-alt me-1"></i>Executive Digest</a>
+            <a class="btn btn-outline-danger btn-sm" asp-action="Anomalies"><i class="fas fa-shield-alt me-1"></i>Anomaly Detection</a>
         }
     </div>
 

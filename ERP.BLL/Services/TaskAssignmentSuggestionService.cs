@@ -41,6 +41,7 @@ namespace ERP.BLL.Services
             var result = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(3);
+                entry.Size = 1;
                 return await ComputeSuggestionsAsync(projectId, taskTitle);
             });
 

@@ -239,6 +239,12 @@
                                             @(user.IsActive ? "Deactivate" : "Activate")
                                         </button>
                                     </form>
+                                    @if (!user.Roles.Contains("CEO"))
+                                    {
+                                        <a asp-action="ChangeRole" asp-route-userId="@user.UserId" class="btn btn-sm btn-outline-info" title="Change Role">
+                                            <i class="fas fa-user-tag"></i>
+                                        </a>
+                                    }
                                     @if (User.IsInRole("CEO") || User.IsInRole("ITAdmin"))
                                     {
                                         <a asp-controller="Account" asp-action="ResetPasswordByAdmin" class="btn btn-sm btn-outline-secondary" title="Reset Password">

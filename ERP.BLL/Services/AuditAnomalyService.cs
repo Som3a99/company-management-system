@@ -58,6 +58,7 @@ namespace ERP.BLL.Services
             var result = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                entry.Size = 1;
                 return await DetectAnomaliesCoreAsync(lookbackHours);
             });
 

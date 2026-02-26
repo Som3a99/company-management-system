@@ -128,7 +128,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'RequestVerificationToken': token
+                    'X-CSRF-TOKEN': token
                 },
                 body: JSON.stringify({ title: title, projectName: projectName })
             });
@@ -137,10 +137,16 @@
                 const data = await response.json();
                 descEl.value = data.description;
             } else {
-                alert('Failed to generate description. Please try again.');
+                const errorData = await response.json().catch(() => null);
+                const msg = errorData?.fallback;
+                if (msg) {
+                    descEl.value = msg;
+                } else {
+                    alert('Failed to generate description. A fallback description has been applied.');
+                }
             }
         } catch {
-            alert('Failed to generate description. Please try again.');
+            alert('Network error. Please check your connection and try again.');
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: -2px;"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Generate';

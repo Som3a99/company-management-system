@@ -104,7 +104,7 @@ namespace ERP.BLL.Services
             return sb.ToString();
         }
 
-        internal static string BuildFallbackDescription(GenerateTaskDescriptionRequest request)
+        public static string BuildFallbackDescription(GenerateTaskDescriptionRequest request)
         {
             var projectContext = !string.IsNullOrWhiteSpace(request.ProjectName)
                 ? $" for the {request.ProjectName} project"

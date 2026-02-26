@@ -4,6 +4,7 @@ using ERP.BLL.Services;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Tests.Infrastructure;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
@@ -62,7 +63,8 @@ namespace Tests.Services
                 Mock.Of<IUnitOfWork>(),
                 accessor,
                 db,
-                Mock.Of<ICacheService>());
+                Mock.Of<ICacheService>(),
+                Mock.Of<ILogger<TaskService>>());
 
             var req = new CreateTaskRequest("T", "D", 1, 5, TaskPriority.Low, null, null, 1m);
             var result = await service.CreateTaskAsync(req, "user-1");
@@ -80,7 +82,8 @@ namespace Tests.Services
                 Mock.Of<IUnitOfWork>(),
                 TestHttpContextFactory.CreateAccessor(),
                 db,
-                Mock.Of<ICacheService>());
+                Mock.Of<ICacheService>(),
+                Mock.Of<ILogger<TaskService>>());
         }
     }
 }

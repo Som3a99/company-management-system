@@ -47,6 +47,7 @@ namespace ERP.BLL.Services
             var result = await _cache.GetOrCreateAsync(cacheKey, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                entry.Size = 1;
                 return await CalculateCoreAsync();
             });
 
@@ -174,9 +175,16 @@ namespace ERP.BLL.Services
             var behindCount = 0;
             foreach (var projectId in activeProjects)
             {
-                var forecast = await _forecastService.ForecastAsync(projectId);
-                if (forecast != null && forecast.Status == "Behind")
-                    behindCount++;
+                try
+                {
+                    var forecast = await _forecastService.ForecastAsync(projectId);
+                    if (forecast != null && forecast.Status == "Behind")
+                        behindCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Forecast failed for project {ProjectId} during team health calculation.", projectId);
+                }
             }
 
             return behindCount;

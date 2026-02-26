@@ -4,6 +4,7 @@ using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
@@ -19,6 +20,7 @@ namespace ERP.BLL.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ApplicationDbContext _dbContext;
         private readonly ICacheService _cacheService;
+        private readonly ILogger<TaskService> _logger;
 
         private static readonly Dictionary<TaskStatus, HashSet<TaskStatus>> AllowedTransitions = new()
         {
@@ -36,7 +38,8 @@ namespace ERP.BLL.Services
             IUnitOfWork unitOfWork,
             IHttpContextAccessor httpContextAccessor,
             ApplicationDbContext dbContext,
-            ICacheService cacheService)
+            ICacheService cacheService,
+            ILogger<TaskService> logger)
         {
             _taskRepository = taskRepository;
             _projectRepository = projectRepository;
@@ -45,6 +48,7 @@ namespace ERP.BLL.Services
             _httpContextAccessor = httpContextAccessor;
             _dbContext = dbContext;
             _cacheService=cacheService;
+            _logger = logger;
         }
 
         public async Task<TaskOperationResult<TaskItem>> CreateTaskAsync(CreateTaskRequest request, string currentUserId)
@@ -90,8 +94,26 @@ namespace ERP.BLL.Services
             };
 
             await _taskRepository.AddAsync(entity);
-            await _unitOfWork.CompleteAsync();
-            await InvalidateTaskReportCachesAsync();
+
+            try
+            {
+                await _unitOfWork.CompleteAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return TaskOperationResult<TaskItem>.Invalid("Task could not be created due to a concurrency conflict. Please try again.");
+            }
+            catch (DbUpdateException ex)
+            {
+                _logger.LogError(ex, "Database error while creating task '{Title}' in project {ProjectId}: {Message}",
+                    request.Title, request.ProjectId, ex.InnerException?.Message ?? ex.Message);
+                return TaskOperationResult<TaskItem>.Invalid("Unable to save task. Please verify all fields and try again.");
+            }
+
+            // Non-critical post-save operations — failures must not break the response
+            try { await InvalidateTaskReportCachesAsync(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Cache invalidation failed after task creation (TaskId={TaskId})", entity.Id); }
+
             await WriteAuditLogAsync(currentUserId, "TASK_CREATE", entity.Id, new { entity.ProjectId, entity.AssignedToEmployeeId, entity.Priority });
 
             return TaskOperationResult<TaskItem>.Success(entity);
@@ -418,25 +440,32 @@ namespace ERP.BLL.Services
 
         private async Task WriteAuditLogAsync(string userId, string action, int taskId, object details, bool succeeded = true, string? errorMessage = null)
         {
-            var user = _httpContextAccessor.HttpContext?.User;
-            var audit = new AuditLog
+            try
             {
-                UserId = userId,
-                UserEmail = user?.Identity?.Name ?? "unknown",
-                Action = action,
-                ResourceType = "Task",
-                ResourceId = taskId,
-                Details = JsonSerializer.Serialize(details),
-                Succeeded = succeeded,
-                ErrorMessage = errorMessage,
-                Timestamp = DateTime.UtcNow,
-                IpAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString(),
-                UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
-            };
+                var user = _httpContextAccessor.HttpContext?.User;
+                var audit = new AuditLog
+                {
+                    UserId = userId,
+                    UserEmail = user?.Identity?.Name ?? "unknown",
+                    Action = action,
+                    ResourceType = "Task",
+                    ResourceId = taskId,
+                    Details = JsonSerializer.Serialize(details),
+                    Succeeded = succeeded,
+                    ErrorMessage = errorMessage,
+                    Timestamp = DateTime.UtcNow,
+                    IpAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString(),
+                    UserAgent = _httpContextAccessor.HttpContext?.Request.Headers["User-Agent"].ToString()
+                };
 
-            _dbContext.AuditLogs.Add(audit);
-            await _dbContext.SaveChangesAsync();
-
+                _dbContext.AuditLogs.Add(audit);
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                // Audit logging failure should NOT break the app
+                // The main operation has already succeeded
+            }
         }
         /// <summary>
         /// Invalidation rule: task writes impact task/project/department reporting aggregates.
