@@ -12,6 +12,7 @@ using ERP.PL.Mapping.Employee;
 using ERP.PL.Mapping.Project;
 using ERP.PL.Middleware;
 using ERP.PL.Security;
+using ERP.PL.Hubs;
 using ERP.PL.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Features;
@@ -89,11 +90,16 @@ namespace ERP.PL
                 var logger = sp.GetRequiredService<ILogger<ReportJobService>>();
                 var env = sp.GetRequiredService<IWebHostEnvironment>();
                 var webRoot = env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-                return new ReportJobService(dbContext, reportingService, logger, webRoot);
+                var notificationService = sp.GetRequiredService<INotificationService>();
+                return new ReportJobService(dbContext, reportingService, logger, webRoot, notificationService);
             });
             builder.Services.AddHostedService<ReportJobWorkerService>();
             builder.Services.AddHostedService<CacheTelemetryHostedService>();
             builder.Services.AddHostedService<CacheWarmupHostedService>();
+            builder.Services.AddHostedService<TaskDeadlineNotificationJob>();
+            builder.Services.AddHostedService<NotificationArchiveJob>();
+            builder.Services.AddHostedService<NotificationHardDeleteJob>();
+            builder.Services.AddHostedService<AnomalyDetectionNotificationJob>();
 
             // Phase 3 — Proactive Intelligence
             builder.Services.AddScoped<ITaskAssignmentSuggestionService, TaskAssignmentSuggestionService>();
@@ -107,6 +113,16 @@ namespace ERP.PL
 
             // Role Management Service - Scoped lifetime (depends on DbContext)
             builder.Services.AddScoped<IRoleManagementService, RoleManagementService>();
+
+            // Notification Service - Scoped lifetime (depends on DbContext)
+            builder.Services.AddScoped<INotificationService, NotificationService>();
+
+            // SignalR for real-time notification delivery
+            builder.Services.AddSignalR();
+            builder.Services.AddScoped<INotificationHubService, SignalRNotificationHubService>();
+
+            // Email Service - Singleton (reads config once, stateless sends)
+            builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
 
             // Audit Service - Scoped lifetime (depends on DbContext)
             builder.Services.AddScoped<IAuditService, AuditService>();
@@ -299,7 +315,8 @@ namespace ERP.PL
                     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
                     "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
                     "img-src 'self' data: https:; " +
-                    "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com;");
+                    "font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; " +
+                    "connect-src 'self' ws: wss:;");
 
                 // X-Content-Type-Options - Prevent MIME sniffing
                 context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
@@ -401,6 +418,8 @@ namespace ERP.PL
                     }
                 });
             });
+
+            app.MapHub<NotificationHub>("/hubs/notifications");
 
             app.MapControllerRoute(
                 name: "default",

@@ -5,6 +5,7 @@ using ERP.DAL.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TaskStatus = ERP.DAL.Models.TaskStatus;
@@ -21,6 +22,8 @@ namespace ERP.BLL.Services
         private readonly ApplicationDbContext _dbContext;
         private readonly ICacheService _cacheService;
         private readonly ILogger<TaskService> _logger;
+        private readonly INotificationService _notificationService;
+        private readonly ITaskRiskService _taskRiskService;
 
         private static readonly Dictionary<TaskStatus, HashSet<TaskStatus>> AllowedTransitions = new()
         {
@@ -39,7 +42,9 @@ namespace ERP.BLL.Services
             IHttpContextAccessor httpContextAccessor,
             ApplicationDbContext dbContext,
             ICacheService cacheService,
-            ILogger<TaskService> logger)
+            ILogger<TaskService> logger,
+            INotificationService notificationService,
+            ITaskRiskService taskRiskService)
         {
             _taskRepository = taskRepository;
             _projectRepository = projectRepository;
@@ -49,6 +54,8 @@ namespace ERP.BLL.Services
             _dbContext = dbContext;
             _cacheService=cacheService;
             _logger = logger;
+            _notificationService = notificationService;
+            _taskRiskService = taskRiskService;
         }
 
         public async Task<TaskOperationResult<TaskItem>> CreateTaskAsync(CreateTaskRequest request, string currentUserId)
@@ -116,6 +123,35 @@ namespace ERP.BLL.Services
 
             await WriteAuditLogAsync(currentUserId, "TASK_CREATE", entity.Id, new { entity.ProjectId, entity.AssignedToEmployeeId, entity.Priority });
 
+            // N-01: Task Assigned notification
+            try
+            {
+                var assigneeUserId = await ResolveUserIdFromEmployeeIdAsync(entity.AssignedToEmployeeId);
+                if (assigneeUserId != null)
+                {
+                    var creatorName = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Someone";
+                    await _notificationService.CreateAsync(
+                        assigneeUserId,
+                        title: "Task Assigned",
+                        message: $"\"{entity.Title}\" has been assigned to you by {creatorName}.",
+                        type: NotificationType.TaskAssigned,
+                        severity: NotificationSeverity.Info,
+                        linkUrl: $"/TaskBoard");
+                }
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Notification failed after task creation (TaskId={TaskId})", entity.Id); }
+
+            // N-08: High-Risk Task alert for CEO + Project Manager
+            try
+            {
+                var risk = _taskRiskService.CalculateRisk(entity);
+                if (risk.Level == "High")
+                {
+                    await SendHighRiskNotificationAsync(entity, risk.Reason);
+                }
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Risk notification failed after task creation (TaskId={TaskId})", entity.Id); }
+
             return TaskOperationResult<TaskItem>.Success(entity);
         }
 
@@ -171,6 +207,17 @@ namespace ERP.BLL.Services
                 return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
             }
 
+            // N-08: High-Risk Task alert after update
+            try
+            {
+                var risk = _taskRiskService.CalculateRisk(task);
+                if (risk.Level == "High")
+                {
+                    await SendHighRiskNotificationAsync(task, risk.Reason);
+                }
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Risk notification failed after task update (TaskId={TaskId})", task.Id); }
+
             return TaskOperationResult.Success();
         }
 
@@ -211,6 +258,35 @@ namespace ERP.BLL.Services
                 return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
             }
 
+            // N-02: Task Status Changed notification — notify creator and project manager
+            try
+            {
+                var recipients = new HashSet<string>();
+                if (!string.IsNullOrEmpty(task.CreatedByUserId))
+                    recipients.Add(task.CreatedByUserId);
+
+                if (task.Project?.ProjectManagerId != null)
+                {
+                    var pmUserId = await ResolveUserIdFromEmployeeIdAsync(task.Project.ProjectManagerId);
+                    if (pmUserId != null) recipients.Add(pmUserId);
+                }
+
+                // Don't notify the person who changed the status
+                recipients.Remove(currentUserId);
+
+                if (recipients.Count > 0)
+                {
+                    await _notificationService.CreateForManyAsync(
+                        recipients,
+                        title: "Status Updated",
+                        message: $"Task \"{task.Title}\" status changed from {oldStatus} to {request.NewStatus}.",
+                        type: NotificationType.TaskStatusChanged,
+                        severity: NotificationSeverity.Info,
+                        linkUrl: $"/TaskBoard");
+                }
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Notification failed after status update (TaskId={TaskId})", task.Id); }
+
             return TaskOperationResult.Success();
         }
 
@@ -249,6 +325,24 @@ namespace ERP.BLL.Services
             {
                 return TaskOperationResult.Invalid("Task was modified by another user. Please reload and retry.");
             }
+
+            // N-01: Task Assigned notification for reassignment
+            try
+            {
+                var newAssigneeUserId = await ResolveUserIdFromEmployeeIdAsync(request.AssignedToEmployeeId);
+                if (newAssigneeUserId != null)
+                {
+                    var reassignerName = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Someone";
+                    await _notificationService.CreateAsync(
+                        newAssigneeUserId,
+                        title: "Task Assigned",
+                        message: $"\"{task.Title}\" has been reassigned to you by {reassignerName}.",
+                        type: NotificationType.TaskAssigned,
+                        severity: NotificationSeverity.Info,
+                        linkUrl: $"/TaskBoard");
+                }
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "Notification failed after task reassignment (TaskId={TaskId})", task.Id); }
 
             return TaskOperationResult.Success();
         }
@@ -476,6 +570,60 @@ namespace ERP.BLL.Services
                 _cacheService.RemoveByPrefixAsync(CacheKeys.ReportTasksPrefix),
                 _cacheService.RemoveByPrefixAsync(CacheKeys.ReportProjectsPrefix),
                 _cacheService.RemoveByPrefixAsync(CacheKeys.ReportDepartmentsPrefix));
+        }
+
+        /// <summary>
+        /// Resolves the ApplicationUserId from an EmployeeId.
+        /// Returns null if the employee doesn't exist or has no linked user.
+        /// </summary>
+        private async Task<string?> ResolveUserIdFromEmployeeIdAsync(int? employeeId)
+        {
+            if (employeeId == null) return null;
+            return await _dbContext.Employees
+                .Where(e => e.Id == employeeId.Value && e.ApplicationUserId != null)
+                .Select(e => e.ApplicationUserId)
+                .FirstOrDefaultAsync();
+        }
+
+        /// <summary>
+        /// N-08: Send high-risk task notification to CEO and Project Manager
+        /// </summary>
+        private async Task SendHighRiskNotificationAsync(TaskItem task, string reason)
+        {
+            var recipients = new HashSet<string>();
+
+            // Notify project manager
+            if (task.Project?.ProjectManagerId != null)
+            {
+                var pmUserId = await ResolveUserIdFromEmployeeIdAsync(task.Project.ProjectManagerId);
+                if (pmUserId != null) recipients.Add(pmUserId);
+            }
+
+            // Notify all CEOs
+            var ceoRoleId = await _dbContext.Roles
+                .Where(r => r.Name == "CEO")
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (ceoRoleId != null)
+            {
+                var ceoUserIds = await _dbContext.UserRoles
+                    .Where(ur => ur.RoleId == ceoRoleId)
+                    .Select(ur => ur.UserId)
+                    .ToListAsync();
+                foreach (var id in ceoUserIds) recipients.Add(id);
+            }
+
+            if (recipients.Count > 0)
+            {
+                await _notificationService.CreateForManyAsync(
+                    recipients,
+                    title: "High-Risk Task",
+                    message: $"Task \"{task.Title}\" has been flagged as high risk. {reason}",
+                    type: NotificationType.HighRiskTask,
+                    severity: NotificationSeverity.Warning,
+                    linkUrl: "/TaskBoard");
+            }
         }
     }
 }

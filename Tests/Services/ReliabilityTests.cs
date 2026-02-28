@@ -54,7 +54,9 @@ namespace Tests.Services
                 accessor,
                 db,
                 Mock.Of<ICacheService>(),
-                Mock.Of<ILogger<TaskService>>());
+                Mock.Of<ILogger<TaskService>>(),
+                Mock.Of<INotificationService>(),
+                Mock.Of<ITaskRiskService>());
 
             var req = new CreateTaskRequest("Test Task", "Desc", 1, 5, TaskPriority.Medium, null, null, 4m);
             var result = await service.CreateTaskAsync(req, "user-1");

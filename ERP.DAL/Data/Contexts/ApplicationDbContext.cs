@@ -23,6 +23,8 @@ namespace ERP.DAL.Data.Contexts
         public DbSet<ReportJob> ReportJobs { get; set; } = null!;
         public DbSet<ReportPreset> ReportPresets { get; set; } = null!;
         public DbSet<SeedHistory> SeedHistories { get; set; } = null!;
+        public DbSet<AppNotification> Notifications { get; set; } = null!;
+        public DbSet<NotificationPreference> NotificationPreferences { get; set; } = null!;
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -87,6 +89,38 @@ namespace ERP.DAL.Data.Contexts
                 entity.HasIndex(s => new { s.SeedVersion, s.Environment });
             });
 
+            // Configure AppNotification
+            modelBuilder.Entity<AppNotification>(b =>
+            {
+                b.HasKey(n => n.Id);
+                b.Property(n => n.Title).HasMaxLength(120).IsRequired();
+                b.Property(n => n.Message).HasMaxLength(500).IsRequired();
+                b.Property(n => n.LinkUrl).HasMaxLength(300);
+
+                // Indexes
+                b.HasIndex(n => n.RecipientUserId);
+                b.HasIndex(n => new { n.RecipientUserId, n.IsRead });
+                b.HasIndex(n => new { n.RecipientUserId, n.IsArchived });
+                b.HasIndex(n => n.Severity);
+                b.HasIndex(n => n.CreatedAt);
+
+                b.HasOne(n => n.RecipientUser)
+                    .WithMany()
+                    .HasForeignKey(n => n.RecipientUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // NotificationPreference configuration
+            modelBuilder.Entity<NotificationPreference>(b =>
+            {
+                b.HasKey(p => p.Id);
+                b.HasIndex(p => p.UserId).IsUnique();
+                b.HasOne(p => p.User)
+                    .WithMany()
+                    .HasForeignKey(p => p.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // Apply existing configurations
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
             
@@ -95,6 +129,9 @@ namespace ERP.DAL.Data.Contexts
             modelBuilder.Entity<Department>().HasQueryFilter(d => !d.IsDeleted);
             modelBuilder.Entity<Project>().HasQueryFilter(p => !p.IsDeleted);
             modelBuilder.Entity<ProjectEmployee>().HasQueryFilter(pe => !pe.Employee.IsDeleted && !pe.Project.IsDeleted);
+
+            // Global query filter for archived notifications
+            modelBuilder.Entity<AppNotification>().HasQueryFilter(n => !n.IsArchived);
         }
     }
 }

@@ -64,7 +64,9 @@ namespace Tests.Services
                 accessor,
                 db,
                 Mock.Of<ICacheService>(),
-                Mock.Of<ILogger<TaskService>>());
+                Mock.Of<ILogger<TaskService>>(),
+                Mock.Of<INotificationService>(),
+                Mock.Of<ITaskRiskService>());
 
             var req = new CreateTaskRequest("T", "D", 1, 5, TaskPriority.Low, null, null, 1m);
             var result = await service.CreateTaskAsync(req, "user-1");
@@ -83,7 +85,9 @@ namespace Tests.Services
                 TestHttpContextFactory.CreateAccessor(),
                 db,
                 Mock.Of<ICacheService>(),
-                Mock.Of<ILogger<TaskService>>());
+                Mock.Of<ILogger<TaskService>>(),
+                Mock.Of<INotificationService>(),
+                Mock.Of<ITaskRiskService>());
         }
     }
 }

@@ -29,6 +29,8 @@ namespace ERP.PL.Controllers
         private readonly IMapper _mapper;
         private readonly ICacheService _cacheService;
         private readonly IMemoryCache _memoryCache;
+        private readonly INotificationService _notificationService;
+        private readonly IEmailService _emailService;
 
         public ITAdminController(
             ApplicationDbContext context,
@@ -38,7 +40,9 @@ namespace ERP.PL.Controllers
             ILogger<ITAdminController> logger,
             IMapper mapper,
             ICacheService cacheService,
-            IMemoryCache memoryCache)
+            IMemoryCache memoryCache,
+            INotificationService notificationService,
+            IEmailService emailService)
         {
             _context = context;
             _userManager = userManager;
@@ -48,6 +52,8 @@ namespace ERP.PL.Controllers
             _mapper = mapper;
             _cacheService=cacheService;
             _memoryCache=memoryCache;
+            _notificationService = notificationService;
+            _emailService = emailService;
         }
 
         #region Dashboard
@@ -279,6 +285,24 @@ namespace ERP.PL.Controllers
                 TempData["SuccessMessage"] = $"Password reset approved for {user.Email}. Ticket: {request.TicketNumber}";
                 TempData["ApprovedTempPassword"] = temporaryPassword;
                 TempData["ApprovedTempPasswordTicket"] = request.TicketNumber;
+
+                // N-10b: Notify employee that their password reset was approved
+                try
+                {
+                    await _notificationService.CreateAsync(
+                        request.UserId,
+                        title: "Password Reset Approved",
+                        message: $"Your password reset request (Ticket: {request.TicketNumber}) has been approved. " +
+                                 $"A temporary password has been set. Please log in and change it immediately.",
+                        type: NotificationType.PasswordResetApproved,
+                        severity: NotificationSeverity.Info,
+                        linkUrl: "/Account/Login");
+                }
+                catch (Exception notifEx)
+                {
+                    _logger.LogWarning(notifEx, "Failed to send approval notification for ticket {Ticket}", request.TicketNumber);
+                }
+
                 return RedirectToAction(nameof(PasswordResetRequests));
             }
             catch (Exception ex)
@@ -338,6 +362,50 @@ namespace ERP.PL.Controllers
                 details: $"Ticket: {request.TicketNumber}, Reason: {request.DenialReason}");
 
             TempData["SuccessMessage"] = $"Reset request denied. Ticket: {request.TicketNumber}";
+
+            // N-10c: Notify employee that their password reset was denied
+            try
+            {
+                var reason = string.IsNullOrWhiteSpace(denialReason)
+                    ? "In-person verification required"
+                    : denialReason;
+
+                await _notificationService.CreateAsync(
+                    request.UserId,
+                    title: "Password Reset Denied",
+                    message: $"Your password reset request (Ticket: {request.TicketNumber}) was denied. " +
+                             $"Reason: {reason}. Please contact the IT desk directly for assistance.",
+                    type: NotificationType.PasswordResetDenied,
+                    severity: NotificationSeverity.Warning,
+                    linkUrl: null);
+            }
+            catch (Exception notifEx)
+            {
+                _logger.LogWarning(notifEx, "Failed to send denial notification for ticket {Ticket}", request.TicketNumber);
+            }
+
+            // Email fallback — employee cannot log in to see the in-app notification
+            try
+            {
+                var user = await _userManager.FindByIdAsync(request.UserId);
+                if (user?.Email != null)
+                {
+                    var emailBody = $"Dear user,\n\n" +
+                        $"Your password reset request (Ticket: {request.TicketNumber}) has been reviewed and denied.\n\n" +
+                        $"Please contact the IT help desk directly for further assistance.\n\n" +
+                        $"— CompanyFlow ERP";
+
+                    await _emailService.SendAsync(
+                        user.Email,
+                        "Password Reset Request Denied",
+                        emailBody);
+                }
+            }
+            catch (Exception emailEx)
+            {
+                _logger.LogWarning(emailEx, "Failed to send denial email for ticket {Ticket}", request.TicketNumber);
+            }
+
             return RedirectToAction(nameof(PasswordResetRequests));
         }
 

@@ -56,6 +56,15 @@ namespace ERP.DAL.Models
         [Timestamp]
         public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
+        // ── Deadline Notification Flags ───────────────────────
+        /// <summary>Set to true by the deadline job after the 48-hour warning is sent.
+        /// Prevents duplicate "due soon" alerts on subsequent job cycles.</summary>
+        public bool AlreadyNotifiedDueSoon { get; set; } = false;
+
+        /// <summary>Set to true by the deadline job after the overdue alert is sent.
+        /// Prevents duplicate "overdue" alerts on subsequent job cycles.</summary>
+        public bool AlreadyNotifiedOverdue { get; set; } = false;
+
         public ICollection<TaskComment> Comments { get; set; } = new HashSet<TaskComment>();
     }
 }

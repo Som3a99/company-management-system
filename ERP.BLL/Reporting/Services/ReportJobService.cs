@@ -1,4 +1,5 @@
-﻿using ERP.BLL.Reporting.Dtos;
+﻿using ERP.BLL.Interfaces;
+using ERP.BLL.Reporting.Dtos;
 using ERP.BLL.Reporting.Interfaces;
 using ERP.DAL.Data.Contexts;
 using ERP.DAL.Models;
@@ -14,14 +15,15 @@ namespace ERP.BLL.Reporting.Services
         private readonly IReportingService _reportingService;
         private readonly string _webRootPath;
         private readonly ILogger<ReportJobService> _logger;
+        private readonly INotificationService? _notificationService;
 
-        public ReportJobService(ApplicationDbContext dbContext, IReportingService reportingService, ILogger<ReportJobService> logger, string? webRootPath = null)
+        public ReportJobService(ApplicationDbContext dbContext, IReportingService reportingService, ILogger<ReportJobService> logger, string? webRootPath = null, INotificationService? notificationService = null)
         {
             _dbContext = dbContext;
             _reportingService = reportingService;
             _logger = logger;
-            // Use provided webRootPath, or fall back to ContentRootPath/wwwroot
             _webRootPath = webRootPath ?? Path.Combine(AppContext.BaseDirectory, "wwwroot");
+            _notificationService = notificationService;
         }
 
         public async Task<int> EnqueueJobAsync(string userId, ReportType reportType, ReportFileFormat format, ReportRequestDto request)
@@ -134,6 +136,9 @@ namespace ERP.BLL.Reporting.Services
                 job.CompletedAtUtc = DateTime.UtcNow;
                 job.FailureReason = null;
                 await _dbContext.SaveChangesAsync(cancellationToken);
+
+                // N-05: Report Ready notification
+                await NotifyReportStatusAsync(job, isSuccess: true);
             }
             catch (Exception ex)
             {
@@ -141,6 +146,9 @@ namespace ERP.BLL.Reporting.Services
                 job.CompletedAtUtc = DateTime.UtcNow;
                 job.FailureReason = ex.Message;
                 await _dbContext.SaveChangesAsync(cancellationToken);
+
+                // N-06: Report Failed notification
+                await NotifyReportStatusAsync(job, isSuccess: false);
             }
 
             return true;
@@ -184,6 +192,42 @@ namespace ERP.BLL.Reporting.Services
                 ["Timestamp (UTC)", "User", "Action", "Resource Type", "Resource Id", "Succeeded", "Error"],
                 audits.Select(a => (IReadOnlyList<string?>)[a.TimestampUtc.ToString("u"), a.UserEmail, a.Action, a.ResourceType, a.ResourceId?.ToString(), a.Succeeded.ToString(), a.ErrorMessage]).ToList()
             );
+        }
+
+        private async Task NotifyReportStatusAsync(ReportJob job, bool isSuccess)
+        {
+            if (_notificationService == null || string.IsNullOrWhiteSpace(job.RequestedByUserId))
+                return;
+
+            try
+            {
+                if (isSuccess)
+                {
+                    await _notificationService.CreateAsync(
+                        job.RequestedByUserId,
+                        title: "Report Ready",
+                        message: $"Your {job.ReportType} report is ready for download.",
+                        type: NotificationType.ReportReady,
+                        severity: NotificationSeverity.Info,
+                        linkUrl: job.OutputPath,
+                        isSystemGenerated: true);
+                }
+                else
+                {
+                    await _notificationService.CreateAsync(
+                        job.RequestedByUserId,
+                        title: "Report Failed",
+                        message: $"Your {job.ReportType} report failed to generate. Please try again.",
+                        type: NotificationType.ReportFailed,
+                        severity: NotificationSeverity.Warning,
+                        linkUrl: "/Reporting",
+                        isSystemGenerated: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send report notification for job {JobId}", job.Id);
+            }
         }
     }
 }

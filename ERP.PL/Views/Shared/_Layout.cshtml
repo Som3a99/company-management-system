@@ -64,6 +64,35 @@
                         </li>
                             @if (User.Identity?.IsAuthenticated == true)
                             {
+                                @* ── Notification Bell ─────────────────────── *@
+                                <li class="nav-item dropdown me-2">
+                                    <a class="nav-link position-relative" href="#" id="notificationBell" role="button"
+                                       data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                        <i class="fas fa-bell fs-5"></i>
+                                        <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                                              style="font-size:0.6rem; display:none;">
+                                            0
+                                        </span>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-end shadow-lg p-0" style="width:360px; max-height:440px;" aria-labelledby="notificationBell">
+                                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                            <h6 class="mb-0 fw-bold">Notifications</h6>
+                                            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="markAllReadBtn">
+                                                Mark all read
+                                            </button>
+                                        </div>
+                                        <div id="notifDropdownList" style="max-height:340px; overflow-y:auto;">
+                                            <div class="text-center text-muted py-4">
+                                                <i class="fas fa-bell-slash fs-4 mb-2 d-block"></i>
+                                                <small>No notifications</small>
+                                            </div>
+                                        </div>
+                                        <div class="border-top text-center py-2">
+                                            <a href="/Notifications" class="text-decoration-none small">View all notifications</a>
+                                        </div>
+                                    </div>
+                                </li>
+
                                 <li class="nav-item dropdown">
                                     <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button"
                                        data-bs-toggle="dropdown" aria-expanded="false">
@@ -193,6 +222,237 @@
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+        <script>
+            // ── Notification Bell System (SignalR + polling fallback) ──
+            (function () {
+                const bellBadge = document.getElementById('notifBadge');
+                const dropdownList = document.getElementById('notifDropdownList');
+                const markAllBtn = document.getElementById('markAllReadBtn');
+
+                if (!bellBadge || !dropdownList) return;
+
+                let signalRConnected = false;
+
+                function severityIcon(sev) {
+                    switch (sev) {
+                        case 'critical': return '<i class="fas fa-exclamation-triangle text-danger me-2 mt-1 fs-6"></i>';
+                        case 'warning': return '<i class="fas fa-clock text-warning me-2 mt-1 fs-6"></i>';
+                        default: return '<i class="fas fa-bell text-primary me-2 mt-1 fs-6"></i>';
+                    }
+                }
+
+                function severityBg(sev) {
+                    switch (sev) {
+                        case 'critical': return 'bg-danger-subtle';
+                        case 'warning': return 'bg-warning-subtle';
+                        default: return '';
+                    }
+                }
+
+                function renderNotifications(items) {
+                    if (!items || items.length === 0) {
+                        dropdownList.innerHTML = '<div class="text-center text-muted py-4"><i class="fas fa-bell-slash fs-4 mb-2 d-block"></i><small>No notifications</small></div>';
+                        return;
+                    }
+
+                    dropdownList.innerHTML = items.map(n => {
+                        const sev = typeof n.severity === 'number'
+                            ? ['info', 'warning', 'critical'][n.severity] || 'info'
+                            : (n.severity || 'info');
+                        const readClass = n.isRead ? 'opacity-75' : 'fw-semibold';
+                        const bgClass = n.isRead ? '' : severityBg(sev);
+                        const newBadge = n.isRead ? '' : '<span class="badge rounded-pill bg-primary ms-1" style="font-size:0.55rem">New</span>';
+
+                        return `<a href="${n.linkUrl || '#'}" class="dropdown-item d-flex align-items-start py-2 px-3 ${bgClass} ${readClass}" data-notif-id="${n.id}" onclick="markNotifRead(${n.id}, event)">
+                            ${severityIcon(sev)}
+                            <div class="flex-grow-1 overflow-hidden">
+                                <div class="text-truncate" style="max-width:280px">${n.title}</div>
+                                <small class="text-muted text-truncate d-block" style="max-width:280px">${n.message}</small>
+                                <small class="text-muted">${n.timeAgo || ''}</small>
+                            </div>
+                            ${newBadge}
+                        </a>`;
+                    }).join('');
+                }
+
+                function updateBadge(count) {
+                    if (count > 0) {
+                        bellBadge.textContent = count > 99 ? '99+' : count;
+                        bellBadge.style.display = '';
+                    } else {
+                        bellBadge.style.display = 'none';
+                    }
+                }
+
+                function refreshBadge() {
+                    fetch('/Notifications/UnreadCount')
+                        .then(r => r.json())
+                        .then(data => updateBadge(data.count))
+                        .catch(() => { });
+                }
+
+                function loadRecent() {
+                    fetch('/Notifications/Recent')
+                        .then(r => r.json())
+                        .then(items => renderNotifications(items))
+                        .catch(() => { });
+                }
+
+                // Mark single notification read
+                window.markNotifRead = function (id, event) {
+                    fetch('/Notifications/MarkRead?id=' + id, { method: 'POST' })
+                        .then(() => {
+                            refreshBadge();
+                            const item = dropdownList.querySelector(`[data-notif-id="${id}"]`);
+                            if (item) {
+                                item.classList.remove('fw-semibold', 'bg-danger-subtle', 'bg-warning-subtle');
+                                item.classList.add('opacity-75');
+                                const badge = item.querySelector('.badge');
+                                if (badge) badge.remove();
+                            }
+                        })
+                        .catch(() => { });
+                };
+
+                if (markAllBtn) {
+                    markAllBtn.addEventListener('click', function () {
+                        fetch('/Notifications/MarkAllRead', { method: 'POST' })
+                            .then(() => {
+                                refreshBadge();
+                                loadRecent();
+                            })
+                            .catch(() => { });
+                    });
+                }
+
+                // Load on bell click
+                const bellEl = document.getElementById('notificationBell');
+                if (bellEl) {
+                    bellEl.addEventListener('show.bs.dropdown', loadRecent);
+                }
+
+                // ── Toast for critical alerts ──
+                function showCriticalToast(n) {
+                    const sev = typeof n.severity === 'number'
+                        ? ['info', 'warning', 'critical'][n.severity] || 'info'
+                        : (n.severity || 'info');
+                    if (sev !== 'critical') return;
+
+                    const key = 'toast_seen_' + n.id;
+                    if (sessionStorage.getItem(key)) return;
+                    sessionStorage.setItem(key, '1');
+
+                    let container = document.getElementById('notifToastContainer');
+                    if (!container) {
+                        container = document.createElement('div');
+                        container.id = 'notifToastContainer';
+                        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+                        container.style.zIndex = '1090';
+                        document.body.appendChild(container);
+                    }
+                    const toastId = 'toast_' + n.id;
+                    const html = `<div id="${toastId}" class="toast border-danger" role="alert" aria-live="assertive" data-bs-autohide="true" data-bs-delay="8000">
+                        <div class="toast-header bg-danger text-white">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong class="me-auto">${n.title}</strong>
+                            <small>${n.timeAgo || 'just now'}</small>
+                            <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">${n.message}</div>
+                    </div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+                    const toastEl = document.getElementById(toastId);
+                    if (toastEl && bootstrap.Toast) {
+                        new bootstrap.Toast(toastEl).show();
+                    }
+                }
+
+                function checkCriticalAlerts() {
+                    fetch('/Notifications/Recent')
+                        .then(r => r.json())
+                        .then(items => {
+                            (items || []).filter(n => !n.isRead).forEach(n => showCriticalToast(n));
+                        })
+                        .catch(() => { });
+                }
+
+                // ── SignalR Connection (graceful fallback to polling) ──
+                let pollingTimer = null;
+                let criticalTimer = null;
+
+                function startPolling() {
+                    if (pollingTimer) return;
+                    pollingTimer = setInterval(refreshBadge, 60000);
+                    criticalTimer = setInterval(checkCriticalAlerts, 60000);
+                }
+
+                function stopPolling() {
+                    if (pollingTimer) { clearInterval(pollingTimer); pollingTimer = null; }
+                    if (criticalTimer) { clearInterval(criticalTimer); criticalTimer = null; }
+                }
+
+                if (typeof signalR !== 'undefined') {
+                    const connection = new signalR.HubConnectionBuilder()
+                        .withUrl('/hubs/notifications')
+                        .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
+                        .configureLogging(signalR.LogLevel.Warning)
+                        .build();
+
+                    connection.on('ReceiveNotification', function (notification) {
+                        // Show toast for critical
+                        showCriticalToast(notification);
+                        // If dropdown is open, refresh it
+                        const bellMenu = document.querySelector('#notificationBell + .dropdown-menu');
+                        if (bellMenu && bellMenu.classList.contains('show')) {
+                            loadRecent();
+                        }
+                    });
+
+                    connection.on('UpdateUnreadCount', function (count) {
+                        updateBadge(count);
+                    });
+
+                    connection.onreconnecting(function () {
+                        signalRConnected = false;
+                        startPolling(); // Fall back to polling during reconnect
+                    });
+
+                    connection.onreconnected(function () {
+                        signalRConnected = true;
+                        stopPolling();
+                        refreshBadge(); // Sync after reconnect
+                    });
+
+                    connection.onclose(function () {
+                        signalRConnected = false;
+                        startPolling();
+                    });
+
+                    connection.start()
+                        .then(function () {
+                            signalRConnected = true;
+                            // No polling needed when SignalR is connected
+                        })
+                        .catch(function () {
+                            signalRConnected = false;
+                            startPolling(); // Graceful fallback
+                        });
+                } else {
+                    // SignalR script not available — use polling
+                    startPolling();
+                }
+
+                // Initial loads (always needed regardless of transport)
+                refreshBadge();
+                checkCriticalAlerts();
+            })();
+        </script>
+    }
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

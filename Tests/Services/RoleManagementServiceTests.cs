@@ -31,7 +31,8 @@ namespace Tests.Services
                 db,
                 Mock.Of<ILogger<RoleManagementService>>(),
                 signInManager.Object,
-                cache.Object);
+                cache.Object,
+                Mock.Of<INotificationService>());
 
             await sut.RemoveManagementRolesAsync("user-1");
 
@@ -54,7 +55,8 @@ namespace Tests.Services
                 db,
                 Mock.Of<ILogger<RoleManagementService>>(),
                 CreateMockSignInManager(userManager.Object).Object,
-                Mock.Of<ICacheService>());
+                Mock.Of<ICacheService>(),
+                Mock.Of<INotificationService>());
 
             await sut.RemoveManagementRolesAsync("unknown");
 

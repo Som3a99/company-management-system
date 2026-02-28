@@ -26,6 +26,7 @@ namespace ERP.PL.Controllers
         private const int AdminResetLimitPerMinute = 5;
         private readonly DocumentSettings _documentSettings;
         private readonly ICacheService _cacheService;
+        private readonly INotificationService _notificationService;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
@@ -34,7 +35,8 @@ namespace ERP.PL.Controllers
             IAuditService auditService,
             ApplicationDbContext context,
             DocumentSettings documentSettings,
-            ICacheService cacheService)
+            ICacheService cacheService,
+            INotificationService notificationService)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -43,6 +45,7 @@ namespace ERP.PL.Controllers
             _context=context;
             _documentSettings=documentSettings;
             _cacheService=cacheService;
+            _notificationService = notificationService;
         }
 
 
@@ -542,6 +545,28 @@ namespace ERP.PL.Controllers
 
             _logger.LogInformation($"Password reset requested for {user.Email}. Ticket: {ticketNumber}");
 
+            // N-10a: Notify IT Admins and CEOs about the password reset request
+            try
+            {
+                var itAdminIds = await GetUserIdsByRoleAsync("ITAdmin");
+                var ceoIds = await GetUserIdsByRoleAsync("CEO");
+                var recipients = itAdminIds.Union(ceoIds).Distinct();
+
+                await _notificationService.CreateForManyAsync(
+                    recipients,
+                    title: "Password Reset Request",
+                    message: $"Employee {user.Email} has submitted a password reset request. " +
+                             $"Ticket: {ticketNumber}. Expires in 1 hour.",
+                    type: NotificationType.PasswordResetRequested,
+                    severity: NotificationSeverity.Critical,
+                    linkUrl: "/ITAdmin/PasswordResetRequests",
+                    isSystemGenerated: false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send password reset notification for ticket {TicketNumber}", ticketNumber);
+            }
+
             return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
             {
                 Message = $"Your password reset request has been submitted for review by IT Admin. " +
@@ -692,6 +717,15 @@ namespace ERP.PL.Controllers
                 HireDate = employee?.HireDate,
                 ImageUrl = employee?.ImageUrl ?? "/uploads/images/avatar-user.png"
             };
+        }
+
+        private async Task<IList<string>> GetUserIdsByRoleAsync(string roleName)
+        {
+            var users = await _userManager.GetUsersInRoleAsync(roleName);
+            return users
+                .Where(u => u.IsActive)
+                .Select(u => u.Id)
+                .ToList();
         }
         #endregion
     }

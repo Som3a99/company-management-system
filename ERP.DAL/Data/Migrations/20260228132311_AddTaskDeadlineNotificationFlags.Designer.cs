@@ -4,6 +4,7 @@ using ERP.DAL.Data.Contexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERP.DAL.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260228132311_AddTaskDeadlineNotificationFlags")]
+    partial class AddTaskDeadlineNotificationFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -368,47 +371,6 @@ namespace ERP.DAL.Data.Migrations
                     b.HasIndex("IsActive", "IsDeleted");
 
                     b.ToTable("Employees", (string)null);
-                });
-
-            modelBuilder.Entity("ERP.DAL.Models.NotificationPreference", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("EmailEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("InAppEnabled")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("MuteReportNotifications")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("MuteTaskAssigned")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("MuteTaskStatusChanged")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("NotificationPreferences");
                 });
 
             modelBuilder.Entity("ERP.DAL.Models.PasswordResetRequest", b =>
@@ -1003,17 +965,6 @@ namespace ERP.DAL.Data.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("Project");
-                });
-
-            modelBuilder.Entity("ERP.DAL.Models.NotificationPreference", b =>
-                {
-                    b.HasOne("ERP.DAL.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ERP.DAL.Models.Project", b =>
