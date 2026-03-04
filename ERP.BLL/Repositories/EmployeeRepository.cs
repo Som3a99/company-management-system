@@ -19,7 +19,7 @@ namespace ERP.BLL.Repositories
 
         private IQueryable<Employee> ApplyScopeFilter(IQueryable<Employee> query)
         {
-            if (IsCEO())
+            if (IsCEO() || IsITAdmin())
                 return query;
 
             var managedDeptId = GetManagedDepartmentId();
@@ -40,6 +40,11 @@ namespace ERP.BLL.Repositories
         private bool IsCEO()
         {
             return _httpContextAccessor.HttpContext?.User.IsInRole("CEO") ?? false;
+        }
+
+        private bool IsITAdmin()
+        {
+            return _httpContextAccessor.HttpContext?.User.IsInRole("ITAdmin") ?? false;
         }
 
         private int? GetManagedDepartmentId()
@@ -71,8 +76,8 @@ namespace ERP.BLL.Repositories
                 .Include(e => e.Department)
                 .Where(e => !e.IsDeleted);
 
-            // CEO sees all employees
-            if (IsCEO())
+            // CEO and IT Admin see all employees
+            if (IsCEO() || IsITAdmin())
             {
                 return await query.ToListAsync();
             }

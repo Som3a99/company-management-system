@@ -27,6 +27,7 @@ namespace ERP.PL.Controllers
         private readonly DocumentSettings _documentSettings;
         private readonly ICacheService _cacheService;
         private readonly INotificationService _notificationService;
+        private readonly IEmailService _emailService;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
@@ -36,7 +37,8 @@ namespace ERP.PL.Controllers
             ApplicationDbContext context,
             DocumentSettings documentSettings,
             ICacheService cacheService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IEmailService emailService)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -46,6 +48,7 @@ namespace ERP.PL.Controllers
             _documentSettings=documentSettings;
             _cacheService=cacheService;
             _notificationService = notificationService;
+            _emailService = emailService;
         }
 
 
@@ -117,13 +120,13 @@ namespace ERP.PL.Controllers
                     return RedirectToAction(nameof(ChangePassword));
                 }
 
-                // Redirect to return URL or home
+                // Redirect to return URL or role-specific home
                 if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                 {
                     return Redirect(returnUrl);
                 }
 
-                return RedirectToAction("Index", "Home");
+                return RedirectToRoleHome(await _userManager.GetRolesAsync(user));
             }
 
             if (result.IsLockedOut)
@@ -466,7 +469,7 @@ namespace ERP.PL.Controllers
         #region Forgot Password
 
         /// <summary>
-        /// Display forgot password form
+        /// Display forgot password form with email access choice
         /// </summary>
         [HttpGet]
         [AllowAnonymous]
@@ -476,7 +479,7 @@ namespace ERP.PL.Controllers
         }
 
         /// <summary>
-        /// Process forgot password request and create ticket
+        /// Process forgot password request — self-service email reset or IT ticket
         /// </summary>
         [HttpPost]
         [AllowAnonymous]
@@ -493,12 +496,107 @@ namespace ERP.PL.Controllers
             // SECURITY: Don't reveal if email exists or not
             if (user == null || !user.IsActive)
             {
+                if (model.HasEmailAccess)
+                {
+                    return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
+                    {
+                        Message = "If this email exists in our system, a password reset link has been sent to your inbox.",
+                        IsEmailReset = true
+                    });
+                }
                 return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
                 {
                     Message = "If this email exists in our system, a password reset request has been submitted for IT review."
                 });
             }
 
+            // ── PATH A: User HAS email access → send self-service reset link ──
+            if (model.HasEmailAccess)
+            {
+                return await HandleEmailResetAsync(user);
+            }
+
+            // ── PATH B: User does NOT have email access → IT Admin ticket flow ──
+            return await HandleItTicketResetAsync(user);
+        }
+
+        /// <summary>
+        /// Self-service email reset: generate token, send link via email
+        /// </summary>
+        private async Task<IActionResult> HandleEmailResetAsync(ApplicationUser user)
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            var resetLink = Url.Action(
+                "ResetPassword",
+                "Account",
+                new { userId = user.Id, token },
+                protocol: HttpContext.Request.Scheme);
+
+            // Build reset email (HTML)
+            var emailBody =
+                $"<html><body style='font-family: Inter, -apple-system, sans-serif; color: #334155;'>" +
+                $"<div style='max-width: 520px; margin: 0 auto; padding: 32px;'>" +
+                $"<div style='background: linear-gradient(135deg, #6366f1, #818cf8); padding: 24px; border-radius: 12px 12px 0 0;'>" +
+                $"<h2 style='color: #fff; margin: 0; font-size: 20px;'>Password Reset Request</h2>" +
+                $"</div>" +
+                $"<div style='background: #f8fafc; padding: 24px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 12px 12px;'>" +
+                $"<p>Hello,</p>" +
+                $"<p>We received a request to reset your password for <strong>{System.Net.WebUtility.HtmlEncode(user.Email!)}</strong>.</p>" +
+                $"<p>Click the button below to set a new password. This link expires in <strong>1 hour</strong>.</p>" +
+                $"<div style='text-align: center; margin: 24px 0;'>" +
+                $"<a href='{System.Net.WebUtility.HtmlEncode(resetLink!)}' " +
+                $"style='background: #6366f1; color: #fff; padding: 12px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; display: inline-block;'>" +
+                $"Reset My Password</a></div>" +
+                $"<p style='font-size: 13px; color: #64748b;'>If you didn't request this, you can safely ignore this email. " +
+                $"Your password will remain unchanged.</p>" +
+                $"<hr style='border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;'>" +
+                $"<p style='font-size: 12px; color: #94a3b8;'>If the button doesn't work, copy and paste this link into your browser:</p>" +
+                $"<p style='font-size: 12px; color: #6366f1; word-break: break-all;'>{System.Net.WebUtility.HtmlEncode(resetLink!)}</p>" +
+                $"</div></div></body></html>";
+
+            // Fire-and-forget: send email in background so the response returns immediately.
+            // SmtpEmailService is a Singleton with its own error handling and timeout protection.
+            var userEmail = user.Email!;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _emailService.SendHtmlAsync(
+                        userEmail,
+                        "CompanyFlow — Password Reset",
+                        emailBody);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Background: failed to send password reset email to {Email}", userEmail);
+                }
+            });
+
+            // Audit log
+            await _auditService.LogAsync(
+                user.Id,
+                user.Email!,
+                "PASSWORD_RESET_EMAIL_SENT",
+                "Account",
+                details: "Self-service password reset link sent via email");
+
+            _logger.LogInformation("Password reset email sent to {Email}", user.Email);
+
+            return View("ForgotPasswordConfirmation", new ForgotPasswordConfirmationViewModel
+            {
+                Message = "A password reset link has been sent to your email address. " +
+                         "Please check your inbox (and spam folder) and follow the link to reset your password. " +
+                         "The link expires in 1 hour.",
+                IsEmailReset = true
+            });
+        }
+
+        /// <summary>
+        /// IT ticket-based reset: create ticket and notify IT Admin (existing flow)
+        /// </summary>
+        private async Task<IActionResult> HandleItTicketResetAsync(ApplicationUser user)
+        {
             // Check if there's already a pending request
             var existingPendingRequest = await _context.PasswordResetRequests
                 .Where(r => r.UserId == user.Id && r.Status == ResetStatus.Pending)
@@ -525,7 +623,7 @@ namespace ERP.PL.Controllers
                 TicketNumber = ticketNumber,
                 Status = ResetStatus.Pending,
                 RequestedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddHours(1), // 1 hour expiration
+                ExpiresAt = DateTime.UtcNow.AddHours(1),
                 IpAddress = GetClientIpAddress(),
                 UserAgent = HttpContext.Request.Headers["User-Agent"].ToString()
             };
@@ -543,7 +641,7 @@ namespace ERP.PL.Controllers
                 resetRequest.Id,
                 details: $"Ticket: {ticketNumber}");
 
-            _logger.LogInformation($"Password reset requested for {user.Email}. Ticket: {ticketNumber}");
+            _logger.LogInformation("Password reset requested for {Email}. Ticket: {TicketNumber}", user.Email, ticketNumber);
 
             // N-10a: Notify IT Admins and CEOs about the password reset request
             try
@@ -579,6 +677,100 @@ namespace ERP.PL.Controllers
 
         #endregion
 
+        #region Self-Service Reset Password (via email token)
+
+        /// <summary>
+        /// Display reset password form (reached via email link)
+        /// </summary>
+        [HttpGet]
+        [AllowAnonymous]
+        public IActionResult ResetPassword(string userId, string token)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(token))
+            {
+                TempData["ErrorMessage"] = "Invalid password reset link.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            var model = new ResetPasswordViewModel
+            {
+                UserId = userId,
+                Token = token
+            };
+
+            return View(model);
+        }
+
+        /// <summary>
+        /// Process self-service password reset using token
+        /// </summary>
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _userManager.FindByIdAsync(model.UserId);
+            if (user == null)
+            {
+                // Don't reveal that user doesn't exist
+                TempData["SuccessMessage"] = "Your password has been reset. You can now log in.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+
+            if (result.Succeeded)
+            {
+                // Clear any password change requirement
+                if (user.RequirePasswordChange)
+                {
+                    user.RequirePasswordChange = false;
+                    await _userManager.UpdateAsync(user);
+                }
+
+                // Reset lockout
+                user.AccessFailedCount = 0;
+                user.LockoutEnd = null;
+                await _userManager.UpdateAsync(user);
+
+                // Audit log
+                await _auditService.LogAsync(
+                    user.Id,
+                    user.Email ?? "UNKNOWN",
+                    "PASSWORD_RESET_SELF_SERVICE",
+                    "Account",
+                    details: "User reset password via email token");
+
+                _logger.LogInformation("User {Email} reset their password via email link", user.Email);
+
+                TempData["SuccessMessage"] = "Your password has been reset successfully. You can now log in with your new password.";
+                return RedirectToAction(nameof(Login));
+            }
+
+            // Token invalid or expired
+            foreach (var error in result.Errors)
+            {
+                if (error.Code == "InvalidToken")
+                {
+                    ModelState.AddModelError(string.Empty,
+                        "This reset link has expired or has already been used. Please request a new one.");
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+            }
+
+            return View(model);
+        }
+
+        #endregion
+
         #region Access Denied
         [HttpGet]
         public IActionResult AccessDenied(string? returnUrl = null)
@@ -589,6 +781,25 @@ namespace ERP.PL.Controllers
         #endregion
 
         #region Helper Methods
+
+        /// <summary>
+        /// Redirects to the appropriate role-specific home dashboard after login.
+        /// Priority: CEO > ITAdmin > DepartmentManager > ProjectManager > Employee
+        /// </summary>
+        private IActionResult RedirectToRoleHome(IList<string> roles)
+        {
+            if (roles.Contains("CEO"))
+                return RedirectToAction("Index", "ExecutiveHome");
+
+            if (roles.Contains("ITAdmin"))
+                return RedirectToAction("Index", "ITAdminHome");
+
+            if (roles.Contains("DepartmentManager") || roles.Contains("ProjectManager"))
+                return RedirectToAction("Index", "ManagerHome");
+
+            return RedirectToAction("Index", "EmployeeHome");
+        }
+
         /// <summary>
         /// Generate unique ticket number in format RST-YYYY-NNNNNN
         /// </summary>

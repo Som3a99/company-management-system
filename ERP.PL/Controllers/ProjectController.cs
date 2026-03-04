@@ -50,7 +50,7 @@ namespace ERP.PL.Controllers
 
         #region Index
         [HttpGet]
-        [Authorize(Policy = "RequireManager")]
+        [Authorize(Roles = "CEO,DepartmentManager,ProjectManager,Employee")]
         public async Task<IActionResult> Index(int pageNumber = 1, int pageSize = 10,
                                                 string? searchTerm = null, string? status = null)
         {
@@ -575,7 +575,7 @@ namespace ERP.PL.Controllers
         /// View all employees assigned to a specific project with pagination and search
         /// </summary>
         [HttpGet]
-        [Authorize(Roles = "CEO,ProjectManager")]
+        [Authorize(Roles = "CEO,DepartmentManager,ProjectManager")]
         public async Task<IActionResult> ProjectEmployees(int id, int pageNumber = 1, int pageSize = 10,
                                                          string? searchTerm = null, string? status = null)
         {
@@ -646,7 +646,7 @@ namespace ERP.PL.Controllers
             var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
             if (int.TryParse(currentEmployeeIdClaim, out var currentEmployeeId))
             {
-                var eligibleEmployees = await _projectTeamService.GetEligibleEmployeesAsync(id, currentEmployeeId, User.IsInRole("CEO"));
+                var eligibleEmployees = await _projectTeamService.GetEligibleEmployeesAsync(id, currentEmployeeId, User.IsInRole("CEO"), IsDepartmentManagerOfProject(project));
                 ViewBag.EligibleEmployees = new SelectList(
                     eligibleEmployees.Select(e => new { e.Id, Display = $"{e.FirstName} {e.LastName} - {e.Position}" }),
                     "Id",
@@ -663,7 +663,7 @@ namespace ERP.PL.Controllers
 
         #region Manage Team
         [HttpGet]
-        [Authorize(Roles = "CEO,ProjectManager")]
+        [Authorize(Roles = "CEO,DepartmentManager,ProjectManager")]
         public async Task<IActionResult> ManageTeam(int id)
         {
             var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
@@ -673,7 +673,9 @@ namespace ERP.PL.Controllers
             }
 
             var isCeo = User.IsInRole("CEO");
-            var eligibleEmployees = await _projectTeamService.GetEligibleEmployeesAsync(id, currentEmployeeId, isCeo);
+            var project = await _unitOfWork.ProjectRepository.GetByIdTrackedAsync(id);
+            var isDeptMgr = project != null && IsDepartmentManagerOfProject(project);
+            var eligibleEmployees = await _projectTeamService.GetEligibleEmployeesAsync(id, currentEmployeeId, isCeo, isDeptMgr);
 
             ViewBag.ProjectId = id;
             ViewBag.EligibleEmployees = new SelectList(
@@ -685,7 +687,7 @@ namespace ERP.PL.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CEO,ProjectManager")]
+        [Authorize(Roles = "CEO,DepartmentManager,ProjectManager")]
         public async Task<IActionResult> AssignEmployee(int projectId, int employeeId)
         {
             var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
@@ -700,7 +702,8 @@ namespace ERP.PL.Controllers
                 currentEmployeeId,
                 User.FindFirstValue(ClaimTypes.NameIdentifier)!,
                 User.Identity?.Name ?? "Unknown",
-                User.IsInRole("CEO"));
+                User.IsInRole("CEO"),
+                await IsDepartmentManagerOfProjectAsync(projectId));
 
             if (!result.Succeeded)
             {
@@ -716,7 +719,7 @@ namespace ERP.PL.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CEO,ProjectManager")]
+        [Authorize(Roles = "CEO,DepartmentManager,ProjectManager")]
         public async Task<IActionResult> RemoveEmployee(int projectId, int employeeId)
         {
             var currentEmployeeIdClaim = User.FindFirst("EmployeeId")?.Value;
@@ -731,7 +734,8 @@ namespace ERP.PL.Controllers
                 currentEmployeeId,
                 User.FindFirstValue(ClaimTypes.NameIdentifier)!,
                 User.Identity?.Name ?? "Unknown",
-                User.IsInRole("CEO"));
+                User.IsInRole("CEO"),
+                await IsDepartmentManagerOfProjectAsync(projectId));
 
             if (!result.Succeeded)
             {
@@ -751,7 +755,7 @@ namespace ERP.PL.Controllers
         /// Display project profile page with comprehensive information
         /// </summary>
         [HttpGet]
-        [Authorize(Roles = "CEO,ProjectManager,Employee")]
+        [Authorize(Roles = "CEO,DepartmentManager,ProjectManager,Employee")]
         public async Task<IActionResult> Profile(int id)
         {
             try
@@ -885,15 +889,38 @@ namespace ERP.PL.Controllers
                 return false;
             }
 
+            // Department Manager: can access any project in their department
+            if (User.IsInRole("DepartmentManager"))
+            {
+                var managedDeptIdClaim = User.FindFirst("ManagedDepartmentId")?.Value;
+                if (int.TryParse(managedDeptIdClaim, out var managedDeptId))
+                {
+                    return project.DepartmentId == managedDeptId;
+                }
+            }
+
+            // Project Manager: can access the project they manage
             if (User.IsInRole("ProjectManager"))
             {
                 return project.ProjectManagerId == employeeId;
             }
 
+            // Employee: can access projects they are assigned to
+            // Check both ProjectEmployees junction table and legacy Employee.ProjectId
             if (User.IsInRole("Employee"))
             {
-                var assignedEmployees = await _unitOfWork.ProjectRepository.GetEmployeesByProjectQueryableAsync(project.Id);
-                return assignedEmployees.Any(e => e.Id == employeeId);
+                // Uses TaskRepository which checks the junction table for a specific project
+                var isAssignedViaJunction = await _unitOfWork.TaskRepository
+                    .IsEmployeeAssignedToProjectAsync(employeeId, project.Id);
+                if (isAssignedViaJunction)
+                    return true;
+
+                // Fallback: check legacy direct assignment
+                var assignedProjectIdClaim = User.FindFirst("AssignedProjectId")?.Value;
+                if (int.TryParse(assignedProjectIdClaim, out var assignedProjectId))
+                {
+                    return project.Id == assignedProjectId;
+                }
             }
 
             return false;
@@ -909,6 +936,29 @@ namespace ERP.PL.Controllers
         {
             // Repository-level invalidation keeps project list and profile caches consistent.
             return _unitOfWork.ProjectRepository.InvalidateCacheAsync(projectId);
+        }
+
+        /// <summary>
+        /// Check if the current user is a DepartmentManager for the given project's department.
+        /// Used to pass authorization context to service-layer methods.
+        /// </summary>
+        private bool IsDepartmentManagerOfProject(ERP.DAL.Models.Project project)
+        {
+            if (!User.IsInRole("DepartmentManager"))
+                return false;
+
+            var managedDeptIdClaim = User.FindFirst("ManagedDepartmentId")?.Value;
+            return int.TryParse(managedDeptIdClaim, out var managedDeptId)
+                && project.DepartmentId == managedDeptId;
+        }
+
+        private async Task<bool> IsDepartmentManagerOfProjectAsync(int projectId)
+        {
+            if (!User.IsInRole("DepartmentManager"))
+                return false;
+
+            var project = await _unitOfWork.ProjectRepository.GetByIdTrackedAsync(projectId);
+            return project != null && IsDepartmentManagerOfProject(project);
         }
         #endregion
     }

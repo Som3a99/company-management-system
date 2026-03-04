@@ -30,7 +30,15 @@
                     var displayText = workload != null
                         ? $"{opt.Text} — {workload.Label} ({workload.ActiveTasks} tasks, {workload.RemainingHours}h)"
                         : $"{opt.Text} — Available (0 tasks, 0h)";
-                    <option value="@opt.Value" selected="@(opt.Value == Model.AssignedToEmployeeId?.ToString())">@displayText</option>
+                    var isSelected = opt.Value == Model.AssignedToEmployeeId?.ToString();
+                    if (isSelected)
+                    {
+                        <option value="@opt.Value" selected="selected">@displayText</option>
+                    }
+                    else
+                    {
+                        <option value="@opt.Value">@displayText</option>
+                    }
                 }
             </select>
         }
@@ -104,6 +112,112 @@
 </div>
 
 <script>
+    // ── Dynamic assignee loading when project changes ──
+    (function () {
+        const projectSelect = document.querySelector('[name="ProjectId"]');
+        const assigneeSelect = document.querySelector('[name="AssignedToEmployeeId"]');
+        const workloadContainer = assigneeSelect?.closest('.col-md-3')?.querySelector('.mt-2');
+
+        if (!projectSelect || !assigneeSelect) return;
+
+        // If no project is selected on initial load, show a placeholder;
+        // otherwise trigger a change to load assignees for the pre-selected project.
+        if (!projectSelect.value || projectSelect.value === '0') {
+            assigneeSelect.innerHTML = '<option value="">-- Select a project first --</option>';
+            assigneeSelect.disabled = true;
+        }
+
+        projectSelect.addEventListener('change', async function () {
+            const projectId = this.value;
+            if (!projectId || projectId === '0') {
+                assigneeSelect.innerHTML = '<option value="">-- Select a project first --</option>';
+                assigneeSelect.disabled = true;
+                clearWorkloadAndSuggestions();
+                return;
+            }
+
+            assigneeSelect.innerHTML = '<option value="">Loading...</option>';
+            assigneeSelect.disabled = true;
+            clearWorkloadAndSuggestions();
+
+            try {
+                const titleEl = document.querySelector('[name="Title"]');
+                const title = titleEl?.value?.trim() || '';
+                const url = `/TaskBoard/GetAssignees?projectId=${projectId}&taskTitle=${encodeURIComponent(title)}`;
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error('Failed to load assignees');
+                const data = await resp.json();
+
+                // Rebuild assignee dropdown
+                assigneeSelect.innerHTML = '<option value="">-- Unassigned --</option>';
+                for (const emp of data.employees) {
+                    const wl = data.workloads.find(w => w.employeeId.toString() === emp.value);
+                    let text = emp.text;
+                    if (wl) {
+                        text += ` \u2014 ${wl.label} (${wl.activeTasks} tasks, ${wl.remainingHours}h)`;
+                    }
+                    const opt = document.createElement('option');
+                    opt.value = emp.value;
+                    opt.textContent = text;
+                    assigneeSelect.appendChild(opt);
+                }
+                assigneeSelect.disabled = false;
+
+                // Rebuild workload badges
+                if (data.workloads.length > 0) {
+                    let html = '';
+                    for (const w of data.workloads) {
+                        const badge = w.label === 'Heavy' ? 'bg-danger'
+                            : w.label === 'Moderate' ? 'bg-warning text-dark' : 'bg-success';
+                        html += `<small class="d-block"><span class="badge ${badge}">${w.label}</span> ${w.employeeName} \u2014 ${w.activeTasks} tasks, ${w.remainingHours}h remaining</small>`;
+                    }
+                    getOrCreateContainer('workload-info').innerHTML = html;
+                }
+
+                // Rebuild suggestion badges
+                if (data.suggestions.length > 0) {
+                    let html = '<small class="fw-bold d-block mb-1"><i class="fas fa-lightbulb text-warning"></i> Suggested Assignees</small>';
+                    for (const s of data.suggestions) {
+                        const badge = s.compositeScore >= 70 ? 'bg-success'
+                            : s.compositeScore >= 40 ? 'bg-warning text-dark' : 'bg-secondary';
+                        html += `<small class="d-block"><span class="badge ${badge}">${s.compositeScore}</span> ${s.employeeName} \u2014 ${s.reasoning}</small>`;
+                    }
+                    getOrCreateContainer('suggestion-info').innerHTML = html;
+                }
+            } catch {
+                assigneeSelect.innerHTML = '<option value="">-- Error loading assignees --</option>';
+                assigneeSelect.disabled = false;
+            }
+        });
+
+        function clearWorkloadAndSuggestions() {
+            const wc = document.getElementById('workload-info');
+            const sc = document.getElementById('suggestion-info');
+            if (wc) wc.innerHTML = '';
+            if (sc) sc.innerHTML = '';
+        }
+
+        function getOrCreateContainer(id) {
+            let el = document.getElementById(id);
+            if (!el) {
+                el = document.createElement('div');
+                el.id = id;
+                el.className = 'mt-2';
+                if (id === 'suggestion-info') {
+                    el.style.cssText = 'border: 1px solid var(--border-color, #dee2e6); border-radius: 6px; background: var(--bg-card, #f8f9fa); padding: 0.5rem;';
+                }
+                assigneeSelect.closest('.col-md-3')?.appendChild(el);
+            }
+            return el;
+        }
+
+        // If a project is already selected on load (e.g. Edit or pre-filled Create),
+        // fire the change event to populate assignees immediately.
+        if (projectSelect.value && projectSelect.value !== '0') {
+            projectSelect.dispatchEvent(new Event('change'));
+        }
+    })();
+
     document.getElementById('btnGenerateDescription')?.addEventListener('click', async function () {
         const titleEl = document.querySelector('[name="Title"]');
         const projectEl = document.querySelector('[name="ProjectId"]');

@@ -12,7 +12,7 @@
         <div class="col-md-3"><label class="form-label">Department Id</label><input asp-for="Filters.DepartmentId" class="form-control" /></div>
         <div class="col-md-3"><label class="form-label">Export</label><select asp-for="Filters.Export" class="form-select" asp-items="Html.GetEnumSelectList<ERP.PL.ViewModels.Reporting.ReportExportFormat>()"></select></div>
         <div class="col-md-3 d-flex align-items-end"><button class="btn btn-primary w-100" type="submit">Apply</button></div>
-        <div class="col-md-3 d-flex align-items-end"><a class="btn btn-outline-secondary w-100" asp-action="ExportDepartments" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-Export="@Model.Filters.Export">Export</a></div>
+        <div class="col-md-3 d-flex align-items-end"><a class="btn btn-outline-secondary w-100 export-link" asp-action="ExportDepartments" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-Export="@Model.Filters.Export">Export</a></div>
     </form>
 
     <div class="table-responsive">
@@ -27,3 +27,20 @@
         </table>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    (function () {
+        var formatSelect = document.querySelector('[name="Filters.Export"]');
+        if (!formatSelect) return;
+        formatSelect.addEventListener('change', function () {
+            var selectedFormat = formatSelect.options[formatSelect.selectedIndex].text;
+            document.querySelectorAll('a.export-link').forEach(function (link) {
+                var url = new URL(link.href, window.location.origin);
+                url.searchParams.set('Export', selectedFormat);
+                link.href = url.toString();
+            });
+        });
+    })();
+</script>
+}

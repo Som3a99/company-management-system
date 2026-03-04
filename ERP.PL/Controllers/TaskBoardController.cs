@@ -55,12 +55,11 @@ namespace ERP.PL.Controllers
                 return Challenge();
 
             var request = new TaskQueryRequest(pageNumber, pageSize, projectId, status, assigneeEmployeeId, sortBy, descending);
-            var paged = await _taskService.GetTasksForUserAsync(request, userId);
 
-            var newCount = (await _taskService.GetTasksForUserAsync(request with { Status = TaskStatus.New, PageNumber = 1, PageSize = 1 }, userId)).TotalCount;
-            var inProgressCount = (await _taskService.GetTasksForUserAsync(request with { Status = TaskStatus.InProgress, PageNumber = 1, PageSize = 1 }, userId)).TotalCount;
-            var blockedCount = (await _taskService.GetTasksForUserAsync(request with { Status = TaskStatus.Blocked, PageNumber = 1, PageSize = 1 }, userId)).TotalCount;
-            var completedCount = (await _taskService.GetTasksForUserAsync(request with { Status = TaskStatus.Completed, PageNumber = 1, PageSize = 1 }, userId)).TotalCount;
+            // Execute sequentially — DbContext is not thread-safe; parallel queries
+            // on the same scoped context cause InvalidOperationException.
+            var paged = await _taskService.GetTasksForUserAsync(request, userId);
+            var statusCounts = await _taskService.GetStatusCountsAsync(projectId, assigneeEmployeeId, userId);
 
             // Calculate risk for each task
             var taskRisks = new Dictionary<int, BLL.DTOs.TaskRiskResult>();
@@ -80,10 +79,10 @@ namespace ERP.PL.Controllers
                 AssigneeEmployeeId = assigneeEmployeeId,
                 SortBy = sortBy,
                 Descending = descending,
-                NewCount = newCount,
-                InProgressCount = inProgressCount,
-                BlockedCount = blockedCount,
-                CompletedCount = completedCount,
+                NewCount = statusCounts.GetValueOrDefault(TaskStatus.New),
+                InProgressCount = statusCounts.GetValueOrDefault(TaskStatus.InProgress),
+                BlockedCount = statusCounts.GetValueOrDefault(TaskStatus.Blocked),
+                CompletedCount = statusCounts.GetValueOrDefault(TaskStatus.Completed),
                 TaskRisks = taskRisks
             };
 
@@ -106,15 +105,13 @@ namespace ERP.PL.Controllers
         [Authorize(Roles = "CEO,ProjectManager")]
         public async Task<IActionResult> Create(TaskUpsertViewModel vm)
         {
+            // Validate assignee before checking ModelState so both sets of errors
+            // appear together and PopulateOptionsAsync is called only once.
+            if (!vm.AssignedToEmployeeId.HasValue)
+                ModelState.AddModelError(nameof(vm.AssignedToEmployeeId), "Assignee is required.");
+
             if (!ModelState.IsValid)
             {
-                await PopulateOptionsAsync(vm, vm.ProjectId);
-                return View(vm);
-            }
-
-            if (!vm.AssignedToEmployeeId.HasValue)
-            {
-                ModelState.AddModelError(nameof(vm.AssignedToEmployeeId), "Assignee is required.");
                 await PopulateOptionsAsync(vm, vm.ProjectId);
                 return View(vm);
             }
@@ -123,8 +120,9 @@ namespace ERP.PL.Controllers
             if (userId == null)
                 return Challenge();
 
+            var assigneeId = vm.AssignedToEmployeeId ?? 0;
             var result = await _taskService.CreateTaskAsync(
-                new CreateTaskRequest(vm.Title, vm.Description, vm.ProjectId, vm.AssignedToEmployeeId.Value, vm.Priority, vm.DueDate, vm.StartDate, vm.EstimatedHours),
+                new CreateTaskRequest(vm.Title, vm.Description, vm.ProjectId, assigneeId, vm.Priority, vm.DueDate, vm.StartDate, vm.EstimatedHours),
                 userId);
 
             if (!result.Succeeded)
@@ -395,6 +393,8 @@ namespace ERP.PL.Controllers
         #region Helper Methods
         private async Task PopulateOptionsAsync(TaskUpsertViewModel vm, int? projectId)
         {
+            // Execute sequentially — both queries share the same scoped DbContext,
+            // which is not thread-safe for concurrent operations.
             vm.ProjectOptions = await GetManageableProjectOptionsAsync();
             vm.AssigneeOptions = await GetAssignableEmployeeOptionsAsync(projectId);
 
@@ -447,15 +447,15 @@ namespace ERP.PL.Controllers
             if (!projectId.HasValue)
                 return new List<SelectListItem>();
 
-            var employeeIds = await _context.ProjectEmployees
+            // Single query with a subquery join — replaces two separate DB round-trips
+            var projectEmployeeIds = _context.ProjectEmployees
                 .Where(pe => pe.ProjectId == projectId.Value)
-                .Select(pe => pe.EmployeeId)
-                .Distinct()
-                .ToListAsync();
+                .Select(pe => pe.EmployeeId);
 
             var employees = await _context.Employees
                 .AsNoTracking()
-                .Where(e => !e.IsDeleted && e.IsActive && (employeeIds.Contains(e.Id) || e.ProjectId == projectId.Value))
+                .Where(e => !e.IsDeleted && e.IsActive
+                    && (projectEmployeeIds.Contains(e.Id) || e.ProjectId == projectId.Value))
                 .OrderBy(e => e.FirstName)
                 .ThenBy(e => e.LastName)
                 .Select(e => new SelectListItem
@@ -466,6 +466,42 @@ namespace ERP.PL.Controllers
                 .ToListAsync();
 
             return employees;
+        }
+
+        /// <summary>
+        /// AJAX endpoint: returns assignable employees (with workload + suggestions) for a given project.
+        /// </summary>
+        [HttpGet]
+        [Authorize(Roles = "CEO,ProjectManager")]
+        public async Task<IActionResult> GetAssignees(int projectId, string? taskTitle = null)
+        {
+            var employees = await GetAssignableEmployeeOptionsAsync(projectId);
+
+            var workloads = new List<EmployeeWorkloadResult>();
+            var suggestions = new List<TaskAssignmentSuggestion>();
+
+            try { workloads = await _workloadService.GetWorkloadAsync(projectId); } catch { }
+            try { suggestions = await _suggestionService.GetSuggestionsAsync(projectId, taskTitle); } catch { }
+
+            return Json(new
+            {
+                employees = employees.Select(e => new { e.Value, e.Text }),
+                workloads = workloads.Select(w => new
+                {
+                    employeeId = w.EmployeeId,
+                    employeeName = w.EmployeeName,
+                    activeTasks = w.ActiveTasks,
+                    remainingHours = w.RemainingHours,
+                    label = w.Label
+                }),
+                suggestions = suggestions.Select(s => new
+                {
+                    employeeId = s.EmployeeId,
+                    employeeName = s.EmployeeName,
+                    compositeScore = s.CompositeScore,
+                    reasoning = s.Reasoning
+                })
+            });
         }
 
         private string? GetCurrentUserId() => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;

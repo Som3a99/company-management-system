@@ -16,6 +16,10 @@ namespace ERP.BLL.Interfaces
         Task<TaskOperationResult<TaskComment>> AddCommentAsync(AddTaskCommentRequest request, string currentUserId);
         Task<PagedResult<TaskItem>> GetTasksForUserAsync(TaskQueryRequest request, string currentUserId);
         Task<PagedResult<TaskItem>> GetTasksForProjectManagerAsync(TaskQueryRequest request, string currentUserId);
+        /// <summary>
+        /// Returns task counts grouped by status in a single query.
+        /// </summary>
+        Task<Dictionary<TaskStatus, int>> GetStatusCountsAsync(int? projectId, int? assigneeEmployeeId, string currentUserId);
         bool IsValidTransition(TaskStatus oldStatus, TaskStatus newStatus);
     }
 }

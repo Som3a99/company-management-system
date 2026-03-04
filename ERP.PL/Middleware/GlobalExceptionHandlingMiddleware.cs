@@ -56,6 +56,6 @@ public class GlobalExceptionHandlingMiddleware
     private static bool IsApiRequest(HttpRequest request)
     {
         return request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase)
-               || request.Headers.Accept.Any(h => h.Contains("application/json", StringComparison.OrdinalIgnoreCase));
+               || request.Headers.Accept.Any(h => h?.Contains("application/json", StringComparison.OrdinalIgnoreCase) == true);
     }
 }

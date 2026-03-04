@@ -118,7 +118,7 @@ namespace ERP.BLL.Reporting.Services
                 var ext = job.Format switch
                 {
                     ReportFileFormat.Csv => "csv",
-                    ReportFileFormat.Excel => "xlsx",
+                    ReportFileFormat.Excel => "xls",
                     ReportFileFormat.Pdf => "pdf",
                     _ => "pdf"
                 };

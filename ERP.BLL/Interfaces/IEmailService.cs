@@ -11,5 +11,11 @@ namespace ERP.BLL.Interfaces
         /// Returns true if sent successfully, false otherwise.
         /// </summary>
         Task<bool> SendAsync(string toEmail, string subject, string body);
+
+        /// <summary>
+        /// Send an HTML email asynchronously.
+        /// Returns true if sent successfully, false otherwise.
+        /// </summary>
+        Task<bool> SendHtmlAsync(string toEmail, string subject, string htmlBody);
     }
 }

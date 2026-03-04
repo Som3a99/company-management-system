@@ -40,3 +40,56 @@
         });
     });
 })();
+
+/* ── Navbar: Scroll Shadow ── */
+(function () {
+    const navbar = document.getElementById('mainNavbar');
+    if (!navbar) return;
+
+    let ticking = false;
+    const onScroll = () => {
+        if (!ticking) {
+            requestAnimationFrame(() => {
+                navbar.classList.toggle('scrolled', window.scrollY > 8);
+                ticking = false;
+            });
+            ticking = true;
+        }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+})();
+
+/* ── Navbar: Active Link Detection ── */
+(function () {
+    const currentPath = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
+    const navLinks = document.querySelectorAll('.navbar-center .nav-link');
+
+    navLinks.forEach((link) => {
+        const href = (link.getAttribute('href') || '').toLowerCase().replace(/\/+$/, '') || '/';
+
+        // Exact match or starts-with for sub-pages (but not just "/")
+        const isActive = currentPath === href ||
+            (href !== '/' && currentPath.startsWith(href + '/')) ||
+            (href !== '/' && currentPath.startsWith(href));
+
+        if (isActive) {
+            link.classList.add('active');
+            link.setAttribute('aria-current', 'page');
+        }
+    });
+})();
+
+/* ── Navbar: Close mobile menu on link click ── */
+(function () {
+    const navCollapse = document.getElementById('navbarNav');
+    if (!navCollapse) return;
+
+    navCollapse.addEventListener('click', (e) => {
+        const link = e.target.closest('a.nav-link');
+        if (link && window.innerWidth < 992) {
+            const bsCollapse = bootstrap.Collapse.getInstance(navCollapse);
+            if (bsCollapse) bsCollapse.hide();
+        }
+    });
+})();

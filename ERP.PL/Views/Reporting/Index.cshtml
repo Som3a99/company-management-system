@@ -77,8 +77,8 @@
     </div>
 
     <div class="d-flex gap-2 mb-2">
-        <a class="btn btn-outline-secondary btn-sm" asp-action="ExportTasks" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Tasks</a>
-        <a class="btn btn-outline-secondary btn-sm" asp-action="ExportProjects" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Projects</a>
+        <a class="btn btn-outline-secondary btn-sm export-link" asp-action="ExportTasks" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Tasks</a>
+        <a class="btn btn-outline-secondary btn-sm export-link" asp-action="ExportProjects" asp-route-StartDateUtc="@Model.Filters.StartDateUtc?.ToString("yyyy-MM-dd")" asp-route-EndDateUtc="@Model.Filters.EndDateUtc?.ToString("yyyy-MM-dd")" asp-route-DepartmentId="@Model.Filters.DepartmentId" asp-route-ProjectId="@Model.Filters.ProjectId" asp-route-Export="@Model.Filters.Export">Export Projects</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="Department">Department Reports</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="EstimationAccuracy">Estimation Accuracy</a>
         <a class="btn btn-outline-secondary btn-sm" asp-action="Jobs">Async Jobs & Presets</a>
@@ -138,3 +138,26 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    // Sync the export format dropdown with export links in real-time,
+    // so users always export in the currently-selected format without
+    // needing to click "Apply Filters" first.
+    (function () {
+        var formatSelect = document.querySelector('[name="Filters.Export"]');
+        if (!formatSelect) return;
+
+        function updateExportLinks() {
+            var selectedFormat = formatSelect.options[formatSelect.selectedIndex].text;
+            document.querySelectorAll('a.export-link').forEach(function (link) {
+                var url = new URL(link.href, window.location.origin);
+                url.searchParams.set('Export', selectedFormat);
+                link.href = url.toString();
+            });
+        }
+
+        formatSelect.addEventListener('change', updateExportLinks);
+    })();
+</script>
+}

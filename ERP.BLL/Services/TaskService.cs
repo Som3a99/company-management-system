@@ -465,6 +465,11 @@ namespace ERP.BLL.Services
                 currentUserId);
         }
 
+        public Task<Dictionary<TaskStatus, int>> GetStatusCountsAsync(int? projectId, int? assigneeEmployeeId, string currentUserId)
+        {
+            return _taskRepository.GetStatusCountsAsync(projectId, assigneeEmployeeId, currentUserId);
+        }
+
         public Task<PagedResult<TaskItem>> GetTasksForProjectManagerAsync(TaskQueryRequest request, string currentUserId)
         {
             return GetTasksForUserAsync(request, currentUserId);

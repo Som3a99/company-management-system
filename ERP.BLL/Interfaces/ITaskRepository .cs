@@ -18,5 +18,14 @@ namespace ERP.BLL.Interfaces
             string? sortBy,
             bool descending,
             string currentUserId);
+
+        /// <summary>
+        /// Returns task counts grouped by status in a single query, respecting the same
+        /// security/filter rules as <see cref="GetTasksPagedAsync"/>.
+        /// </summary>
+        Task<Dictionary<TaskStatus, int>> GetStatusCountsAsync(
+            int? projectId,
+            int? assigneeEmployeeId,
+            string currentUserId);
     }
 }

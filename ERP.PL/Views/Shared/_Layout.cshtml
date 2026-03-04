@@ -12,164 +12,202 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <header class="navbar-container">
-        <nav class="navbar navbar-expand-lg navbar-custom">
-            <div class="container-fluid px-4">
-                <a class="navbar-brand d-flex align-items-center" asp-area="" asp-controller="Home" asp-action="Index">
-                    <div class="brand-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" />
-                            <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" />
-                            <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" />
-                            <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" />
+    <header class="navbar-container" id="mainNavbar">
+        <nav class="navbar navbar-expand-lg navbar-custom" role="navigation" aria-label="Main navigation">
+            <div class="container-fluid navbar-inner">
+                @* ── Left Section: Brand ── *@
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" aria-label="CompanyFlow home">
+                    <div class="brand-icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity="0.9"/>
+                            <rect x="3" y="14" width="7" height="7" rx="2" fill="currentColor" opacity="0.7"/>
+                            <rect x="14" y="3" width="7" height="7" rx="2" fill="currentColor" opacity="0.7"/>
+                            <rect x="14" y="14" width="7" height="7" rx="2" fill="currentColor" opacity="0.5"/>
                         </svg>
                     </div>
                     <span class="brand-text">CompanyFlow</span>
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav mx-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">Dashboard</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="ITAdmin" asp-action="Dashboard">Users Accounts Management</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Department" asp-action="Index">Departments</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Employee" asp-action="Index">Employees</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Project" asp-action="Index">Projects</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="TaskBoard" asp-action="Index">Tasks</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Reporting" asp-action="Index">Reports</a>
-                        </li>
-                    </ul>
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                        <li class="nav-item d-flex align-items-center">
-                            <button type="button" class="nav-link theme-toggle-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
-                                <i class="fas fa-moon" data-theme-icon></i>
-                            </button>
-                        </li>
-                            @if (User.Identity?.IsAuthenticated == true)
-                            {
-                                @* ── Notification Bell ─────────────────────── *@
-                                <li class="nav-item dropdown me-2">
-                                    <a class="nav-link position-relative" href="#" id="notificationBell" role="button"
-                                       data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                                        <i class="fas fa-bell fs-5"></i>
-                                        <span id="notifBadge" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                                              style="font-size:0.6rem; display:none;">
-                                            0
-                                        </span>
-                                    </a>
-                                    <div class="dropdown-menu dropdown-menu-end shadow-lg p-0" style="width:360px; max-height:440px;" aria-labelledby="notificationBell">
-                                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-                                            <h6 class="mb-0 fw-bold">Notifications</h6>
-                                            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="markAllReadBtn">
-                                                Mark all read
-                                            </button>
-                                        </div>
-                                        <div id="notifDropdownList" style="max-height:340px; overflow-y:auto;">
-                                            <div class="text-center text-muted py-4">
-                                                <i class="fas fa-bell-slash fs-4 mb-2 d-block"></i>
-                                                <small>No notifications</small>
-                                            </div>
-                                        </div>
-                                        <div class="border-top text-center py-2">
-                                            <a href="/Notifications" class="text-decoration-none small">View all notifications</a>
-                                        </div>
-                                    </div>
-                                </li>
 
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" id="userMenu" role="button"
-                                       data-bs-toggle="dropdown" aria-expanded="false">
-                                        <i class="fas fa-user-circle me-1"></i>
-                                        @User.Identity.Name
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenu">
-                                        <li>
-                                            <h6 class="dropdown-header">
-                                                @if (User.IsInRole("CEO"))
-                                                {
-                                                    <span class="badge bg-danger">CEO</span>
-                                                }
-                                                else if (User.IsInRole("ITAdmin"))
-                                                {
-                                                    <span class="badge bg-primary">IT Admin</span>
-                                                }
-                                                else if (User.IsInRole("DepartmentManager"))
-                                                {
-                                                    <span class="badge bg-success">Manager</span>
-                                                }
-                                                else if (User.IsInRole("ProjectManager"))
-                                                {
-                                                    <span class="badge bg-info">PM</span>
-                                                }
-                                                else
-                                                {
-                                                    <span class="badge bg-secondary">Employee</span>
-                                                }
-                                            </h6>
-                                        </li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
-                                                <i class="fas fa-id-badge me-2"></i>My Profile
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
-                                                <i class="fas fa-key me-2"></i>Change Password
-                                            </a>
-                                        </li>
-                                        @if (User.IsInRole("CEO") || User.IsInRole("ITAdmin"))
-                                        {
-                                            <li>
-                                                <a class="dropdown-item" asp-controller="Account" asp-action="ResetPasswordByAdmin">
-                                                    <i class="fas fa-user-lock me-2"></i>Reset User Password
-                                                </a>
-                                            </li>
-                                        }
-                                        @if (User.IsInRole("DepartmentManager"))
-                                        {
-                                            <li>
-                                            <a class="dropdown-item" asp-controller="DepartmentManagerHr" asp-action="Index">
-                                                <i class="fas fa-cogs me-2"></i>Manage Department Employees
-                                                </a>
-                                            </li>
-                                        }
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li>
-                                            <form asp-controller="Account" asp-action="Logout" method="post" class="dropdown-item p-0">
-                                                <button type="submit" class="btn btn-link dropdown-item text-danger">
-                                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                                </button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </li>
+                @* ── Mobile Toggle ── *@
+                <div class="navbar-actions-mobile d-lg-none">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <button type="button" class="nav-icon-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+                            <i class="fas fa-moon" data-theme-icon></i>
+                        </button>
+                    }
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="toggler-bar"></span>
+                        <span class="toggler-bar"></span>
+                        <span class="toggler-bar"></span>
+                    </button>
+                </div>
+
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    @* ── Center Section: Role-Based Navigation (partial views) ── *@
+                    <ul class="navbar-nav navbar-center" role="menubar">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            @if (User.IsInRole("CEO"))
+                            {
+                                @await Html.PartialAsync("_CeoNavbar")
+                            }
+                            else if (User.IsInRole("ITAdmin"))
+                            {
+                                @await Html.PartialAsync("_ITAdminNavbar")
+                            }
+                            else if (User.IsInRole("DepartmentManager") || User.IsInRole("ProjectManager"))
+                            {
+                                @await Html.PartialAsync("_ManagerNavbar")
                             }
                             else
                             {
-                            <li class="nav-item ms-1">
-                                <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-arrow-right me-1"></i>Login
+                                @await Html.PartialAsync("_EmployeeNavbar")
+                            }
+                        }
+                        else
+                        {
+                            <li class="nav-item" role="none">
+                                <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index" role="menuitem">
+                                    <i class="fas fa-home nav-icon"></i>
+                                    <span>Home</span>
                                 </a>
                             </li>
-                            }
+                        }
+                    </ul>
+
+                    @* ── Right Section: Actions ── *@
+                    <ul class="navbar-nav navbar-actions" role="menubar">
+                        @* Theme Toggle (desktop only — mobile is in toggler area) *@
+                        <li class="nav-item d-none d-lg-flex align-items-center" role="none">
+                            <button type="button" class="nav-icon-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+                                <i class="fas fa-moon" data-theme-icon></i>
+                            </button>
+                        </li>
+
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            @* ── Notification Bell ── *@
+                            <li class="nav-item dropdown" role="none">
+                                <a class="nav-icon-btn position-relative" href="#" id="notificationBell" role="menuitem"
+                                   data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                                   aria-label="Notifications">
+                                    <i class="fas fa-bell"></i>
+                                    <span id="notifBadge" class="notif-badge" style="display:none;">0</span>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationBell">
+                                    <div class="notification-header">
+                                        <h6 class="mb-0 fw-semibold">Notifications</h6>
+                                        <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" id="markAllReadBtn">
+                                            Mark all read
+                                        </button>
+                                    </div>
+                                    <div id="notifDropdownList" class="notification-body">
+                                        <div class="text-center text-muted py-4">
+                                            <i class="fas fa-bell-slash fs-4 mb-2 d-block opacity-50"></i>
+                                            <small>No notifications</small>
+                                        </div>
+                                    </div>
+                                    <div class="notification-footer">
+                                        <a href="/Notifications" class="text-decoration-none small">View all notifications</a>
+                                    </div>
+                                </div>
+                            </li>
+
+                            @* ── Divider ── *@
+                            <li class="nav-divider d-none d-lg-block" role="separator" aria-hidden="true"></li>
+
+                            @* ── User Profile Dropdown ── *@
+                            <li class="nav-item dropdown" role="none">
+                                <a class="nav-link user-menu-toggle" href="#" id="userMenu" role="menuitem"
+                                   data-bs-toggle="dropdown" aria-expanded="false" aria-label="User menu">
+                                    <span class="user-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    <span class="user-name d-none d-xl-inline">@User.Identity.Name</span>
+                                    <i class="fas fa-chevron-down user-caret d-none d-lg-inline"></i>
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end user-dropdown" aria-labelledby="userMenu">
+                                    <li class="user-dropdown-header">
+                                        <span class="user-dropdown-name">@User.Identity.Name</span>
+                                        @if (User.IsInRole("CEO"))
+                                        {
+                                            <span class="user-role-badge role-ceo">CEO</span>
+                                        }
+                                        else if (User.IsInRole("ITAdmin"))
+                                        {
+                                            <span class="user-role-badge role-admin">IT Admin</span>
+                                        }
+                                        else if (User.IsInRole("DepartmentManager"))
+                                        {
+                                            <span class="user-role-badge role-manager">Manager</span>
+                                        }
+                                        else if (User.IsInRole("ProjectManager"))
+                                        {
+                                            <span class="user-role-badge role-pm">PM</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="user-role-badge role-employee">Employee</span>
+                                        }
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="Profile">
+                                            <i class="fas fa-id-badge me-2 dropdown-item-icon"></i>My Profile
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">
+                                            <i class="fas fa-key me-2 dropdown-item-icon"></i>Change Password
+                                        </a>
+                                    </li>
+                                    @if (User.IsInRole("CEO") || User.IsInRole("ITAdmin"))
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="Account" asp-action="ResetPasswordByAdmin">
+                                                <i class="fas fa-user-lock me-2 dropdown-item-icon"></i>Reset User Password
+                                            </a>
+                                        </li>
+                                    }
+                                    @if (User.IsInRole("DepartmentManager"))
+                                    {
+                                        <li>
+                                            <a class="dropdown-item" asp-controller="DepartmentManagerHr" asp-action="Index">
+                                                <i class="fas fa-cogs me-2 dropdown-item-icon"></i>Manage Team
+                                            </a>
+                                        </li>
+                                    }
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Privacy">
+                                            <i class="fas fa-shield-alt me-2 dropdown-item-icon"></i>Privacy Policy
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li>
+                                        <form asp-controller="Account" asp-action="Logout" method="post" class="dropdown-item p-0">
+                                            <button type="submit" class="btn btn-link dropdown-item text-danger">
+                                                <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item" role="none">
+                                <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy" role="menuitem">Privacy</a>
+                            </li>
+                            <li class="nav-item ms-1" role="none">
+                                <a asp-controller="Account" asp-action="Login" class="btn-login">
+                                    <span>Login</span>
+                                    <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </li>
+                        }
                     </ul>
                 </div>
             </div>
@@ -355,12 +393,12 @@
                         document.body.appendChild(container);
                     }
                     const toastId = 'toast_' + n.id;
-                    const html = `<div id="${toastId}" class="toast border-danger" role="alert" aria-live="assertive" data-bs-autohide="true" data-bs-delay="8000">
-                        <div class="toast-header bg-danger text-white">
+                    const html = `<div id="${toastId}" class="toast border-danger" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="8000">
+                        <div class="toast-header">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong class="me-auto">${n.title}</strong>
-                            <small>${n.timeAgo || 'just now'}</small>
-                            <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="toast"></button>
+                            <small class="text-muted">${n.timeAgo || 'just now'}</small>
+                            <button type="button" class="btn-close ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
                         </div>
                         <div class="toast-body">${n.message}</div>
                     </div>`;

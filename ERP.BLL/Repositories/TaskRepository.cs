@@ -123,6 +123,53 @@ namespace ERP.BLL.Repositories
             return new PagedResult<TaskItem>(items, totalCount, pageNumber, pageSize);
         }
 
+        public async Task<Dictionary<TaskStatus, int>> GetStatusCountsAsync(
+            int? projectId,
+            int? assigneeEmployeeId,
+            string currentUserId)
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            var isCeo = user?.IsInRole("CEO") == true;
+            var managedDepartmentId = ParseClaim("ManagedDepartmentId");
+            var managerEmployeeId = ParseClaim("EmployeeId");
+            var isProjectManager = user?.IsInRole("ProjectManager") == true;
+
+            // Lightweight query — no Includes, just counting
+            IQueryable<TaskItem> query = _context.TaskItems.AsNoTracking();
+
+            if (!isCeo)
+            {
+                if (isProjectManager && managerEmployeeId.HasValue)
+                {
+                    query = query.Where(t =>
+                        (t.Project != null && t.Project.ProjectManagerId == managerEmployeeId.Value)
+                        || (t.AssignedToEmployee != null && t.AssignedToEmployee.ApplicationUserId == currentUserId));
+                }
+                else if (managedDepartmentId.HasValue)
+                {
+                    query = query.Where(t =>
+                        t.AssignedToEmployee != null && t.AssignedToEmployee.DepartmentId == managedDepartmentId.Value);
+                }
+                else
+                {
+                    query = query.Where(t => t.AssignedToEmployee != null && t.AssignedToEmployee.ApplicationUserId == currentUserId);
+                }
+            }
+
+            if (projectId.HasValue)
+                query = query.Where(t => t.ProjectId == projectId.Value);
+
+            if (assigneeEmployeeId.HasValue)
+                query = query.Where(t => t.AssignedToEmployeeId == assigneeEmployeeId.Value);
+
+            var counts = await query
+                .GroupBy(t => t.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.Status, g => g.Count);
+
+            return counts;
+        }
+
         private int? ParseClaim(string claimType)
         {
             var value = _httpContextAccessor.HttpContext?.User.FindFirst(claimType)?.Value;

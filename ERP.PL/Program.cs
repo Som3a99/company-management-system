@@ -83,6 +83,7 @@ namespace ERP.PL
                 client.Timeout = TimeSpan.FromSeconds(30);
             });
             builder.Services.AddScoped<IReportingService, ReportingService>();
+            builder.Services.AddSingleton<IReportExportService, ReportExportService>();
             builder.Services.AddScoped<IReportJobService>(sp =>
             {
                 var dbContext = sp.GetRequiredService<ApplicationDbContext>();

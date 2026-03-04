@@ -4,7 +4,6 @@ using ERP.BLL.Interfaces;
 using ERP.BLL.Reporting.Dtos;
 using ERP.BLL.Reporting.Interfaces;
 using ERP.DAL.Models;
-using ERP.PL.Utilities;
 using ERP.PL.ViewModels.Reporting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +19,7 @@ namespace ERP.PL.Controllers
     {
         private readonly IReportingService _reportingService;
         private readonly IReportJobService _reportJobService;
+        private readonly IReportExportService _exportService;
         private readonly ICacheService _cacheService;
         private readonly IAiNarrativeService _aiNarrativeService;
         private readonly IAuditAnomalyService _anomalyService;
@@ -29,6 +29,7 @@ namespace ERP.PL.Controllers
         public ReportingController(
             IReportingService reportingService,
             IReportJobService reportJobService,
+            IReportExportService exportService,
             ICacheService cacheService,
             IAiNarrativeService aiNarrativeService,
             IAuditAnomalyService anomalyService,
@@ -37,6 +38,7 @@ namespace ERP.PL.Controllers
         {
             _reportingService = reportingService;
             _reportJobService = reportJobService;
+            _exportService = exportService;
             _cacheService = cacheService;
             _aiNarrativeService = aiNarrativeService;
             _anomalyService = anomalyService;
@@ -57,7 +59,7 @@ namespace ERP.PL.Controllers
                 ViewData["CacheStatus"] = "BYPASS";
             }
 
-            var request = ToRequest(filters);
+            var request = ToScopedRequest(filters, scope);
             var taskRows = await _reportingService.GetTaskReportAsync(request, scope.DepartmentId, scope.ProjectId);
             var projectRows = await _reportingService.GetProjectReportAsync(request, scope.DepartmentId, scope.ProjectId);
 
@@ -253,10 +255,11 @@ namespace ERP.PL.Controllers
             if (!scope.Allowed)
                 return Forbid();
 
-            var rows = await _reportingService.GetTaskReportAsync(ToScopedRequest(filters, scope), scope.DepartmentId, scope.ProjectId);
+            var request = ToScopedRequest(filters, scope);
+            var rows = await _reportingService.GetTaskReportAsync(request, scope.DepartmentId, scope.ProjectId);
             var headers = new[] { "Task Id", "Title", "Status", "Priority", "Project", "Assignee", "Due (UTC)", "Estimated Hours", "Actual Hours" };
             var data = rows.Select(r => (IReadOnlyList<string?>)[r.TaskId.ToString(), r.Title, r.Status, r.Priority, r.Project, r.Assignee, r.DueDateUtc?.ToString("u"), r.EstimatedHours?.ToString("0.##"), r.ActualHours.ToString("0.##")]).ToList();
-            return BuildExportResult(filters.Export, "Tasks Report", "tasks-report", headers, data);
+            return BuildExportResult(filters, "Tasks Report", "tasks-report", headers, data);
         }
 
         [HttpGet]
@@ -266,10 +269,11 @@ namespace ERP.PL.Controllers
             if (!scope.Allowed)
                 return Forbid();
 
-            var rows = await _reportingService.GetProjectReportAsync(ToScopedRequest(filters, scope), scope.DepartmentId, scope.ProjectId);
+            var request = ToScopedRequest(filters, scope);
+            var rows = await _reportingService.GetProjectReportAsync(request, scope.DepartmentId, scope.ProjectId);
             var headers = new[] { "Project Id", "Project Code", "Project Name", "Department", "Status", "Budget", "Completed Tasks", "Total Tasks" };
             var data = rows.Select(r => (IReadOnlyList<string?>)[r.ProjectId.ToString(), r.ProjectCode, r.ProjectName, r.DepartmentName, r.Status, r.Budget.ToString("0.##"), r.CompletedTasks.ToString(), r.TotalTasks.ToString()]).ToList();
-            return BuildExportResult(filters.Export, "Projects Report", "projects-report", headers, data);
+            return BuildExportResult(filters, "Projects Report", "projects-report", headers, data);
         }
 
         [HttpGet]
@@ -279,10 +283,11 @@ namespace ERP.PL.Controllers
             if (!scope.Allowed || scope.ProjectId.HasValue)
                 return Forbid();
 
-            var rows = await _reportingService.GetDepartmentReportAsync(ToScopedRequest(filters, scope), scope.DepartmentId);
+            var request = ToScopedRequest(filters, scope);
+            var rows = await _reportingService.GetDepartmentReportAsync(request, scope.DepartmentId);
             var headers = new[] { "Department Id", "Department Code", "Department Name", "Employees", "Projects", "Open Tasks" };
             var data = rows.Select(r => (IReadOnlyList<string?>)[r.DepartmentId.ToString(), r.DepartmentCode, r.DepartmentName, r.EmployeesCount.ToString(), r.ProjectsCount.ToString(), r.OpenTasksCount.ToString()]).ToList();
-            return BuildExportResult(filters.Export, "Departments Report", "departments-report", headers, data);
+            return BuildExportResult(filters, "Departments Report", "departments-report", headers, data);
         }
 
         [Authorize(Policy = "RequireCEO")]
@@ -292,7 +297,7 @@ namespace ERP.PL.Controllers
             var rows = await _reportingService.GetAuditReportAsync(ToRequest(filters));
             var headers = new[] { "Timestamp (UTC)", "User Email", "Action", "Resource Type", "Resource Id", "Succeeded", "Error" };
             var data = rows.Select(r => (IReadOnlyList<string?>)[r.TimestampUtc.ToString("u"), r.UserEmail, r.Action, r.ResourceType, r.ResourceId?.ToString(), r.Succeeded.ToString(), r.ErrorMessage]).ToList();
-            return BuildExportResult(filters.Export, "Audit Activity Report", "audit-report", headers, data);
+            return BuildExportResult(filters, "Audit Activity Report", "audit-report", headers, data);
         }
 
         [HttpGet]
@@ -307,7 +312,7 @@ namespace ERP.PL.Controllers
             var data = rows.Select(r => (IReadOnlyList<string?>)new string?[] {
                 r.EmployeeName, r.CompletedTasks.ToString(), r.Ratio.ToString("F2"), r.Label
             }).ToList();
-            return BuildExportResult(filters.Export, "Estimation Accuracy Report", "estimation-accuracy", headers, data);
+            return BuildExportResult(filters, "Estimation Accuracy Report", "estimation-accuracy", headers, data);
         }
 
         #region Phase 3 — Anomaly Detection (CEO only)
@@ -412,16 +417,50 @@ namespace ERP.PL.Controllers
             return null;
         }
 
-        private IActionResult BuildExportResult(ReportExportFormat format, string title, string name, IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string?>> rows)
+        /// <summary>
+        /// Builds a filter summary string for display in exported reports.
+        /// Ensures the exported document shows which filters were applied.
+        /// </summary>
+        private static string BuildFilterSummary(ReportFilterViewModel filters)
         {
-            return format switch
-            {
-                ReportExportFormat.Html => File(ReportExportUtility.ToHtml(title, headers, rows), "text/html", $"{name}.html"),
-                ReportExportFormat.Csv => File(ReportExportUtility.ToCsv(title, headers, rows), "text/csv", $"{name}.csv"),
-                ReportExportFormat.Excel => File(ReportExportUtility.ToExcel(headers, rows, title), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"{name}.xlsx"),
-                ReportExportFormat.Pdf => File(ReportExportUtility.ToPdf(title, headers, rows), "application/pdf", $"{name}.pdf"),
-                _ => File(ReportExportUtility.ToCsv(title, headers, rows), "text/csv", $"{name}.csv")
-            };
+            var parts = new List<string>();
+            if (filters.StartDateUtc.HasValue)
+                parts.Add($"From: {filters.StartDateUtc.Value:yyyy-MM-dd}");
+            if (filters.EndDateUtc.HasValue)
+                parts.Add($"To: {filters.EndDateUtc.Value:yyyy-MM-dd}");
+            if (filters.DepartmentId.HasValue)
+                parts.Add($"Dept: {filters.DepartmentId.Value}");
+            if (filters.ProjectId.HasValue)
+                parts.Add($"Project: {filters.ProjectId.Value}");
+            return parts.Count > 0 ? string.Join(" | ", parts) : "None";
+        }
+
+        /// <summary>
+        /// Maps the PL-layer <see cref="ReportExportFormat"/> to the BLL-layer <see cref="ExportFormat"/>.
+        /// </summary>
+        private static ExportFormat MapFormat(ReportExportFormat format) => format switch
+        {
+            ReportExportFormat.Pdf => ExportFormat.Pdf,
+            ReportExportFormat.Html => ExportFormat.Html,
+            ReportExportFormat.Csv => ExportFormat.Csv,
+            ReportExportFormat.Excel => ExportFormat.Excel,
+            _ => ExportFormat.Pdf
+        };
+
+        /// <summary>
+        /// Delegates to the centralized <see cref="IReportExportService"/> for consistent
+        /// format handling, content types, and file extensions across all report types.
+        /// </summary>
+        private IActionResult BuildExportResult(
+            ReportFilterViewModel filters, string title, string name,
+            IReadOnlyList<string> headers, IReadOnlyList<IReadOnlyList<string?>> rows)
+        {
+            var result = _exportService.Export(
+                title, name, headers, rows,
+                MapFormat(filters.Export),
+                BuildFilterSummary(filters));
+
+            return File(result.FileBytes, result.ContentType, result.FileName);
         }
 
         private Task RefreshReportCachesAsync()

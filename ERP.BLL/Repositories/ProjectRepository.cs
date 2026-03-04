@@ -50,6 +50,13 @@ namespace ERP.BLL.Repositories
             return claim != null ? int.Parse(claim.Value) : null;
         }
 
+        private int? GetEmployeeId()
+        {
+            var claim = _httpContextAccessor.HttpContext?.User
+                .FindFirst("EmployeeId");
+            return claim != null ? int.Parse(claim.Value) : null;
+        }
+
         private IQueryable<Project> ApplyScopeFilter(IQueryable<Project> query)
         {
             if (IsCEO())
@@ -69,16 +76,12 @@ namespace ERP.BLL.Repositories
                 return query.Where(p => p.Id == managedProjectId.Value && !p.IsDeleted);
             }
 
-            var userDepartmentId = GetUserDepartmentId();
-            if (userDepartmentId.HasValue)
+            // For regular employees, use junction table to find all assigned projects
+            var employeeId = GetEmployeeId();
+            if (employeeId.HasValue)
             {
-                return query.Where(p => p.DepartmentId == userDepartmentId.Value && !p.IsDeleted);
-            }
-
-            var assignedProjectId = GetAssignedProjectId();
-            if (assignedProjectId.HasValue)
-            {
-                return query.Where(p => p.Id == assignedProjectId.Value && !p.IsDeleted);
+                return query.Where(p => !p.IsDeleted
+                    && _context.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId.Value && pe.ProjectId == p.Id));
             }
 
             return query.Where(p => false); // No access
@@ -118,17 +121,11 @@ namespace ERP.BLL.Repositories
                         return await query.ToListAsync();
                     }
 
-                    var userDepartmentId = GetUserDepartmentId();
-                    if (userDepartmentId.HasValue)
+                    // For regular employees, use junction table to find all assigned projects
+                    var employeeId = GetEmployeeId();
+                    if (employeeId.HasValue)
                     {
-                        query = query.Where(p => p.DepartmentId == userDepartmentId.Value);
-                        return await query.ToListAsync();
-                    }
-
-                    var assignedProjectId = GetAssignedProjectId();
-                    if (assignedProjectId.HasValue)
-                    {
-                        query = query.Where(p => p.Id == assignedProjectId.Value);
+                        query = query.Where(p => _context.ProjectEmployees.Any(pe => pe.EmployeeId == employeeId.Value && pe.ProjectId == p.Id));
                         return await query.ToListAsync();
                     }
 
@@ -360,7 +357,8 @@ namespace ERP.BLL.Repositories
                 .AsQueryable());
         }
         /// <summary>
-        /// Get paginated projects with department and manager info
+        /// Get paginated projects with department and manager info.
+        /// Applies role-based scope filtering so each role only sees authorised projects.
         /// </summary>
         public override async Task<PagedResult<Project>> GetPagedAsync(
             int pageNumber,
@@ -376,6 +374,9 @@ namespace ERP.BLL.Repositories
                 .AsNoTracking()
                 .Include(p => p.Department)
                 .Include(p => p.ProjectManager);
+
+            // Apply role-based scope filtering (Issue 2 & 3)
+            query = ApplyScopeFilter(query);
 
             if (filter != null)
             {
@@ -437,10 +438,10 @@ namespace ERP.BLL.Repositories
                 return $"erp:proj:scope:managedproj:{managedProjectId.Value}";
             }
 
-            var userDepartmentId = GetUserDepartmentId();
-            if (userDepartmentId.HasValue)
+            var employeeId = GetEmployeeId();
+            if (employeeId.HasValue)
             {
-                return $"erp:proj:scope:userdept:{userDepartmentId.Value}";
+                return $"erp:proj:scope:emp:{employeeId.Value}";
             }
 
             return "erp:proj:scope:none";

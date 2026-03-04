@@ -11,36 +11,47 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <header class="navbar-container">
-        <nav class="navbar navbar-expand-lg navbar-custom">
-            <div class="container-fluid px-4">
-                <a class="navbar-brand d-flex align-items-center" asp-area="" asp-controller="Home" asp-action="Index">
-                    <div class="brand-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="3" y="3" width="7" height="7" rx="1.5" fill="currentColor" />
-                            <rect x="3" y="14" width="7" height="7" rx="1.5" fill="currentColor" />
-                            <rect x="14" y="3" width="7" height="7" rx="1.5" fill="currentColor" />
-                            <rect x="14" y="14" width="7" height="7" rx="1.5" fill="currentColor" />
+    <header class="navbar-container" id="mainNavbar">
+        <nav class="navbar navbar-expand-lg navbar-custom" role="navigation" aria-label="Main navigation">
+            <div class="container-fluid navbar-inner">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index" aria-label="CompanyFlow home">
+                    <div class="brand-icon" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="3" y="3" width="7" height="7" rx="2" fill="currentColor" opacity="0.9"/>
+                            <rect x="3" y="14" width="7" height="7" rx="2" fill="currentColor" opacity="0.7"/>
+                            <rect x="14" y="3" width="7" height="7" rx="2" fill="currentColor" opacity="0.7"/>
+                            <rect x="14" y="14" width="7" height="7" rx="2" fill="currentColor" opacity="0.5"/>
                         </svg>
                     </div>
                     <span class="brand-text">CompanyFlow</span>
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+
+                <div class="navbar-actions-mobile d-lg-none">
+                    <button type="button" class="nav-icon-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+                        <i class="fas fa-moon" data-theme-icon></i>
+                    </button>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="toggler-bar"></span>
+                        <span class="toggler-bar"></span>
+                        <span class="toggler-bar"></span>
+                    </button>
+                </div>
+
                 <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav ms-auto align-items-center gap-1">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Home" asp-action="Privacy">Privacy</a>
+                    <ul class="navbar-nav navbar-actions ms-auto" role="menubar">
+                        <li class="nav-item" role="none">
+                            <a class="nav-link" asp-controller="Home" asp-action="Privacy" role="menuitem">Privacy</a>
                         </li>
-                        <li class="nav-item d-flex align-items-center">
-                            <button type="button" class="nav-link theme-toggle-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+                        <li class="nav-item d-none d-lg-flex align-items-center" role="none">
+                            <button type="button" class="nav-icon-btn" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
                                 <i class="fas fa-moon" data-theme-icon></i>
                             </button>
                         </li>
-                        <li class="nav-item ms-1">
-                            <a class="btn btn-primary btn-sm" asp-controller="Account" asp-action="Login">
-                                <i class="fas fa-arrow-right me-1"></i>Login
+                        <li class="nav-item ms-1" role="none">
+                            <a class="btn-login" asp-controller="Account" asp-action="Login">
+                                <span>Login</span>
+                                <i class="fas fa-arrow-right ms-1"></i>
                             </a>
                         </li>
                     </ul>

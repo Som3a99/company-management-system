@@ -1,0 +1,1009 @@
+@model ITAdminHomeDashboardViewModel
+@{
+    ViewData["Title"] = "IT Admin Dashboard";
+}
+
+<div class="container-fluid px-4 it-admin-dash">
+    <!-- ── Page Header ── -->
+    <div class="dash-header animate-in">
+        <div class="d-flex flex-wrap align-items-end justify-content-between gap-3">
+            <div>
+                <h1 class="dash-title">
+                    <i class="fas fa-terminal me-2" style="color: var(--accent);"></i>System Administration
+                </h1>
+                <p class="dash-subtitle">Infrastructure health, security monitoring &amp; identity management</p>
+            </div>
+            <div class="d-flex align-items-center gap-2" style="font-size: 0.8125rem; color: var(--text-muted);">
+                <span class="it-role-badge">
+                    <i class="fas fa-shield-alt me-1"></i> IT Admin
+                </span>
+                <span class="it-time-badge">
+                    <i class="fas fa-clock me-1"></i> @Model.ServerTimeUtc.ToString("HH:mm") UTC
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── System Health Strip ── -->
+    <div class="system-health-strip animate-in" style="animation-delay: 0.03s">
+        <div class="health-indicator">
+            <span class="status-dot @Model.ApplicationStatusClass"></span>
+            <div>
+                <div class="health-label">Application</div>
+                <div class="health-value">@Model.ApplicationStatus</div>
+            </div>
+        </div>
+        <div class="health-divider"></div>
+        <div class="health-indicator">
+            <span class="status-dot @Model.DatabaseStatusClass"></span>
+            <div>
+                <div class="health-label">Database</div>
+                <div class="health-value">@Model.DatabaseStatus</div>
+            </div>
+        </div>
+        <div class="health-divider"></div>
+        <div class="health-indicator">
+            <span class="status-dot @(Model.ActiveSessionCount > 0 ? "status-green" : "status-amber")"></span>
+            <div>
+                <div class="health-label">Active Sessions</div>
+                <div class="health-value">@Model.ActiveSessionCount</div>
+            </div>
+        </div>
+        <div class="health-divider"></div>
+        <div class="health-indicator">
+            <span class="status-dot @(Model.CacheHitRatio >= 80 ? "status-green" : Model.CacheHitRatio >= 50 ? "status-amber" : "status-red")"></span>
+            <div>
+                <div class="health-label">Cache Hit Ratio</div>
+                <div class="health-value">@Model.CacheHitRatio%</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Security & Infrastructure KPIs ── -->
+    <div class="row g-3 mb-4 animate-in" style="animation-delay: 0.05s">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card @(Model.FailedLoginAttempts24h > 5 ? "stat-card-alert" : "")">
+                <div class="stat-icon" style="background: rgba(239,68,68,0.1); color: #ef4444;">
+                    <i class="fas fa-user-times"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.FailedLoginAttempts24h</div>
+                    <div class="stat-label">Failed Logins (24h)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card @(Model.LockedAccountCount > 0 ? "stat-card-warning" : "")">
+                <div class="stat-icon" style="background: rgba(245,158,11,0.1); color: #f59e0b;">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.LockedAccountCount</div>
+                    <div class="stat-label">Locked Accounts</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card @(Model.SuspiciousActivities48h > 0 ? "stat-card-alert" : "")">
+                <div class="stat-icon" style="background: rgba(139,92,246,0.1); color: #8b5cf6;">
+                    <i class="fas fa-radar"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.SuspiciousActivities48h</div>
+                    <div class="stat-label">Anomalies (48h)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(16,185,129,0.1); color: #10b981;">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.AccountsCreatedThisWeek</div>
+                    <div class="stat-label">New Accounts (7d)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 animate-in" style="animation-delay: 0.07s">
+        <!-- ═══ Left Column ═══ -->
+        <div class="col-lg-8">
+
+            <!-- Security Alerts -->
+            @if (Model.RecentSecurityEvents.Any())
+            {
+                <div class="it-card mb-3 it-card-security">
+                    <div class="it-card-header">
+                        <h5 class="it-card-title">
+                            <i class="fas fa-shield-alt"></i>
+                            Security Alerts
+                            @if (Model.CriticalAnomalies > 0)
+                            {
+                                <span class="badge bg-danger rounded-pill ms-2">@Model.CriticalAnomalies critical</span>
+                            }
+                        </h5>
+                        <a asp-controller="Reporting" asp-action="Anomalies" class="it-card-link">
+                            View All <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                    <div class="it-card-body">
+                        <div class="security-events-list">
+                            @foreach (var evt in Model.RecentSecurityEvents)
+                            {
+                                <div class="security-event-row">
+                                    <div class="security-event-icon @evt.SeverityClass">
+                                        <i class="@evt.Icon"></i>
+                                    </div>
+                                    <div class="security-event-content">
+                                        <div class="security-event-title">@evt.Title</div>
+                                        <div class="security-event-desc">@evt.Description</div>
+                                    </div>
+                                    <div class="security-event-meta">
+                                        <span class="severity-badge severity-@evt.Severity.ToLower()">@evt.Severity</span>
+                                        <span class="event-time">@evt.Timestamp.ToString("MMM dd HH:mm")</span>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="it-card mb-3">
+                    <div class="it-card-body text-center py-4">
+                        <i class="fas fa-check-circle fs-3 text-success mb-2 d-block"></i>
+                        <span class="text-muted">No security anomalies detected in the last 48 hours</span>
+                    </div>
+                </div>
+            }
+
+            <!-- Infrastructure Metrics -->
+            <div class="it-card mb-3">
+                <div class="it-card-header">
+                    <h5 class="it-card-title">
+                        <i class="fas fa-server"></i>
+                        Infrastructure
+                    </h5>
+                </div>
+                <div class="it-card-body">
+                    <div class="infra-grid">
+                        <!-- Report Jobs -->
+                        <div class="infra-block">
+                            <div class="infra-block-header">
+                                <i class="fas fa-file-alt"></i> Report Queue
+                            </div>
+                            <div class="infra-metrics">
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value">@Model.PendingReportJobs</span>
+                                    <span class="infra-metric-label">Pending</span>
+                                </div>
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value infra-processing">@Model.ProcessingReportJobs</span>
+                                    <span class="infra-metric-label">Processing</span>
+                                </div>
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value @(Model.FailedReportJobs > 0 ? "text-danger" : "")">@Model.FailedReportJobs</span>
+                                    <span class="infra-metric-label">Failed</span>
+                                </div>
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value text-success">@Model.CompletedReportJobs24h</span>
+                                    <span class="infra-metric-label">Done (24h)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Cache Health -->
+                        <div class="infra-block">
+                            <div class="infra-block-header">
+                                <i class="fas fa-memory"></i> Cache Health
+                            </div>
+                            <div class="infra-metrics">
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value">@Model.CacheHitRatio<span style="font-size:0.7em">%</span></span>
+                                    <span class="infra-metric-label">Hit Ratio</span>
+                                </div>
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value">@Model.CacheEntryCount</span>
+                                    <span class="infra-metric-label">Entries</span>
+                                </div>
+                                <div class="infra-metric">
+                                    <span class="infra-metric-value">@Model.CacheEstimatedSize</span>
+                                    <span class="infra-metric-label">Est. Size</span>
+                                </div>
+                            </div>
+                            @if (Model.CachePressureWarning != null)
+                            {
+                                <div class="infra-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i> @Model.CachePressureWarning
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Password Reset Summary -->
+                    <div class="infra-block mt-3">
+                        <div class="infra-block-header">
+                            <i class="fas fa-key"></i> Password Resets
+                        </div>
+                        <div class="infra-metrics">
+                            <div class="infra-metric">
+                                <span class="infra-metric-value @(Model.PendingResetRequests > 0 ? "text-warning" : "")">@Model.PendingResetRequests</span>
+                                <span class="infra-metric-label">Pending</span>
+                            </div>
+                            <div class="infra-metric">
+                                <span class="infra-metric-value @(Model.ExpiredResetRequests > 0 ? "text-danger" : "")">@Model.ExpiredResetRequests</span>
+                                <span class="infra-metric-label">Expired</span>
+                            </div>
+                            <div class="infra-metric">
+                                <span class="infra-metric-value">@Model.PasswordResets7d</span>
+                                <span class="infra-metric-label">Requests (7d)</span>
+                            </div>
+                            <div class="infra-metric">
+                                <span class="infra-metric-value">@Model.RoleChanges7d</span>
+                                <span class="infra-metric-label">Role Changes (7d)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Log Feed -->
+            <div class="it-card mb-3">
+                <div class="it-card-header">
+                    <h5 class="it-card-title">
+                        <i class="fas fa-scroll"></i>
+                        Recent Audit Events
+                    </h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <span class="it-stat-chip">
+                            <strong>@Model.TotalAuditEvents24h</strong> events (24h)
+                        </span>
+                        @if (Model.ErrorEvents24h > 0)
+                        {
+                            <span class="it-stat-chip it-stat-chip-error">
+                                <strong>@Model.ErrorEvents24h</strong> errors
+                            </span>
+                        }
+                    </div>
+                </div>
+                <div class="it-card-body p-0">
+                    @if (Model.RecentAuditEvents.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0 it-table">
+                                <thead>
+                                    <tr>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                        <th>User</th>
+                                        <th>Resource</th>
+                                        <th>IP</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var evt in Model.RecentAuditEvents)
+                                    {
+                                        <tr class="@(!evt.Succeeded ? "audit-row-failed" : "")">
+                                            <td>
+                                                @if (evt.Succeeded)
+                                                {
+                                                    <span class="status-dot-inline status-green"></span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="status-dot-inline status-red"></span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <span class="audit-action-badge">@evt.Action</span>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">@evt.UserEmail</small>
+                                            </td>
+                                            <td>
+                                                <small>@(evt.ResourceType ?? "—")</small>
+                                            </td>
+                                            <td>
+                                                <code class="audit-ip">@(evt.IpAddress ?? "—")</code>
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">@evt.Timestamp.ToString("MMM dd HH:mm")</small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fs-4 d-block mb-2"></i>
+                            <small>No recent audit events</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══ Right Column ═══ -->
+        <div class="col-lg-4">
+
+            <!-- Identity & Access -->
+            <div class="it-card mb-3">
+                <div class="it-card-header">
+                    <h5 class="it-card-title">
+                        <i class="fas fa-users-cog"></i>
+                        Identity & Access
+                    </h5>
+                </div>
+                <div class="it-card-body">
+                    <div class="identity-stats">
+                        <div class="identity-stat-row">
+                            <span class="identity-label">Total Accounts</span>
+                            <span class="identity-value">@Model.TotalUserAccounts</span>
+                        </div>
+                        <div class="identity-stat-row">
+                            <span class="identity-label">Active</span>
+                            <span class="identity-value text-success">@Model.ActiveUserAccounts</span>
+                        </div>
+                        <div class="identity-stat-row">
+                            <span class="identity-label">Inactive</span>
+                            <span class="identity-value @(Model.InactiveUserAccounts > 0 ? "text-warning" : "text-muted")">@Model.InactiveUserAccounts</span>
+                        </div>
+                        <div class="identity-stat-row">
+                            <span class="identity-label">Locked</span>
+                            <span class="identity-value @(Model.LockedAccountCount > 0 ? "text-danger" : "text-muted")">@Model.LockedAccountCount</span>
+                        </div>
+                        <div class="identity-stat-row">
+                            <span class="identity-label">Password Change Required</span>
+                            <span class="identity-value @(Model.UsersRequiringPasswordChange > 0 ? "text-warning" : "text-muted")">@Model.UsersRequiringPasswordChange</span>
+                        </div>
+                    </div>
+
+                    <!-- Role Distribution -->
+                    <div class="role-distribution mt-3">
+                        <div class="role-dist-header">Role Distribution</div>
+                        @foreach (var role in Model.RoleDistribution)
+                        {
+                            <div class="role-dist-row">
+                                <span class="role-dist-name">@role.RoleName</span>
+                                <span class="role-dist-count @role.BadgeClass">@role.Count</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Overview -->
+            <div class="it-card mb-3">
+                <div class="it-card-header">
+                    <h5 class="it-card-title">
+                        <i class="fas fa-chart-pie"></i>
+                        System Overview
+                    </h5>
+                </div>
+                <div class="it-card-body">
+                    <div class="identity-stats">
+                        <div class="identity-stat-row">
+                            <span class="identity-label">
+                                <i class="fas fa-sitemap me-1 text-muted"></i> Departments
+                            </span>
+                            <span class="identity-value">@Model.TotalDepartments</span>
+                        </div>
+                        <div class="identity-stat-row">
+                            <span class="identity-label">
+                                <i class="fas fa-users me-1 text-muted"></i> Employees
+                            </span>
+                            <span class="identity-value">@Model.TotalEmployees</span>
+                        </div>
+                        <div class="identity-stat-row">
+                            <span class="identity-label">
+                                <i class="fas fa-scroll me-1 text-muted"></i> Audit Events (24h)
+                            </span>
+                            <span class="identity-value">@Model.TotalAuditEvents24h</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Admin Tools -->
+            <div class="it-card mb-3">
+                <div class="it-card-header">
+                    <h5 class="it-card-title">
+                        <i class="fas fa-wrench"></i>
+                        Admin Tools
+                    </h5>
+                </div>
+                <div class="it-card-body">
+                    <div class="d-grid gap-2">
+                        <a asp-controller="UserManagement" asp-action="Index" class="it-action-btn">
+                            <i class="fas fa-users-cog"></i>
+                            <span>User Management</span>
+                            <i class="fas fa-chevron-right it-action-arrow"></i>
+                        </a>
+                        <a asp-controller="ITAdmin" asp-action="PasswordResetRequests" class="it-action-btn">
+                            <i class="fas fa-key"></i>
+                            <span>Password Resets</span>
+                            @if (Model.PendingResetRequests > 0)
+                            {
+                                <span class="badge bg-warning text-dark rounded-pill">@Model.PendingResetRequests</span>
+                            }
+                            <i class="fas fa-chevron-right it-action-arrow"></i>
+                        </a>
+                        <a asp-controller="ITAdmin" asp-action="Dashboard" class="it-action-btn">
+                            <i class="fas fa-cogs"></i>
+                            <span>Full Admin Panel</span>
+                            <i class="fas fa-chevron-right it-action-arrow"></i>
+                        </a>
+                        <a asp-controller="Reporting" asp-action="Index" class="it-action-btn">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Reports</span>
+                            <i class="fas fa-chevron-right it-action-arrow"></i>
+                        </a>
+                        <a asp-controller="Department" asp-action="Index" class="it-action-btn">
+                            <i class="fas fa-sitemap"></i>
+                            <span>Departments</span>
+                            <i class="fas fa-chevron-right it-action-arrow"></i>
+                        </a>
+                        <a asp-controller="Employee" asp-action="Index" class="it-action-btn">
+                            <i class="fas fa-id-card"></i>
+                            <span>Employees</span>
+                            <i class="fas fa-chevron-right it-action-arrow"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    /* ── IT Admin Dashboard Styles ── */
+    .it-admin-dash .dash-header {
+        padding: 1.5rem 0 1rem;
+    }
+    .it-admin-dash .dash-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-heading);
+        margin-bottom: 0.25rem;
+    }
+    .it-admin-dash .dash-subtitle {
+        font-size: 0.9375rem;
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    /* Role & Time badges */
+    .it-role-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 650;
+        background: rgba(139, 92, 246, 0.1);
+        color: #8b5cf6;
+        border: 1px solid rgba(139, 92, 246, 0.18);
+    }
+    .it-time-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 550;
+        background: var(--bg-surface, var(--bg-tertiary));
+        color: var(--text-muted);
+        border: 1px solid var(--border-color);
+    }
+
+    /* ── System Health Strip ── */
+    .system-health-strip {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius-lg);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        margin-bottom: 1.25rem;
+        flex-wrap: wrap;
+    }
+    .health-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+    }
+    .health-divider {
+        width: 1px;
+        height: 28px;
+        background: var(--border-color);
+    }
+    .health-label {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+    }
+    .health-value {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--text-heading);
+    }
+
+    /* Status dots */
+    .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .status-dot.status-green {
+        background: #10b981;
+        box-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+    }
+    .status-dot.status-amber {
+        background: #f59e0b;
+        box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+    }
+    .status-dot.status-red {
+        background: #ef4444;
+        box-shadow: 0 0 6px rgba(239, 68, 68, 0.4);
+        animation: pulse-red 2s ease-in-out infinite;
+    }
+    .status-dot.status-blue {
+        background: #3b82f6;
+        box-shadow: 0 0 6px rgba(59, 130, 246, 0.4);
+    }
+    @@keyframes pulse-red {
+        0%, 100% { box-shadow: 0 0 6px rgba(239, 68, 68, 0.4); }
+        50% { box-shadow: 0 0 12px rgba(239, 68, 68, 0.7); }
+    }
+
+    /* Inline status dot for tables */
+    .status-dot-inline {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    .status-dot-inline.status-green { background: #10b981; }
+    .status-dot-inline.status-red { background: #ef4444; }
+
+    /* ── Stat Cards ── */
+    .it-admin-dash .stat-card {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+        padding: 1rem 1.25rem;
+        border-radius: var(--radius-lg);
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        transition: var(--transition-normal);
+    }
+    .it-admin-dash .stat-card:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow-sm);
+    }
+    .stat-card-alert {
+        border-left: 3px solid #ef4444 !important;
+    }
+    .stat-card-warning {
+        border-left: 3px solid #f59e0b !important;
+    }
+    .it-admin-dash .stat-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        flex-shrink: 0;
+    }
+    .it-admin-dash .stat-value {
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: var(--text-heading);
+        line-height: 1.2;
+    }
+    .it-admin-dash .stat-label {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+
+    /* ── IT Cards ── */
+    .it-card {
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        background: var(--bg-card);
+        overflow: hidden;
+    }
+    .it-card-security {
+        border-left: 3px solid #ef4444;
+    }
+    .it-card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.875rem 1.25rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .it-card-title {
+        font-size: 0.9375rem;
+        font-weight: 650;
+        color: var(--text-heading);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .it-card-title i {
+        color: var(--accent);
+        font-size: 0.875rem;
+    }
+    .it-card-link {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent);
+        text-decoration: none;
+        transition: opacity 0.2s;
+    }
+    .it-card-link:hover {
+        opacity: 0.8;
+    }
+    .it-card-body {
+        padding: 1rem 1.25rem;
+    }
+
+    /* ── Security Events ── */
+    .security-events-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+    }
+    .security-event-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface, var(--bg-tertiary));
+        border: 1px solid var(--border-color);
+        transition: border-color 0.2s;
+    }
+    .security-event-row:hover {
+        border-color: rgba(var(--accent-main-rgb), 0.2);
+    }
+    .security-event-icon {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        border-radius: var(--radius-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+    }
+    .security-event-icon.status-red {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+    .security-event-icon.status-amber {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+    }
+    .security-event-icon.status-blue {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+    }
+    .security-event-content {
+        flex: 1;
+        min-width: 0;
+    }
+    .security-event-title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--text-heading);
+        margin-bottom: 0.125rem;
+    }
+    .security-event-desc {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+    .security-event-meta {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.25rem;
+        flex-shrink: 0;
+    }
+    .severity-badge {
+        padding: 0.125rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.625rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+    .severity-critical {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    .severity-warning {
+        background: rgba(245, 158, 11, 0.1);
+        color: #f59e0b;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+    .severity-info {
+        background: rgba(59, 130, 246, 0.1);
+        color: #3b82f6;
+        border: 1px solid rgba(59, 130, 246, 0.2);
+    }
+    .event-time {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
+    /* ── Infrastructure ── */
+    .infra-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+    .infra-block {
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface, var(--bg-tertiary));
+        border: 1px solid var(--border-color);
+    }
+    .infra-block-header {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .infra-block-header i {
+        color: var(--accent);
+        font-size: 0.75rem;
+    }
+    .infra-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    .infra-metric {
+        display: flex;
+        flex-direction: column;
+    }
+    .infra-metric-value {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--text-heading);
+    }
+    .infra-metric-label {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    .infra-processing {
+        color: #3b82f6;
+    }
+    .infra-warning {
+        margin-top: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: var(--radius-sm, 6px);
+        background: rgba(245, 158, 11, 0.08);
+        color: #f59e0b;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid rgba(245, 158, 11, 0.15);
+    }
+
+    /* ── Stat Chips ── */
+    .it-stat-chip {
+        padding: 0.25rem 0.625rem;
+        border-radius: 999px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        background: rgba(var(--accent-main-rgb), 0.08);
+        color: var(--accent);
+        border: 1px solid rgba(var(--accent-main-rgb), 0.12);
+    }
+    .it-stat-chip-error {
+        background: rgba(239, 68, 68, 0.08);
+        color: #ef4444;
+        border-color: rgba(239, 68, 68, 0.15);
+    }
+
+    /* ── Audit Table ── */
+    .it-table > thead > tr > th {
+        font-size: 0.6875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        border-bottom-width: 1px;
+        padding: 0.625rem 1rem;
+        background: var(--bg-surface, var(--bg-tertiary));
+    }
+    .it-table > tbody > tr > td {
+        font-size: 0.8125rem;
+        padding: 0.5rem 1rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .audit-row-failed {
+        background: rgba(239, 68, 68, 0.03) !important;
+    }
+    .audit-action-badge {
+        padding: 0.15rem 0.5rem;
+        border-radius: var(--radius-sm, 6px);
+        font-size: 0.6875rem;
+        font-weight: 700;
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        background: rgba(var(--accent-main-rgb), 0.06);
+        color: var(--text-heading);
+        letter-spacing: 0.02em;
+    }
+    .audit-ip {
+        font-size: 0.6875rem;
+        color: var(--text-muted);
+        background: transparent;
+    }
+
+    /* ── Identity & Access ── */
+    .identity-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+    }
+    .identity-stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .identity-stat-row:last-child {
+        border-bottom: none;
+    }
+    .identity-label {
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+        font-weight: 500;
+    }
+    .identity-value {
+        font-size: 0.9375rem;
+        font-weight: 700;
+        color: var(--text-heading);
+    }
+
+    /* Role Distribution */
+    .role-distribution {
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border-color);
+    }
+    .role-dist-header {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--text-muted);
+        margin-bottom: 0.625rem;
+    }
+    .role-dist-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.375rem 0;
+    }
+    .role-dist-name {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--text-body);
+    }
+    .role-dist-count {
+        min-width: 28px;
+        height: 22px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        color: white;
+    }
+    .badge-role-ceo { background: linear-gradient(135deg, #ef4444, #f87171); }
+    .badge-role-admin { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+    .badge-role-manager { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .badge-role-pm { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+    .badge-role-employee { background: linear-gradient(135deg, #6b7280, #9ca3af); }
+
+    /* ── Admin Action Buttons ── */
+    .it-action-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-md);
+        background: var(--bg-surface, var(--bg-tertiary));
+        border: 1px solid var(--border-color);
+        color: var(--text-heading);
+        text-decoration: none;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .it-action-btn:hover {
+        border-color: rgba(var(--accent-main-rgb), 0.3);
+        background: rgba(var(--accent-main-rgb), 0.04);
+        color: var(--accent);
+        transform: translateX(2px);
+    }
+    .it-action-btn i:first-child {
+        width: 18px;
+        text-align: center;
+        color: var(--accent);
+        font-size: 0.875rem;
+    }
+    .it-action-btn span {
+        flex: 1;
+    }
+    .it-action-arrow {
+        font-size: 0.625rem;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+    }
+    .it-action-btn:hover .it-action-arrow {
+        transform: translateX(3px);
+        color: var(--accent);
+    }
+
+    /* ── Responsive ── */
+    @@media (max-width: 767.98px) {
+        .system-health-strip {
+            gap: 0.75rem;
+        }
+        .health-divider {
+            display: none;
+        }
+        .health-indicator {
+            flex: 1;
+            min-width: 100px;
+        }
+        .infra-grid {
+            grid-template-columns: 1fr;
+        }
+        .security-event-meta {
+            flex-direction: row;
+            gap: 0.5rem;
+        }
+    }
+
+    /* ── Animation ── */
+    .animate-in {
+        opacity: 0;
+        transform: translateY(12px);
+        animation: fadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    @@keyframes fadeIn {
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+}

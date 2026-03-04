@@ -5,102 +5,554 @@
 
 <div class="container-fluid px-4 public-landing">
     <!-- Hero Section -->
-    <section class="landing-hero animate-in" aria-label="CompanyFlow SaaS hero">
-        <div class="row align-items-center g-4">
-            <div class="col-lg-7">
-                <span class="hero-badge">
-                    <i class="fas fa-bolt me-1" style="font-size: 0.75rem;"></i>
+    <section class="landing-hero" aria-label="CompanyFlow SaaS hero">
+        <!-- Decorative grid pattern -->
+        <div class="hero-grid-pattern" aria-hidden="true"></div>
+        <div class="hero-glow" aria-hidden="true"></div>
+
+        <div class="row align-items-center g-4 g-lg-5 position-relative">
+            <div class="col-lg-7 hero-content-col">
+                <span class="hero-badge animate-fade-up">
+                    <span class="hero-badge-dot" aria-hidden="true"></span>
                     Cloud SaaS Platform
                 </span>
-                <h1 class="hero-title mb-3">Smart Business Management<br/>in One Platform.</h1>
-                <p class="hero-subtitle">
+                <h1 class="hero-title mb-3 animate-fade-up delay-1">
+                    Smart Business<br/>Management in<br/>
+                    <span class="hero-title-accent">One Platform.</span>
+                </h1>
+                <p class="hero-subtitle animate-fade-up delay-2">
                     CompanyFlow helps organizations manage employees, departments, projects, and daily workflows from one secure dashboard.
                     Deploy quickly, scale by team, and keep leadership informed with real-time visibility.
                 </p>
-                <div class="d-flex flex-wrap gap-3 mt-4">
-                    <a asp-controller="Account" asp-action="Login" class="btn btn-primary btn-primary-lg public-login-btn">
-                        Get Started <i class="fas fa-arrow-right ms-1"></i>
+
+                <!-- Trust indicators -->
+                <div class="hero-trust-strip animate-fade-up delay-2">
+                    <span class="trust-item">
+                        <i class="fas fa-lock"></i> Secure
+                    </span>
+                    <span class="trust-divider" aria-hidden="true"></span>
+                    <span class="trust-item">
+                        <i class="fas fa-expand-arrows-alt"></i> Scalable
+                    </span>
+                    <span class="trust-divider" aria-hidden="true"></span>
+                    <span class="trust-item">
+                        <i class="fas fa-shield-alt"></i> Role-Based
+                    </span>
+                </div>
+
+                <div class="d-flex flex-wrap gap-3 mt-4 animate-fade-up delay-3">
+                    <a asp-controller="Account" asp-action="Login" class="btn-hero-primary">
+                        Get Started Free
+                        <i class="fas fa-arrow-right ms-2"></i>
                     </a>
-                    <a href="#saas-features" class="btn btn-outline-primary btn-primary-lg" style="border-color: rgba(255,255,255,0.3); color: var(--header-foreground);">
-                        <i class="fas fa-play-circle me-1"></i> Explore Features
+                    <a href="#saas-features" class="btn-hero-secondary">
+                        <i class="fas fa-play-circle me-2"></i>
+                        Explore Features
                     </a>
                 </div>
             </div>
-            <div class="col-lg-5">
-                <div class="hero-metrics-card card card-soft">
-                    <div class="card-body">
-                        <h5 class="mb-3">
-                            <i class="fas fa-chart-line me-2" style="color: var(--accent-main);"></i>
-                            Why growing companies choose CompanyFlow
-                        </h5>
-                        <ul class="hero-metrics-list">
-                            <li>
-                                <strong><i class="fas fa-th-large me-2" style="color: var(--accent-main); font-size: 0.8rem;"></i>1 Platform</strong>
-                                <span>for projects, teams, and operations</span>
-                            </li>
-                            <li>
-                                <strong><i class="fas fa-shield-alt me-2" style="color: var(--success); font-size: 0.8rem;"></i>Role-Based Access</strong>
-                                <span>for secure, controlled workflows</span>
-                            </li>
-                            <li>
-                                <strong><i class="fas fa-tachometer-alt me-2" style="color: var(--info); font-size: 0.8rem;"></i>Live Tracking</strong>
-                                <span>for accountability and productivity</span>
-                            </li>
-                        </ul>
+            <div class="col-lg-5 animate-fade-up delay-3">
+                <div class="hero-metrics-card">
+                    <div class="hero-metrics-header">
+                        <div class="hero-metrics-icon" aria-hidden="true">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h5>Why growing companies choose CompanyFlow</h5>
                     </div>
+                    <ul class="hero-metrics-list">
+                        <li>
+                            <span class="metric-icon-wrap metric-accent" aria-hidden="true">
+                                <i class="fas fa-th-large"></i>
+                            </span>
+                            <div class="metric-content">
+                                <strong>1 Platform</strong>
+                                <span>for projects, teams, and operations</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="metric-icon-wrap metric-success" aria-hidden="true">
+                                <i class="fas fa-shield-alt"></i>
+                            </span>
+                            <div class="metric-content">
+                                <strong>Role-Based Access</strong>
+                                <span>for secure, controlled workflows</span>
+                            </div>
+                        </li>
+                        <li>
+                            <span class="metric-icon-wrap metric-info" aria-hidden="true">
+                                <i class="fas fa-tachometer-alt"></i>
+                            </span>
+                            <div class="metric-content">
+                                <strong>Live Tracking</strong>
+                                <span>for accountability and productivity</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Strip -->
+    <section class="benefits-strip animate-fade-up" aria-label="Key benefits">
+        <div class="benefits-inner">
+            <div class="benefit-item">
+                <div class="benefit-icon" aria-hidden="true">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="benefit-text">
+                    <strong>Faster Operations</strong>
+                    <span>Streamline every workflow</span>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon" aria-hidden="true">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div class="benefit-text">
+                    <strong>Improved Accountability</strong>
+                    <span>Track tasks & ownership</span>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon" aria-hidden="true">
+                    <i class="fas fa-eye"></i>
+                </div>
+                <div class="benefit-text">
+                    <strong>Real-Time Visibility</strong>
+                    <span>See progress instantly</span>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon" aria-hidden="true">
+                    <i class="fas fa-users-cog"></i>
+                </div>
+                <div class="benefit-text">
+                    <strong>Scalable Growth</strong>
+                    <span>Expand without limits</span>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Arabic Section -->
-    <section class="arabic-pitch card card-glass mt-4 animate-in" dir="rtl" lang="ar">
-        <div class="card-body p-4 p-md-5">
-            <h2 class="mb-3">منصة ذكية لإدارة أعمال شركتك</h2>
-            <p class="mb-2">
-                نظام CompanyFlow هو حل SaaS متكامل يساعدك على إدارة الموظفين والمشاريع والمهام والعمليات اليومية من مكان واحد.
-            </p>
-            <p class="mb-0">
-                وفّر الوقت، ارفع الإنتاجية، وراقب تقدم العمل بوضوح مع صلاحيات مرنة وتقارير عملية.
-            </p>
+    <section class="arabic-pitch animate-fade-up" dir="rtl" lang="ar" aria-label="Arabic description">
+        <div class="arabic-pitch-inner">
+            <div class="arabic-icon-accent" aria-hidden="true">
+                <i class="fas fa-globe-americas"></i>
+            </div>
+            <div class="arabic-content">
+                <span class="arabic-badge">
+                    <i class="fas fa-language"></i>
+                    متوفر بالعربية
+                </span>
+                <h2 class="arabic-title">منصة ذكية مدعومة بالذكاء الاصطناعي لإدارة أعمال شركتك</h2>
+                <p class="arabic-body">
+                    نظام CompanyFlow هو حل SaaS متكامل يساعدك على إدارة الموظفين والمشاريع والمهام والعمليات اليومية من مكان واحد.
+                    يعتمد النظام على تقنيات الذكاء الاصطناعي لتوليد أوصاف المهام تلقائيًا، والتنبؤ بالمخاطر، وتحليل أداء الفريق.
+                </p>
+                <p class="arabic-body">
+                    وفّر الوقت، ارفع الإنتاجية، وراقب تقدم العمل بوضوح مع صلاحيات مرنة وتقارير عملية.
+                </p>
+                <div class="arabic-features-strip">
+                    <div class="arabic-feature-chip">
+                        <i class="fas fa-robot"></i>
+                        <span>ذكاء اصطناعي</span>
+                    </div>
+                    <div class="arabic-feature-chip">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>تقارير متقدمة</span>
+                    </div>
+                    <div class="arabic-feature-chip">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>حماية متكاملة</span>
+                    </div>
+                    <div class="arabic-feature-chip">
+                        <i class="fas fa-bell"></i>
+                        <span>إشعارات فورية</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
     <!-- Features Section -->
-    <section id="saas-features" class="row g-4 mt-4 animate-in">
-        <div class="col-12 text-center mb-3">
-            <span class="text-label d-block mb-2">Features</span>
-            <h2>Built for modern operations teams</h2>
-            <p class="mx-auto" style="max-width: 480px; color: var(--text-muted);">
+    <section id="saas-features" class="features-section" aria-label="Platform features">
+        <div class="text-center mb-5 animate-fade-up">
+            <span class="section-label">
+                <i class="fas fa-cube me-1"></i> Features
+            </span>
+            <h2 class="section-title">Built for modern operations teams</h2>
+            <p class="section-subtitle">
                 Everything your team needs to stay organized, productive, and aligned.
             </p>
         </div>
-        <div class="col-lg-4">
-            <div class="card feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-sitemap" style="font-size: 1.25rem;"></i>
+        <div class="row g-4">
+            <div class="col-lg-4 animate-fade-up delay-1">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-sitemap"></i>
+                    </div>
+                    <h5 class="feature-title">Centralized Workflows</h5>
+                    <p class="feature-description">Replace scattered spreadsheets and chat threads with a structured operational workflow system.</p>
+                    <span class="feature-link" aria-hidden="true">Learn more <i class="fas fa-arrow-right ms-1"></i></span>
                 </div>
-                <h5 class="feature-title">Centralized Workflows</h5>
-                <p class="feature-description">Replace scattered spreadsheets and chat threads with a structured operational workflow system.</p>
             </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-puzzle-piece" style="font-size: 1.25rem;"></i>
+            <div class="col-lg-4 animate-fade-up delay-2">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-success">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    <h5 class="feature-title">Modular ERP Foundation</h5>
+                    <p class="feature-description">Activate only the modules you need today, then expand without rebuilding your platform.</p>
+                    <span class="feature-link" aria-hidden="true">Learn more <i class="fas fa-arrow-right ms-1"></i></span>
                 </div>
-                <h5 class="feature-title">Modular ERP Foundation</h5>
-                <p class="feature-description">Activate only the modules you need today, then expand without rebuilding your platform.</p>
             </div>
-        </div>
-        <div class="col-lg-4">
-            <div class="card feature-card">
-                <div class="feature-icon">
-                    <i class="fas fa-cloud-upload-alt" style="font-size: 1.25rem;"></i>
+            <div class="col-lg-4 animate-fade-up delay-3">
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-info">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <h5 class="feature-title">SaaS Ready Deployment</h5>
+                    <p class="feature-description">Run environment-specific configurations and controlled release workflows for reliable updates.</p>
+                    <span class="feature-link" aria-hidden="true">Learn more <i class="fas fa-arrow-right ms-1"></i></span>
                 </div>
-                <h5 class="feature-title">SaaS Ready Deployment</h5>
-                <p class="feature-description">Run environment-specific configurations and controlled release workflows for reliable updates.</p>
             </div>
         </div>
     </section>
+
+    <!-- AI Features Section -->
+    <section class="ai-features-section" aria-label="AI-powered features">
+        <div class="text-center mb-5 animate-fade-up">
+            <span class="section-label section-label-ai">
+                <i class="fas fa-brain me-1"></i> AI-Powered
+            </span>
+            <h2 class="section-title">Intelligence built into every workflow</h2>
+            <p class="section-subtitle">
+                Powered by Gemini AI — CompanyFlow automates decisions, predicts risks, and generates insights so your team can focus on what matters.
+            </p>
+        </div>
+
+        <div class="ai-features-grid">
+            <!-- Row 1: 3 cards -->
+            <div class="ai-card animate-fade-up delay-1">
+                <div class="ai-card-icon ai-icon-purple" aria-hidden="true">
+                    <i class="fas fa-pen-fancy"></i>
+                </div>
+                <div class="ai-card-content">
+                    <h5 class="ai-card-title">AI Task Descriptions</h5>
+                    <p class="ai-card-desc">Auto-generate structured task descriptions with goals, steps, and completion criteria using Gemini AI.</p>
+                    <div class="ai-card-tag">Gemini 2.0 Flash</div>
+                </div>
+            </div>
+
+            <div class="ai-card animate-fade-up delay-2">
+                <div class="ai-card-icon ai-icon-red" aria-hidden="true">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="ai-card-content">
+                    <h5 class="ai-card-title">Risk Prediction Engine</h5>
+                    <p class="ai-card-desc">Multi-factor scoring analyzes deadlines, progress ratio, blockers, and priority to flag high-risk tasks early.</p>
+                    <div class="ai-card-tag">0–100 Score</div>
+                </div>
+            </div>
+
+            <div class="ai-card animate-fade-up delay-3">
+                <div class="ai-card-icon ai-icon-blue" aria-hidden="true">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <div class="ai-card-content">
+                    <h5 class="ai-card-title">Smart Assignment</h5>
+                    <p class="ai-card-desc">AI suggests the best team member for each task based on workload, skills, and historical performance.</p>
+                    <div class="ai-card-tag">Auto-Suggest</div>
+                </div>
+            </div>
+
+            <!-- Row 2: 3 cards -->
+            <div class="ai-card animate-fade-up delay-1">
+                <div class="ai-card-icon ai-icon-green" aria-hidden="true">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="ai-card-content">
+                    <h5 class="ai-card-title">Project Forecasting</h5>
+                    <p class="ai-card-desc">Predict completion dates and budget overruns before they happen using velocity-based forecasting models.</p>
+                    <div class="ai-card-tag">Predictive</div>
+                </div>
+            </div>
+
+            <div class="ai-card animate-fade-up delay-2">
+                <div class="ai-card-icon ai-icon-teal" aria-hidden="true">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                <div class="ai-card-content">
+                    <h5 class="ai-card-title">Team Health Monitoring</h5>
+                    <p class="ai-card-desc">Composite health scores track overdue rates, blocked tasks, overloaded members, and schedule adherence.</p>
+                    <div class="ai-card-tag">Health Score</div>
+                </div>
+            </div>
+
+            <div class="ai-card animate-fade-up delay-3">
+                <div class="ai-card-icon ai-icon-orange" aria-hidden="true">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="ai-card-content">
+                    <h5 class="ai-card-title">Anomaly Detection</h5>
+                    <p class="ai-card-desc">Detect suspicious audit patterns — activity spikes, off-hours access, and excessive destructive operations in real time.</p>
+                    <div class="ai-card-tag">Security AI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Highlight Banner -->
+        <div class="ai-highlight-banner animate-fade-up">
+            <div class="ai-highlight-icon" aria-hidden="true">
+                <i class="fas fa-magic"></i>
+            </div>
+            <div class="ai-highlight-content">
+                <strong>Executive AI Summaries</strong>
+                <span>Every report includes an AI-generated narrative summary — turning raw data into actionable insights for leadership.</span>
+            </div>
+            <div class="ai-highlight-icon-end" aria-hidden="true">
+                <i class="fas fa-file-alt"></i>
+            </div>
+        </div>
+    </section>
+
+    <!-- Reports Section -->
+    <section class="reports-section" aria-label="Reporting features">
+        <div class="text-center mb-5 animate-fade-up">
+            <span class="section-label section-label-reports">
+                <i class="fas fa-chart-pie me-1"></i> Reporting
+            </span>
+            <h2 class="section-title">Reports that drive decisions</h2>
+            <p class="section-subtitle">
+                From daily task tracking to executive-level digests — generate, export, and schedule reports across every dimension of your organization.
+            </p>
+        </div>
+
+        <div class="reports-grid animate-fade-up">
+            <!-- Report Type Cards -->
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div class="report-icon report-icon-tasks" aria-hidden="true">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h5 class="report-card-title">Task Reports</h5>
+                </div>
+                <p class="report-card-desc">Filter by status, priority, project, date range. Track overdue items, blocked work, and team velocity.</p>
+                <div class="report-card-tags">
+                    <span class="report-tag">Filterable</span>
+                    <span class="report-tag">Exportable</span>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div class="report-icon report-icon-projects" aria-hidden="true">
+                        <i class="fas fa-project-diagram"></i>
+                    </div>
+                    <h5 class="report-card-title">Project Reports</h5>
+                </div>
+                <p class="report-card-desc">Budget tracking, task completion rates, department breakdowns, and project status at a glance.</p>
+                <div class="report-card-tags">
+                    <span class="report-tag">Budget</span>
+                    <span class="report-tag">Completion %</span>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div class="report-icon report-icon-dept" aria-hidden="true">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    <h5 class="report-card-title">Department Reports</h5>
+                </div>
+                <p class="report-card-desc">Employee counts, project distribution, open tasks per department — ideal for cross-functional oversight.</p>
+                <div class="report-card-tags">
+                    <span class="report-tag">Cross-Dept</span>
+                    <span class="report-tag">Manager View</span>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div class="report-icon report-icon-audit" aria-hidden="true">
+                        <i class="fas fa-user-secret"></i>
+                    </div>
+                    <h5 class="report-card-title">Audit & Security</h5>
+                </div>
+                <p class="report-card-desc">Full audit trail with anomaly detection, failed login tracking, and off-hours activity alerts for CEOs.</p>
+                <div class="report-card-tags">
+                    <span class="report-tag">CEO Only</span>
+                    <span class="report-tag">AI Anomalies</span>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div class="report-icon report-icon-accuracy" aria-hidden="true">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <h5 class="report-card-title">Estimation Accuracy</h5>
+                </div>
+                <p class="report-card-desc">Compare estimated vs actual hours per employee — identify planning gaps and improve future estimates.</p>
+                <div class="report-card-tags">
+                    <span class="report-tag">Per Employee</span>
+                    <span class="report-tag">Ratio Analysis</span>
+                </div>
+            </div>
+
+            <div class="report-card">
+                <div class="report-card-header">
+                    <div class="report-icon report-icon-digest" aria-hidden="true">
+                        <i class="fas fa-newspaper"></i>
+                    </div>
+                    <h5 class="report-card-title">Executive Digest</h5>
+                </div>
+                <p class="report-card-desc">Weekly AI-powered digest with key metrics, risk highlights, and team health — delivered to leadership.</p>
+                <div class="report-card-tags">
+                    <span class="report-tag">AI Narrative</span>
+                    <span class="report-tag">Weekly</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Formats Strip -->
+        <div class="export-strip animate-fade-up">
+            <div class="export-strip-title">
+                <i class="fas fa-download me-2"></i>
+                Export in any format
+            </div>
+            <div class="export-formats">
+                <div class="export-format">
+                    <i class="fas fa-file-pdf"></i>
+                    <span>PDF</span>
+                </div>
+                <div class="export-format">
+                    <i class="fas fa-file-excel"></i>
+                    <span>Excel</span>
+                </div>
+                <div class="export-format">
+                    <i class="fas fa-file-csv"></i>
+                    <span>CSV</span>
+                </div>
+                <div class="export-format">
+                    <i class="fas fa-clock"></i>
+                    <span>Scheduled Jobs</span>
+                </div>
+                <div class="export-format">
+                    <i class="fas fa-save"></i>
+                    <span>Saved Presets</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Trust Section -->
+    <section class="trust-section animate-fade-up" aria-label="Platform trust indicators">
+        <div class="text-center mb-4">
+            <h3 class="trust-title">Built for teams that demand more</h3>
+        </div>
+        <div class="trust-grid">
+            <div class="trust-card">
+                <div class="trust-card-icon" aria-hidden="true">
+                    <i class="fas fa-users"></i>
+                </div>
+                <strong>Built for growing teams</strong>
+                <span>Scale from 5 to 500+ without changing tools</span>
+            </div>
+            <div class="trust-card">
+                <div class="trust-card-icon" aria-hidden="true">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <strong>Secure role-based access</strong>
+                <span>Granular permissions for every role</span>
+            </div>
+            <div class="trust-card">
+                <div class="trust-card-icon" aria-hidden="true">
+                    <i class="fas fa-cloud"></i>
+                </div>
+                <strong>Cloud-ready architecture</strong>
+                <span>Deploy anywhere, access everywhere</span>
+            </div>
+            <div class="trust-card">
+                <div class="trust-card-icon" aria-hidden="true">
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <strong>Designed for productivity</strong>
+                <span>Focus on accountability & outcomes</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="cta-section animate-fade-up" aria-label="Call to action">
+        <div class="cta-inner">
+            <h2 class="cta-title">Ready to streamline your operations?</h2>
+            <p class="cta-subtitle">Join teams already using CompanyFlow to ship faster and stay aligned.</p>
+            <a asp-controller="Account" asp-action="Login" class="btn-hero-primary">
+                Start Now — It's Free <i class="fas fa-arrow-right ms-2"></i>
+            </a>
+        </div>
+    </section>
 </div>
+
+@section Styles {
+<style>
+    /* ── Scroll-triggered fade-in animations ── */
+    .animate-fade-up {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .animate-fade-up.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    .animate-fade-up.delay-1 { transition-delay: 0.08s; }
+    .animate-fade-up.delay-2 { transition-delay: 0.16s; }
+    .animate-fade-up.delay-3 { transition-delay: 0.24s; }
+
+    /* Hero always visible immediately (first paint) */
+    .landing-hero .animate-fade-up {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: heroFadeUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .landing-hero .delay-1 { animation-delay: 0.1s; }
+    .landing-hero .delay-2 { animation-delay: 0.2s; }
+    .landing-hero .delay-3 { animation-delay: 0.35s; }
+
+    @@keyframes heroFadeUp {
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    // Intersection Observer for scroll-triggered animations
+    (function () {
+        var targets = document.querySelectorAll('.animate-fade-up:not(.landing-hero .animate-fade-up)');
+        if (!targets.length) return;
+
+        // Sections outside hero = triggered on scroll
+        if ('IntersectionObserver' in window) {
+            var observer = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+            targets.forEach(function (el) { observer.observe(el); });
+        } else {
+            // Fallback: show all immediately
+            targets.forEach(function (el) { el.classList.add('visible'); });
+        }
+    })();
+</script>
+}

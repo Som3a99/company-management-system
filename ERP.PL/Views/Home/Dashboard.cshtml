@@ -8,36 +8,70 @@
     <div class="dash-header animate-in">
         <div class="d-flex flex-wrap align-items-end justify-content-between gap-3">
             <div>
-                <h1 class="dash-title">Dashboard</h1>
-                <p class="dash-subtitle">Workforce operations, organizational structure &amp; business intelligence</p>
+                <h1 class="dash-title">
+                    @if (Model.IsEmployee)
+                    {
+                        <text>My Dashboard</text>
+                    }
+                    else if (Model.IsManager)
+                    {
+                        <text>Team Dashboard</text>
+                    }
+                    else
+                    {
+                        <text>Executive Dashboard</text>
+                    }
+                </h1>
+                <p class="dash-subtitle">
+                    @if (Model.IsEmployee)
+                    {
+                        <text>Your tasks, projects &amp; assignments at a glance</text>
+                    }
+                    else if (Model.IsManager)
+                    {
+                        <text>Team operations, project progress &amp; workforce overview</text>
+                    }
+                    else
+                    {
+                        <text>Workforce operations, organizational structure &amp; business intelligence</text>
+                    }
+                </p>
+            </div>
+            <div class="d-flex align-items-center gap-2" style="font-size: 0.8125rem; color: var(--text-muted);">
+                <span class="badge" style="background: rgba(var(--accent-main-rgb), 0.1); color: var(--accent); font-weight: 600; padding: 0.375rem 0.75rem;">
+                    @Model.UserRole
+                </span>
             </div>
         </div>
     </div>
 
     <!-- Quick Stats -->
     <div class="row g-3 mb-4 animate-in" style="animation-delay: 0.04s">
-        <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(var(--accent-main-rgb), 0.1); color: var(--accent);">
-                    <i class="fas fa-sitemap"></i>
-                </div>
-                <div>
-                    <div class="stat-value">@Model.ActiveDepartments</div>
-                    <div class="stat-label">Departments</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(var(--success-rgb), 0.1); color: var(--success);">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div>
-                    <div class="stat-value">@Model.TotalEmployees</div>
-                    <div class="stat-label">Employees</div>
+        @if (Model.CanSeeOrgStats)
+        {
+            <div class="col-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(var(--accent-main-rgb), 0.1); color: var(--accent);">
+                        <i class="fas fa-sitemap"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.ActiveDepartments</div>
+                        <div class="stat-label">Departments</div>
+                    </div>
                 </div>
             </div>
-        </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(var(--success-rgb), 0.1); color: var(--success);">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.TotalEmployees</div>
+                        <div class="stat-label">Employees</div>
+                    </div>
+                </div>
+            </div>
+        }
         <div class="col-6 col-lg-3">
             <div class="stat-card">
                 <div class="stat-icon" style="background: rgba(var(--warning-rgb), 0.1); color: var(--warning);">
@@ -49,132 +83,101 @@
                 </div>
             </div>
         </div>
-        <div class="col-6 col-lg-3">
-            <div class="stat-card">
-                <div class="stat-icon" style="background: rgba(var(--info-rgb), 0.1); color: var(--info);">
-                    <i class="fas fa-heartbeat"></i>
-                </div>
-                <div>
-                    <div class="stat-value">@Model.SystemHealthPercentage<span style="font-size: 0.75em;">%</span></div>
-                    <div class="stat-label">System Health</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Module Cards -->
-    <div class="row g-3 animate-in" style="animation-delay: 0.08s">
-
-        @if (Model.Intelligence != null)
+        @if (Model.IsExecutive)
         {
-            <!-- Phase 3 — Proactive Intelligence Widgets -->
-            <div class="col-12">
-                <div class="row g-3 mb-3">
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="border-left: 3px solid var(--danger, #dc3545);">
-                            <div class="stat-icon" style="background: rgba(220,53,69,0.1); color: var(--danger, #dc3545);">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div>
-                                <div class="stat-value">@Model.Intelligence.HighRiskTaskCount</div>
-                                <div class="stat-label">High Risk Tasks</div>
-                            </div>
-                        </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(var(--info-rgb), 0.1); color: var(--info);">
+                        <i class="fas fa-heartbeat"></i>
                     </div>
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="border-left: 3px solid var(--warning, #ffc107);">
-                            <div class="stat-icon" style="background: rgba(255,193,7,0.1); color: var(--warning, #ffc107);">
-                                <i class="fas fa-user-clock"></i>
-                            </div>
-                            <div>
-                                <div class="stat-value">@Model.Intelligence.OverloadedEmployeeCount</div>
-                                <div class="stat-label">Overloaded Staff</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        <div class="stat-card" style="border-left: 3px solid var(--info, #0dcaf0);">
-                            <div class="stat-icon" style="background: rgba(13,202,240,0.1); color: var(--info, #0dcaf0);">
-                                <i class="fas fa-calendar-times"></i>
-                            </div>
-                            <div>
-                                <div class="stat-value">@Model.Intelligence.BehindScheduleProjectCount</div>
-                                <div class="stat-label">Behind Schedule</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-6 col-lg-3">
-                        @{
-                            var health = Model.Intelligence.TeamHealth;
-                            var healthColor = health.Status switch
-                            {
-                                "Healthy" => "var(--success, #198754)",
-                                "Attention" => "var(--warning, #ffc107)",
-                                _ => "var(--danger, #dc3545)"
-                            };
-                        }
-                        <div class="stat-card" style="border-left: 3px solid @healthColor;">
-                            <div class="stat-icon" style="background: rgba(25,135,84,0.1); color: @healthColor;">
-                                <i class="fas fa-heart"></i>
-                            </div>
-                            <div>
-                                <div class="stat-value">@health.Score<span style="font-size: 0.6em;">%</span></div>
-                                <div class="stat-label">Team Health — @health.Status</div>
-                            </div>
-                        </div>
+                    <div>
+                        <div class="stat-value">@Model.SystemHealthPercentage<span style="font-size: 0.75em;">%</span></div>
+                        <div class="stat-label">System Health</div>
                     </div>
                 </div>
             </div>
         }
-
-        <div class="col-lg-4 col-md-6">
-            <div class="card card-featured h-100" data-badge="Workforce & assignments">
-                <div class="card-body">
-                    <div class="card-icon">
-                        <i class="fas fa-users" style="font-size: 1.25rem;"></i>
+        else
+        {
+            <!-- Task quick stats for non-executive roles -->
+            <div class="col-6 col-lg-3">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(var(--info-rgb), 0.1); color: var(--info);">
+                        <i class="fas fa-tasks"></i>
                     </div>
-                    <h5 class="card-title">Employee Management</h5>
-                    <p class="card-text">Maintain comprehensive employee records, track assignments, and manage workforce data across your organization.</p>
-                    <a asp-controller="Employee" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
-                        <span>Access Employees</span>
-                        <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
+                    <div>
+                        <div class="stat-value">@Model.MyOpenTasks</div>
+                        <div class="stat-label">In Progress</div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Executive Intelligence Widgets -->
+    @if (Model.IsExecutive && Model.Intelligence != null)
+    {
+        <div class="row g-3 mb-4 animate-in" style="animation-delay: 0.06s">
+            <div class="col-6 col-lg-3">
+                <div class="stat-card" style="border-left: 3px solid var(--danger, #dc3545);">
+                    <div class="stat-icon" style="background: rgba(220,53,69,0.1); color: var(--danger, #dc3545);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.Intelligence.HighRiskTaskCount</div>
+                        <div class="stat-label">High Risk Tasks</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card" style="border-left: 3px solid var(--warning, #ffc107);">
+                    <div class="stat-icon" style="background: rgba(255,193,7,0.1); color: var(--warning, #ffc107);">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.Intelligence.OverloadedEmployeeCount</div>
+                        <div class="stat-label">Overloaded Staff</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card" style="border-left: 3px solid var(--info, #0dcaf0);">
+                    <div class="stat-icon" style="background: rgba(13,202,240,0.1); color: var(--info, #0dcaf0);">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.Intelligence.BehindScheduleProjectCount</div>
+                        <div class="stat-label">Behind Schedule</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                @{
+                    var health = Model.Intelligence.TeamHealth;
+                    var healthColor = health.Status switch
+                    {
+                        "Healthy" => "var(--success, #198754)",
+                        "Attention" => "var(--warning, #ffc107)",
+                        _ => "var(--danger, #dc3545)"
+                    };
+                }
+                <div class="stat-card" style="border-left: 3px solid @healthColor;">
+                    <div class="stat-icon" style="background: rgba(25,135,84,0.1); color: @healthColor;">
+                        <i class="fas fa-heart"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@health.Score<span style="font-size: 0.6em;">%</span></div>
+                        <div class="stat-label">Team Health — @health.Status</div>
+                    </div>
                 </div>
             </div>
         </div>
+    }
 
-        <div class="col-lg-4 col-md-6">
-            <div class="card card-featured h-100" data-badge="Structure & hierarchy">
-                <div class="card-body">
-                    <div class="card-icon">
-                        <i class="fas fa-sitemap" style="font-size: 1.25rem;"></i>
-                    </div>
-                    <h5 class="card-title">Department Management</h5>
-                    <p class="card-text">Define and organize your company's structure. Create departments, assign roles, and maintain the organizational hierarchy.</p>
-                    <a asp-controller="Department" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
-                        <span>Access Departments</span>
-                        <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
+    <!-- Module Cards -->
+    <div class="row g-3 animate-in" style="animation-delay: 0.08s">
 
-        <div class="col-lg-4 col-md-6">
-            <div class="card card-featured h-100" data-badge="Project portfolio">
-                <div class="card-body">
-                    <div class="card-icon">
-                        <i class="fas fa-folder-open" style="font-size: 1.25rem;"></i>
-                    </div>
-                    <h5 class="card-title">Project Management</h5>
-                    <p class="card-text">Oversee project portfolios, manage budgets and timelines, track progress, and coordinate team assignments.</p>
-                    <a asp-controller="Project" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
-                        <span>Access Projects</span>
-                        <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-
+        <!-- Tasks — ALL roles -->
         <div class="col-lg-4 col-md-6">
             <div class="card card-featured h-100" data-badge="Operational productivity">
                 <div class="card-body">
@@ -201,37 +204,96 @@
             </div>
         </div>
 
+        <!-- Projects — ALL roles -->
         <div class="col-lg-4 col-md-6">
-            <div class="card card-featured h-100" data-badge="Security & access">
+            <div class="card card-featured h-100" data-badge="Project portfolio">
                 <div class="card-body">
                     <div class="card-icon">
-                        <i class="fas fa-shield-alt" style="font-size: 1.25rem;"></i>
+                        <i class="fas fa-folder-open" style="font-size: 1.25rem;"></i>
                     </div>
-                    <h5 class="card-title">User Account Management</h5>
-                    <p class="card-text">Create and manage system user accounts, assign roles and permissions, and control access across the platform.</p>
-                    <a asp-controller="UserManagement" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
-                        <span>Access User Accounts</span>
+                    <h5 class="card-title">Project Management</h5>
+                    <p class="card-text">Oversee project portfolios, manage budgets and timelines, track progress, and coordinate team assignments.</p>
+                    <a asp-controller="Project" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                        <span>Access Projects</span>
                         <i class="fas fa-arrow-right ms-1"></i>
                     </a>
                 </div>
             </div>
         </div>
 
-        <div class="col-lg-4 col-md-6">
-            <div class="card card-featured h-100" data-badge="Insights & analytics">
-                <div class="card-body">
-                    <div class="card-icon">
-                        <i class="fas fa-chart-line" style="font-size: 1.25rem;"></i>
+        @if (Model.CanSeeOrgStats)
+        {
+            <!-- Employees — Managers & Executives -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card card-featured h-100" data-badge="Workforce & assignments">
+                    <div class="card-body">
+                        <div class="card-icon">
+                            <i class="fas fa-users" style="font-size: 1.25rem;"></i>
+                        </div>
+                        <h5 class="card-title">Employee Management</h5>
+                        <p class="card-text">Maintain comprehensive employee records, track assignments, and manage workforce data across your organization.</p>
+                        <a asp-controller="Employee" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                            <span>Access Employees</span>
+                            <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
                     </div>
-                    <h5 class="card-title">Reports & Analytics</h5>
-                    <p class="card-text">Generate comprehensive insights and reports for workforce planning, performance tracking, and data-driven decisions.</p>
-                    <a asp-controller="Reporting" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
-                        <span>Access Reports</span>
-                        <i class="fas fa-arrow-right ms-1"></i>
-                    </a>
                 </div>
             </div>
-        </div>
+
+            <!-- Departments — Managers & Executives -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card card-featured h-100" data-badge="Structure & hierarchy">
+                    <div class="card-body">
+                        <div class="card-icon">
+                            <i class="fas fa-sitemap" style="font-size: 1.25rem;"></i>
+                        </div>
+                        <h5 class="card-title">Department Management</h5>
+                        <p class="card-text">Define and organize your company's structure. Create departments, assign roles, and maintain the organizational hierarchy.</p>
+                        <a asp-controller="Department" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                            <span>Access Departments</span>
+                            <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (Model.IsExecutive)
+        {
+            <!-- User Accounts — Executives only -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card card-featured h-100" data-badge="Security & access">
+                    <div class="card-body">
+                        <div class="card-icon">
+                            <i class="fas fa-shield-alt" style="font-size: 1.25rem;"></i>
+                        </div>
+                        <h5 class="card-title">User Account Management</h5>
+                        <p class="card-text">Create and manage system user accounts, assign roles and permissions, and control access across the platform.</p>
+                        <a asp-controller="UserManagement" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                            <span>Access User Accounts</span>
+                            <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports — Executives only -->
+            <div class="col-lg-4 col-md-6">
+                <div class="card card-featured h-100" data-badge="Insights & analytics">
+                    <div class="card-body">
+                        <div class="card-icon">
+                            <i class="fas fa-chart-line" style="font-size: 1.25rem;"></i>
+                        </div>
+                        <h5 class="card-title">Reports & Analytics</h5>
+                        <p class="card-text">Generate comprehensive insights and reports for workforce planning, performance tracking, and data-driven decisions.</p>
+                        <a asp-controller="Reporting" asp-action="Index" class="btn btn-primary btn-primary-lg w-100">
+                            <span>Access Reports</span>
+                            <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        }
     </div>
 </div>
 

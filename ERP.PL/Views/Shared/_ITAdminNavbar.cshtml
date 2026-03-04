@@ -1,0 +1,96 @@
+@* ══════════════════════════════════════════════════════════════
+   IT Admin Navigation — System Administration focused links
+   Organized: Dashboard → Identity → Security → System Tools
+   ══════════════════════════════════════════════════════════════ *@
+
+@* ── Dashboard ── *@
+<li class="nav-item" role="none">
+    <a class="nav-link" asp-area="" asp-controller="ITAdminHome" asp-action="Index" role="menuitem">
+        <i class="fas fa-home nav-icon"></i>
+        <span>Dashboard</span>
+    </a>
+</li>
+
+@* ── User & Identity Management (dropdown) ── *@
+<li class="nav-item dropdown" role="none">
+    <a class="nav-link dropdown-toggle" href="#" id="identityDropdown" role="menuitem"
+       data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fas fa-users-cog nav-icon"></i>
+        <span>Identity</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="identityDropdown">
+        <li>
+            <a class="dropdown-item" asp-controller="UserManagement" asp-action="Index">
+                <i class="fas fa-users me-2"></i>User Accounts
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-controller="UserManagement" asp-action="EmployeesWithoutAccounts">
+                <i class="fas fa-user-plus me-2"></i>Provision Accounts
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-controller="ITAdmin" asp-action="PasswordResetRequests">
+                <i class="fas fa-key me-2"></i>Password Resets
+            </a>
+        </li>
+        <li><hr class="dropdown-divider"></li>
+        <li>
+            <a class="dropdown-item" asp-controller="Account" asp-action="ResetPasswordByAdmin">
+                <i class="fas fa-user-lock me-2"></i>Admin Reset Password
+            </a>
+        </li>
+    </ul>
+</li>
+
+@* ── Security & Monitoring (dropdown) ── *@
+<li class="nav-item dropdown" role="none">
+    <a class="nav-link dropdown-toggle" href="#" id="securityDropdown" role="menuitem"
+       data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fas fa-shield-alt nav-icon"></i>
+        <span>Security</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="securityDropdown">
+        <li>
+            <a class="dropdown-item" asp-controller="Reporting" asp-action="Audit">
+                <i class="fas fa-file-alt me-2"></i>Audit Logs
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-controller="ITAdminHome" asp-action="Index" asp-fragment="security-section">
+                <i class="fas fa-exclamation-triangle me-2"></i>Security Alerts
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-controller="ITAdminHome" asp-action="Index" asp-fragment="audit-section">
+                <i class="fas fa-sign-in-alt me-2"></i>Login Activity
+            </a>
+        </li>
+    </ul>
+</li>
+
+@* ── System Tools (dropdown) ── *@
+<li class="nav-item dropdown" role="none">
+    <a class="nav-link dropdown-toggle" href="#" id="systemDropdown" role="menuitem"
+       data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="fas fa-server nav-icon"></i>
+        <span>System</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="systemDropdown">
+        <li>
+            <a class="dropdown-item" asp-controller="ITAdmin" asp-action="Dashboard">
+                <i class="fas fa-tachometer-alt me-2"></i>System Status
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-controller="Reporting" asp-action="Index">
+                <i class="fas fa-tasks me-2"></i>Report Queue
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-controller="ITAdminHome" asp-action="Index" asp-fragment="infra-section">
+                <i class="fas fa-database me-2"></i>Cache &amp; Storage
+            </a>
+        </li>
+    </ul>
+</li>

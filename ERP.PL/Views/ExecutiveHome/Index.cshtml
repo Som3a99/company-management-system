@@ -1,0 +1,527 @@
+@model ExecutiveHomeDashboardViewModel
+@{
+    ViewData["Title"] = "Executive Dashboard";
+}
+
+<div class="container-fluid px-4">
+    <!-- Page Header -->
+    <div class="dash-header animate-in">
+        <div class="d-flex flex-wrap align-items-end justify-content-between gap-3">
+            <div>
+                <h1 class="dash-title">Executive Dashboard</h1>
+                <p class="dash-subtitle">Workforce operations, organizational structure &amp; business intelligence</p>
+            </div>
+            <div class="d-flex align-items-center gap-2" style="font-size: 0.8125rem; color: var(--text-muted);">
+                <span class="badge" style="background: rgba(var(--accent-main-rgb), 0.1); color: var(--accent); font-weight: 600; padding: 0.375rem 0.75rem;">
+                    @Model.UserRole
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI Overview -->
+    <div class="row g-3 mb-4 animate-in" style="animation-delay: 0.04s">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(var(--accent-main-rgb), 0.1); color: var(--accent);">
+                    <i class="fas fa-sitemap"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.ActiveDepartments</div>
+                    <div class="stat-label">Departments</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(var(--success-rgb), 0.1); color: var(--success);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.TotalEmployees</div>
+                    <div class="stat-label">Employees</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(var(--warning-rgb), 0.1); color: var(--warning);">
+                    <i class="fas fa-project-diagram"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.ActiveProjects</div>
+                    <div class="stat-label">Active Projects</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: rgba(var(--info-rgb), 0.1); color: var(--info);">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                <div>
+                    <div class="stat-value">@Model.SystemHealthPercentage<span style="font-size: 0.75em;">%</span></div>
+                    <div class="stat-label">System Health</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Intelligence Widgets -->
+    @if (Model.Intelligence != null)
+    {
+        <div class="row g-3 mb-4 animate-in" style="animation-delay: 0.06s">
+            <div class="col-6 col-lg-3">
+                <div class="stat-card" style="border-left: 3px solid var(--danger, #dc3545);">
+                    <div class="stat-icon" style="background: rgba(220,53,69,0.1); color: var(--danger, #dc3545);">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.Intelligence.HighRiskTaskCount</div>
+                        <div class="stat-label">High Risk Tasks</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card" style="border-left: 3px solid var(--warning, #ffc107);">
+                    <div class="stat-icon" style="background: rgba(255,193,7,0.1); color: var(--warning, #ffc107);">
+                        <i class="fas fa-user-clock"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.Intelligence.OverloadedEmployeeCount</div>
+                        <div class="stat-label">Overloaded Staff</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="stat-card" style="border-left: 3px solid var(--info, #0dcaf0);">
+                    <div class="stat-icon" style="background: rgba(13,202,240,0.1); color: var(--info, #0dcaf0);">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div>
+                        <div class="stat-value">@Model.Intelligence.BehindScheduleProjectCount</div>
+                        <div class="stat-label">Behind Schedule</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                @if (Model.TeamHealth != null)
+                {
+                    var healthColor = Model.TeamHealth.Status switch
+                    {
+                        "Healthy" => "var(--success, #198754)",
+                        "Attention" => "var(--warning, #ffc107)",
+                        _ => "var(--danger, #dc3545)"
+                    };
+                    <div class="stat-card" style="border-left: 3px solid @healthColor;">
+                        <div class="stat-icon" style="background: rgba(25,135,84,0.1); color: @healthColor;">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">@Model.TeamHealth.Score<span style="font-size: 0.6em;">%</span></div>
+                            <div class="stat-label">Team Health — @Model.TeamHealth.Status</div>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background: rgba(var(--success-rgb), 0.1); color: var(--success);">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <div>
+                            <div class="stat-value">—</div>
+                            <div class="stat-label">Team Health</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="row g-3 animate-in" style="animation-delay: 0.08s">
+        <!-- Left column -->
+        <div class="col-lg-8">
+            <!-- Anomaly Alerts -->
+            @if (Model.AnomalyAlerts.Any())
+            {
+                <div class="card mb-3" style="border-left: 3px solid var(--danger, #dc3545);">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-shield-alt text-danger"></i>
+                            Anomaly Alerts
+                            <span class="badge bg-danger rounded-pill">@Model.AnomalyAlerts.Count</span>
+                        </h5>
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var alert in Model.AnomalyAlerts)
+                            {
+                                <div class="d-flex align-items-start gap-3 p-2 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                                    <span class="badge @alert.SeverityBadgeClass mt-1">@alert.Severity</span>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold" style="font-size: 0.875rem;">@alert.Type</div>
+                                        <small class="text-muted">@alert.Description</small>
+                                    </div>
+                                    <small class="text-muted text-nowrap">@alert.DetectedAt.ToString("MMM dd HH:mm")</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- High Risk Tasks -->
+            @if (Model.HighRiskTasks.Any())
+            {
+                <div class="card mb-3" style="border-left: 3px solid var(--warning, #ffc107);">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                            High Risk Tasks
+                            <span class="badge bg-warning text-dark rounded-pill">@Model.HighRiskTasks.Count</span>
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Task</th>
+                                        <th>Assignee</th>
+                                        <th>Project</th>
+                                        <th>Risk</th>
+                                        <th>Due Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var task in Model.HighRiskTasks)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <a href="@Url.Action("Details", "TaskBoard", new { id = task.Id })" class="text-decoration-none fw-semibold">
+                                                    @task.Title
+                                                </a>
+                                            </td>
+                                            <td><small>@task.AssigneeName</small></td>
+                                            <td><small class="text-muted">@task.ProjectName</small></td>
+                                            <td>
+                                                @{
+                                                    var riskBadge = task.RiskLevel switch
+                                                    {
+                                                        "High" => "bg-danger",
+                                                        "Medium" => "bg-warning text-dark",
+                                                        _ => "bg-success"
+                                                    };
+                                                }
+                                                <span class="badge @riskBadge">@task.RiskScore — @task.RiskLevel</span>
+                                            </td>
+                                            <td>
+                                                @if (task.DueDate.HasValue)
+                                                {
+                                                    <small class="@(task.DueDate.Value < DateTime.UtcNow ? "text-danger fw-semibold" : "text-muted")">
+                                                        @task.DueDate.Value.ToString("MMM dd")
+                                                    </small>
+                                                }
+                                                else
+                                                {
+                                                    <small class="text-muted">—</small>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Department Performance -->
+            @if (Model.DepartmentPerformance.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title d-flex align-items-center gap-2 mb-0">
+                                <i class="fas fa-chart-bar" style="color: var(--accent);"></i>
+                                Department Performance
+                            </h5>
+                            <a asp-controller="Department" asp-action="Index" class="btn btn-sm btn-outline-primary">
+                                View All <i class="fas fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Department</th>
+                                        <th class="text-center">Employees</th>
+                                        <th class="text-center">Active</th>
+                                        <th class="text-center">Completed</th>
+                                        <th class="text-center">Overdue</th>
+                                        <th class="text-center">Rate</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var dept in Model.DepartmentPerformance)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <a href="@Url.Action("Details", "Department", new { id = dept.Id })" class="text-decoration-none fw-semibold">
+                                                    @dept.DepartmentName
+                                                </a>
+                                            </td>
+                                            <td class="text-center">@dept.EmployeeCount</td>
+                                            <td class="text-center">@dept.ActiveTasks</td>
+                                            <td class="text-center text-success">@dept.CompletedTasks</td>
+                                            <td class="text-center">
+                                                @if (dept.OverdueTasks > 0)
+                                                {
+                                                    <span class="text-danger fw-semibold">@dept.OverdueTasks</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">0</span>
+                                                }
+                                            </td>
+                                            <td class="text-center">
+                                                <span style="color: var(--accent);">@dept.CompletionRate%</span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Overdue Trends -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-chart-line" style="color: var(--accent);"></i>
+                        Overdue Task Trends
+                    </h5>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="p-3 rounded text-center" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                                <div class="text-muted mb-1" style="font-size: 0.75rem;">LAST WEEK</div>
+                                <div class="fw-bold fs-4" style="color: var(--text-heading);">@Model.OverdueLastWeek</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded text-center" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                                <div class="text-muted mb-1" style="font-size: 0.75rem;">THIS WEEK</div>
+                                <div class="fw-bold fs-4" style="color: var(--text-heading);">@Model.OverdueThisWeek</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded text-center" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                                <div class="text-muted mb-1" style="font-size: 0.75rem;">TREND</div>
+                                @if (Model.OverdueTasksTrend > 0)
+                                {
+                                    <div class="fw-bold fs-4 text-danger">
+                                        <i class="fas fa-arrow-up"></i> +@Model.OverdueTasksTrend
+                                    </div>
+                                }
+                                else if (Model.OverdueTasksTrend < 0)
+                                {
+                                    <div class="fw-bold fs-4 text-success">
+                                        <i class="fas fa-arrow-down"></i> @Model.OverdueTasksTrend
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="fw-bold fs-4 text-muted">
+                                        <i class="fas fa-minus"></i> 0
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right column: Insights + Quick Actions -->
+        <div class="col-lg-4">
+            <!-- Executive Digest Insights -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-lightbulb" style="color: var(--accent);"></i>
+                        Executive Insights
+                    </h5>
+                    @if (Model.DigestInsights.Any())
+                    {
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var insight in Model.DigestInsights)
+                            {
+                                <div class="d-flex align-items-start gap-2 p-2 rounded" style="background: var(--bg-surface); border: 1px solid var(--border-color);">
+                                    <i class="@insight.Icon mt-1" style="color: var(--accent); font-size: 0.875rem;"></i>
+                                    <div>
+                                        <div class="fw-semibold" style="font-size: 0.8125rem; color: var(--text-heading);">@insight.Title</div>
+                                        <small class="text-muted">@insight.Description</small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-3">
+                            <i class="fas fa-check-circle fs-4 d-block mb-2 text-success"></i>
+                            <small>No critical insights. Everything looks healthy!</small>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Team Health Details -->
+            @if (Model.TeamHealth != null && Model.TeamHealth.RiskFactors.Any())
+            {
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                            <i class="fas fa-heart" style="color: var(--accent);"></i>
+                            Team Health Factors
+                        </h5>
+                        <div class="d-flex flex-column gap-2">
+                            @foreach (var factor in Model.TeamHealth.RiskFactors)
+                            {
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="fas fa-circle text-warning" style="font-size: 0.5rem; margin-top: 0.4rem;"></i>
+                                    <small style="color: var(--text-body);">@factor</small>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Task Summary -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-tasks" style="color: var(--accent);"></i>
+                        Organization Tasks
+                    </h5>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Active Tasks</small>
+                            <span class="fw-semibold">@Model.TotalActiveTasks</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Completed (This Month)</small>
+                            <span class="fw-semibold text-success">@Model.CompletedTasksThisMonth</span>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <small class="text-muted">Overdue</small>
+                            <span class="fw-semibold text-danger">@Model.OverdueTaskCount</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center gap-2 mb-3">
+                        <i class="fas fa-bolt" style="color: var(--accent);"></i>
+                        Quick Actions
+                    </h5>
+                    <div class="d-grid gap-2">
+                        <a asp-controller="Department" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-sitemap me-2"></i>Departments
+                        </a>
+                        <a asp-controller="Employee" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-users me-2"></i>Employees
+                        </a>
+                        <a asp-controller="Project" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-folder-open me-2"></i>Projects
+                        </a>
+                        <a asp-controller="Reporting" asp-action="Index" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-chart-line me-2"></i>Reports
+                        </a>
+                        <a asp-controller="ITAdmin" asp-action="Dashboard" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-cogs me-2"></i>Admin Tools
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .dash-header {
+            padding: 1.5rem 0 1rem;
+        }
+        .dash-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            margin-bottom: 0.25rem;
+        }
+        .dash-subtitle {
+            font-size: 0.9375rem;
+            color: var(--text-muted);
+            margin: 0;
+        }
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            padding: 1rem 1.25rem;
+            border-radius: var(--radius-lg);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            transition: var(--transition-normal);
+        }
+        .stat-card:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .stat-value {
+            font-size: 1.375rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            line-height: 1.2;
+        }
+        .stat-label {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+        .card {
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-heading);
+        }
+        .table > thead > tr > th {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom-width: 1px;
+        }
+        .table > tbody > tr > td {
+            font-size: 0.875rem;
+            padding: 0.625rem 0.5rem;
+        }
+    </style>
+}

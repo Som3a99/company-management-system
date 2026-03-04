@@ -43,20 +43,21 @@ namespace ERP.PL.Mapping.Project
                 .ForMember(dest => dest.ManagerImageUrl,
                     opt => opt.MapFrom(src => src.ProjectManager != null ? src.ProjectManager.ImageUrl : null))
 
-                // Statistics
+                // Statistics — use ProjectEmployees junction table (not the legacy
+                // Employees direct-FK collection) so team counts are accurate.
                 .ForMember(dest => dest.TotalTeamMembers,
-                    opt => opt.MapFrom(src => src.Employees.Count(e => !e.IsDeleted)))
+                    opt => opt.MapFrom(src => src.ProjectEmployees.Count(pe => !pe.Employee.IsDeleted)))
                 .ForMember(dest => dest.ActiveTeamMembers,
-                    opt => opt.MapFrom(src => src.Employees.Count(e => !e.IsDeleted && e.IsActive)))
+                    opt => opt.MapFrom(src => src.ProjectEmployees.Count(pe => !pe.Employee.IsDeleted && pe.Employee.IsActive)))
                 .ForMember(dest => dest.InactiveTeamMembers,
-                    opt => opt.MapFrom(src => src.Employees.Count(e => !e.IsDeleted && !e.IsActive)))
+                    opt => opt.MapFrom(src => src.ProjectEmployees.Count(pe => !pe.Employee.IsDeleted && !pe.Employee.IsActive)))
                 .ForMember(dest => dest.AverageTeamSalary,
-                    opt => opt.MapFrom(src => src.Employees.Any(e => !e.IsDeleted)
-                        ? src.Employees.Where(e => !e.IsDeleted).Average(e => e.Salary)
+                    opt => opt.MapFrom(src => src.ProjectEmployees.Any(pe => !pe.Employee.IsDeleted)
+                        ? src.ProjectEmployees.Where(pe => !pe.Employee.IsDeleted).Average(pe => pe.Employee.Salary)
                         : 0))
                 .ForMember(dest => dest.TotalTeamSalaryExpense,
-                    opt => opt.MapFrom(src => src.Employees.Any(e => !e.IsDeleted)
-                        ? src.Employees.Where(e => !e.IsDeleted).Sum(e => e.Salary)
+                    opt => opt.MapFrom(src => src.ProjectEmployees.Any(pe => !pe.Employee.IsDeleted)
+                        ? src.ProjectEmployees.Where(pe => !pe.Employee.IsDeleted).Sum(pe => pe.Employee.Salary)
                         : 0))
                 .ForMember(dest => dest.DaysInProgress,
                     opt => opt.MapFrom(src => (DateTime.Now - src.StartDate).Days))
@@ -67,28 +68,28 @@ namespace ERP.PL.Mapping.Project
                             : 0
                         : null))
                 .ForMember(dest => dest.BudgetPerTeamMember,
-                    opt => opt.MapFrom(src => src.Employees.Any(e => !e.IsDeleted)
-                        ? src.Budget / src.Employees.Count(e => !e.IsDeleted)
+                    opt => opt.MapFrom(src => src.ProjectEmployees.Any(pe => !pe.Employee.IsDeleted)
+                        ? src.Budget / src.ProjectEmployees.Count(pe => !pe.Employee.IsDeleted)
                         : src.Budget))
 
-                // Team Members (top 10, ordered by name)
+                // Team Members (top 10, ordered by name) — sourced from junction table
                 .ForMember(dest => dest.TeamMembers,
-                    opt => opt.MapFrom(src => src.Employees
-                        .Where(e => !e.IsDeleted)
-                        .OrderBy(e => e.LastName)
-                        .ThenBy(e => e.FirstName)
+                    opt => opt.MapFrom(src => src.ProjectEmployees
+                        .Where(pe => !pe.Employee.IsDeleted)
+                        .OrderBy(pe => pe.Employee.LastName)
+                        .ThenBy(pe => pe.Employee.FirstName)
                         .Take(10)
-                        .Select(e => new ProjectProfileViewModel.TeamMemberSummary
+                        .Select(pe => new ProjectProfileViewModel.TeamMemberSummary
                         {
-                            Id = e.Id,
-                            FirstName = e.FirstName,
-                            LastName = e.LastName,
-                            Position = e.Position,
-                            Email = e.Email,
-                            ImageUrl = e.ImageUrl,
-                            IsActive = e.IsActive,
-                            DepartmentId = e.DepartmentId,
-                            DepartmentName = e.Department != null ? e.Department.DepartmentName : null
+                            Id = pe.Employee.Id,
+                            FirstName = pe.Employee.FirstName,
+                            LastName = pe.Employee.LastName,
+                            Position = pe.Employee.Position,
+                            Email = pe.Employee.Email,
+                            ImageUrl = pe.Employee.ImageUrl,
+                            IsActive = pe.Employee.IsActive,
+                            DepartmentId = pe.Employee.DepartmentId,
+                            DepartmentName = pe.Employee.Department != null ? pe.Employee.Department.DepartmentName : null
                         })
                         .ToList()));
         }

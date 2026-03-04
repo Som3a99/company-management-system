@@ -19,7 +19,7 @@ namespace ERP.PL.Services
             _auditService = auditService;
         }
 
-        public async Task<IReadOnlyList<EmployeeViewModel>> GetEligibleEmployeesAsync(int projectId, int currentEmployeeId, bool isCeo, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<EmployeeViewModel>> GetEligibleEmployeesAsync(int projectId, int currentEmployeeId, bool isCeo, bool isDepartmentManager = false, CancellationToken cancellationToken = default)
         {
             var project = await _context.Projects
                 .AsNoTracking()
@@ -30,7 +30,8 @@ namespace ERP.PL.Services
                 return Array.Empty<EmployeeViewModel>();
             }
 
-            if (!isCeo && project.ProjectManagerId != currentEmployeeId)
+            // Authorization: CEO, DepartmentManager of project's department, or ProjectManager of this project
+            if (!isCeo && !isDepartmentManager && project.ProjectManagerId != currentEmployeeId)
             {
                 return Array.Empty<EmployeeViewModel>();
             }
@@ -40,10 +41,19 @@ namespace ERP.PL.Services
                 .Select(pe => pe.EmployeeId)
                 .ToListAsync(cancellationToken);
 
-            var employees = await _context.Employees
+            var query = _context.Employees
                 .AsNoTracking()
                 .Include(e => e.Department)
-                .Where(e => !e.IsDeleted && e.IsActive && !assignedEmployeeIds.Contains(e.Id))
+                .Where(e => !e.IsDeleted && e.IsActive && !assignedEmployeeIds.Contains(e.Id));
+
+            // Issue 3 fix: Project Manager should only see employees in the
+            // project's department. CEO can see all employees.
+            if (!isCeo)
+            {
+                query = query.Where(e => e.DepartmentId == project.DepartmentId);
+            }
+
+            var employees = await query
                 .OrderBy(e => e.LastName)
                 .ThenBy(e => e.FirstName)
                 .Take(200)
@@ -52,7 +62,7 @@ namespace ERP.PL.Services
             return _mapper.Map<IReadOnlyList<EmployeeViewModel>>(employees);
         }
 
-        public async Task<(bool Succeeded, string Message)> AssignEmployeeAsync(int projectId, int employeeId, int currentEmployeeId, string performedByUserId, string performedBy, bool isCeo, CancellationToken cancellationToken = default)
+        public async Task<(bool Succeeded, string Message)> AssignEmployeeAsync(int projectId, int employeeId, int currentEmployeeId, string performedByUserId, string performedBy, bool isCeo, bool isDepartmentManager = false, CancellationToken cancellationToken = default)
         {
             var project = await _context.Projects
                 .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);
@@ -62,7 +72,7 @@ namespace ERP.PL.Services
                 return (false, "Project not found.");
             }
 
-            if (!isCeo && project.ProjectManagerId != currentEmployeeId)
+            if (!isCeo && !isDepartmentManager && project.ProjectManagerId != currentEmployeeId)
             {
                 await _auditService.LogAsync(performedByUserId, performedBy, "PROJECT_EMPLOYEE_ASSIGN_DENIED", "Project", projectId,
                     succeeded: false, errorMessage: "Cross-project tampering", details: $"ActionType=Assign;ProjectId={projectId};EmployeeId={employeeId}");
@@ -104,7 +114,7 @@ namespace ERP.PL.Services
             return (true, "Employee assigned to project successfully.");
         }
 
-        public async Task<(bool Succeeded, string Message)> RemoveEmployeeAsync(int projectId, int employeeId, int currentEmployeeId, string performedByUserId, string performedBy, bool isCeo, CancellationToken cancellationToken = default)
+        public async Task<(bool Succeeded, string Message)> RemoveEmployeeAsync(int projectId, int employeeId, int currentEmployeeId, string performedByUserId, string performedBy, bool isCeo, bool isDepartmentManager = false, CancellationToken cancellationToken = default)
         {
             var project = await _context.Projects
                 .AsNoTracking()
@@ -115,7 +125,7 @@ namespace ERP.PL.Services
                 return (false, "Project not found.");
             }
 
-            if (!isCeo && project.ProjectManagerId != currentEmployeeId)
+            if (!isCeo && !isDepartmentManager && project.ProjectManagerId != currentEmployeeId)
             {
                 await _auditService.LogAsync(performedByUserId, performedBy, "PROJECT_EMPLOYEE_REMOVE_DENIED", "Project", projectId,
                     succeeded: false, errorMessage: "Cross-project tampering", details: $"ActionType=Remove;ProjectId={projectId};EmployeeId={employeeId}");
