@@ -5,6 +5,9 @@
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![EF Core](https://img.shields.io/badge/EF%20Core-8.0-512BD4)](https://learn.microsoft.com/en-us/ef/core/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-companyflow.runasp.net-brightgreen?logo=microsoftazure)](https://companyflow.runasp.net/)
+
+> **Live Demo:** [https://companyflow.runasp.net](https://companyflow.runasp.net/)
 
 ---
 
@@ -25,6 +28,7 @@
 - [Security Considerations](#security-considerations)
 - [Future Improvements](#future-improvements)
 - [Screenshots](#screenshots)
+- [Live Demo & Hosting](#live-demo--hosting)
 - [Developer Information](#developer-information)
 
 ---
@@ -733,6 +737,35 @@ k6 run Tests/load-tests/reporting-smoke.js
 - **Docker Containerization** — Dockerfile and Docker Compose for containerized deployment.
 - **Audit Log Export** — Export audit trails to external SIEM systems.
 - **Two-Factor Authentication** — TOTP/SMS-based 2FA for enhanced account security.
+
+---
+
+## Live Demo & Hosting
+
+### Live Application
+
+The application is deployed and publicly accessible at:
+
+**https://companyflow.runasp.net/**
+
+### Hosting Environment
+
+| Component | Detail |
+|---|---|
+| **Hosting Provider** | [MonsterASP.NET](https://www.monsterasp.net/) (free-tier ASP.NET hosting) |
+| **Runtime** | .NET 8.0 |
+| **Database** | SQL Server (remote, hosted by MonsterASP.NET) |
+| **Platform** | Windows / IIS |
+| **URL** | [companyflow.runasp.net](https://companyflow.runasp.net/) |
+
+### Hosting Notes
+
+- The application runs on **MonsterASP.NET free-tier hosting**, which provides a shared Windows/IIS environment with a SQL Server database.
+- Database migrations are applied automatically on startup (`ApplyMigrationsOnStartup: true`).
+- Production seeding mode creates only the initial admin account and system roles — no sample data is deployed.
+- Free-tier hosting may have **cold-start delays** — the first request after a period of inactivity can take a few seconds while the application pool spins up.
+- HTTPS is enforced with security headers (CSP, HSTS, X-Frame-Options) applied in the middleware pipeline.
+- Environment-specific configuration is managed via `appsettings.Production.json` with sensitive values overridden through environment variables.
 
 ---
 
