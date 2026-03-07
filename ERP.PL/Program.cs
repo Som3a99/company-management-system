@@ -291,14 +291,15 @@ namespace ERP.PL
 
             #region Configure Kestral Middelware
             // Configure the HTTP request pipeline.
+            // Always use global exception handling for safe error responses
+            app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
             }
             else
             {
-                // Production: catch unhandled exceptions and return safe error responses
-                app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
                 app.UseHsts();
             }
 
@@ -327,6 +328,8 @@ namespace ERP.PL
                 context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
                 // Referrer-Policy - Control referrer information
                 context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+                // Permissions-Policy - Restrict browser features
+                context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
                 // HTTP Strict Transport Security (HTTPS only)
                 if (context.Request.IsHttps)
                 {

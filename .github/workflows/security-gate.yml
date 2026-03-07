@@ -1,0 +1,117 @@
+name: Security Gate
+
+# This workflow acts as a required check that aggregates all security scan results.
+# Configure this as a required status check for branch protection.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-lint:
+    name: Security Lint & Configuration Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets in config files
+        run: |
+          echo "=== Scanning for potential hardcoded secrets ==="
+          FOUND=0
+
+          # Check appsettings files for non-empty passwords/keys
+          for file in $(find . -name "appsettings*.json" -not -path "*/bin/*" -not -path "*/obj/*"); do
+            echo "Checking $file..."
+
+            # Check for non-empty password fields
+            if grep -Pi '"(password|secret|apikey|api_key|token)":\s*"[^"]{8,}"' "$file"; then
+              echo "::error file=$file::Potential hardcoded secret found in $file"
+              FOUND=1
+            fi
+
+            # Check for connection strings with inline passwords
+            if grep -Pi 'Password=[^;]{6,}' "$file"; then
+              echo "::error file=$file::Potential hardcoded database password in $file"
+              FOUND=1
+            fi
+          done
+
+          if [ $FOUND -eq 1 ]; then
+            echo ""
+            echo "::error::Hardcoded secrets detected! Move secrets to environment variables or user-secrets."
+            exit 1
+          else
+            echo "No hardcoded secrets found."
+          fi
+
+      - name: Check .gitignore completeness
+        run: |
+          echo "=== Checking .gitignore ==="
+          MISSING=0
+
+          REQUIRED_PATTERNS=(
+            "appsettings.Production.json"
+            "*.pfx"
+            "*.key"
+            ".env"
+          )
+
+          for pattern in "${REQUIRED_PATTERNS[@]}"; do
+            if ! grep -qF "$pattern" .gitignore; then
+              echo "::warning::Missing .gitignore entry: $pattern"
+              MISSING=1
+            fi
+          done
+
+          # Check for dangerous negation rules that expose secret files
+          if grep -q '!.*appsettings.*\.json' .gitignore; then
+            echo "::error::Dangerous .gitignore negation rule found that may expose config files with secrets"
+            exit 1
+          fi
+
+          if [ $MISSING -eq 1 ]; then
+            echo "::warning::Some recommended .gitignore patterns are missing"
+          else
+            echo ".gitignore looks good."
+          fi
+
+      - name: Verify SECURITY.md exists
+        run: |
+          if [ ! -f "SECURITY.md" ]; then
+            echo "::warning::SECURITY.md not found. Consider adding a security policy."
+          else
+            echo "SECURITY.md found."
+          fi
+
+  build-and-test:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore CompanyManagementSystem.sln
+
+      - name: Build
+        run: dotnet build CompanyManagementSystem.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: |
+          dotnet test Tests/Tests.csproj \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test-results.trx"

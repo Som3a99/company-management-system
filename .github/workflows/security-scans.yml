@@ -1,9 +1,14 @@
 name: Security Scans
 
 on:
+  push:
+    branches: [main, develop]
   pull_request:
   schedule:
     - cron: "0 3 * * 1"
+
+permissions:
+  contents: read
 
 jobs:
   dependency-review:
@@ -14,6 +19,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
 
   dotnet-vulnerability-scan:
     runs-on: ubuntu-latest
@@ -30,4 +37,23 @@ jobs:
         run: dotnet restore CompanyManagementSystem.sln
 
       - name: Scan NuGet vulnerabilities
-        run: dotnet list CompanyManagementSystem.sln package --vulnerable --include-transitive
+        run: |
+          dotnet list CompanyManagementSystem.sln package --vulnerable --include-transitive 2>&1 | tee vuln-report.txt
+          if grep -q "has the following vulnerable packages" vuln-report.txt; then
+            echo "::error::Vulnerable packages detected!"
+            exit 1
+          fi
+
+  dotnet-build-warnings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build with security analyzers
+        run: dotnet build CompanyManagementSystem.sln --configuration Release /p:TreatWarningsAsErrors=false

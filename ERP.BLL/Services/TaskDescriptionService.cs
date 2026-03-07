@@ -65,10 +65,14 @@ namespace ERP.BLL.Services
                     }
                 };
 
-                var requestUrl = $"{_apiUrl}/{_model}:generateContent?key={_apiKey}";
+                var requestUrl = $"{_apiUrl}/{_model}:generateContent";
                 var json = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await client.PostAsync(requestUrl, content);
+
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+                httpRequest.Content = content;
+                httpRequest.Headers.Add("x-goog-api-key", _apiKey);
+                var response = await client.SendAsync(httpRequest);
 
                 if (!response.IsSuccessStatusCode)
                 {

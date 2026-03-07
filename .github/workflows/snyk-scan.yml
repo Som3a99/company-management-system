@@ -1,0 +1,87 @@
+name: Snyk Dependency Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Daily scan at 5 AM UTC
+    - cron: "0 5 * * *"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  snyk-dotnet:
+    name: Snyk .NET Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore CompanyManagementSystem.sln
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/dotnet@master
+        continue-on-error: true  # Allow report upload even on vulnerabilities
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >
+            --file=CompanyManagementSystem.sln
+            --severity-threshold=medium
+            --sarif-file-output=snyk-results.sarif
+
+      - name: Upload Snyk SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-results.sarif
+        continue-on-error: true
+
+  dotnet-audit:
+    name: .NET Built-in Vulnerability Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore CompanyManagementSystem.sln
+
+      - name: Audit NuGet packages for known vulnerabilities
+        run: |
+          echo "=== Vulnerability Scan Results ==="
+          dotnet list CompanyManagementSystem.sln package --vulnerable --include-transitive 2>&1 | tee vulnerability-report.txt
+
+          # Fail the build if vulnerabilities are found
+          if grep -q "has the following vulnerable packages" vulnerability-report.txt; then
+            echo ""
+            echo "::error::Vulnerable NuGet packages detected! Review the report above."
+            exit 1
+          else
+            echo "No known vulnerabilities found."
+          fi
+
+      - name: Check for deprecated packages
+        run: |
+          echo "=== Deprecated Package Check ==="
+          dotnet list CompanyManagementSystem.sln package --deprecated 2>&1 | tee deprecated-report.txt
+
+          if grep -q "has the following deprecated packages" deprecated-report.txt; then
+            echo ""
+            echo "::warning::Deprecated NuGet packages detected. Consider updating."
+          fi

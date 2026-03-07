@@ -1,0 +1,84 @@
+name: OWASP ZAP Dynamic Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan on Wednesday at 2 AM UTC
+    - cron: "0 2 * * 3"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  zap-baseline:
+    name: ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: TestP@ssw0rd123!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'TestP@ssw0rd123!' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore and build
+        run: |
+          dotnet restore CompanyManagementSystem.sln
+          dotnet build ERP.PL/ERP.PL.csproj --configuration Release --no-restore
+
+      - name: Start application
+        env:
+          ASPNETCORE_ENVIRONMENT: Testing
+          ASPNETCORE_URLS: http://localhost:5000
+          ConnectionStrings__DefaultConnection: "Server=localhost,1433;Database=ERPDB_ZAP;User Id=sa;Password=TestP@ssw0rd123!;TrustServerCertificate=True;"
+          Database__ApplyMigrationsOnStartup: "true"
+          Seed__Mode: "None"
+        run: |
+          dotnet run --project ERP.PL/ERP.PL.csproj --configuration Release --no-build &
+          echo "Waiting for application to start..."
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health | grep -q "200"; then
+              echo "Application is ready!"
+              break
+            fi
+            echo "Attempt $i: Waiting..."
+            sleep 5
+          done
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: "http://localhost:5000"
+          rules_file_name: ".zap/rules.tsv"
+          cmd_options: "-a -j"
+          allow_issue_writing: true
+          fail_action: true
+          artifact_name: "zap-report"
+
+      - name: Upload ZAP Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-security-report
+          path: |
+            report_html.html
+            report_json.json
