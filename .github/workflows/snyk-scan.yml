@@ -42,7 +42,7 @@ jobs:
 
       - name: Upload Snyk SARIF to GitHub Security
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: snyk-results.sarif
         continue-on-error: true
